@@ -1,2 +1,2 @@
 # apps
-# A list of productivity apps for TJC staff
+A list of productivity apps for TJC staff
