@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TJC Staff Productivity Tools</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #2c3e50;
+            margin-bottom: 30px;
+        }
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+        .app-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: transform 0.2s;
+        }
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .app-card h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .app-card p {
+            color: #666;
+        }
+        .app-card a {
+            display: inline-block;
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .app-card a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TJC Staff Productivity Tools</h1>
+        <p>A collection of web applications designed to enhance productivity for Temasek Junior College staff</p>
+    </div>
+
+    <div class="app-grid">
+        <div class="app-card">
+            <h2>Timetable Viewer</h2>
+            <p>View and manage class timetables efficiently. Access comprehensive timetable information in an easy-to-read format.</p>
+            <a href="https://physicstjc.github.io/timetable/index.html" target="_blank">Launch Timetable Viewer →</a>
+        </div>
+
+        <div class="app-card">
+            <h2>Timetable Comparison</h2>
+            <p>Compare multiple timetables side by side to identify common free periods and scheduling conflicts.</p>
+            <a href="https://physicstjc.github.io/timetable/compare.html" target="_blank">Launch Comparison Tool →</a>
+        </div>
+
+        <div class="app-card">
+            <h2>SLS Tools</h2>
+            <p>Access Student Learning Space (SLS) related tools and resources to enhance your teaching experience.</p>
+            <a href="https://physicstjc.github.io/sls/" target="_blank">Access SLS Tools →</a>
+        </div>
+
+        <div class="app-card">
+            <h2>PG Automation</h2>
+            <p>Automatically select students to form a group for Parent Gateway.</p>
+            <a href="https://physicstjc.github.io/timetable/pg-automation.html" target="_blank">Launch PG Automation →</a>
+        </div>
+    </div>
+</body>
+</html>
