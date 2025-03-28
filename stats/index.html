@@ -126,25 +126,42 @@
         let currentChart = null;
 
         function filterDataByGender(records, gender) {
-            if (gender === 'all') return records;
-            if (gender === 'F') return records.filter(record => record.sex === gender);
+            if (gender === 'all') return records.filter(record => record.sex === 'MF');
+            if (gender === 'F') return records.filter(record => record.sex === 'F');
             
-            // For male, calculate as difference between total and female
+            // For male, calculate as difference between MF and F
             const years = [...new Set(records.map(record => record.year))];
             const schools = [...new Set(records.map(record => record.school))];
             
             return years.flatMap(year => 
                 schools.map(school => {
-                    const totalRecord = records.find(r => r.year === year && r.school === school && r.sex === 'all');
+                    const mfRecord = records.find(r => r.year === year && r.school === school && r.sex === 'MF');
                     const femaleRecord = records.find(r => r.year === year && r.school === school && r.sex === 'F');
                     
-                    if (!totalRecord || !femaleRecord) return null;
+                    if (!mfRecord || !femaleRecord) {
+                        console.log(`Missing data for ${school} in ${year}:`, {
+                            hasMF: !!mfRecord,
+                            hasF: !!femaleRecord
+                        });
+                        return null;
+                    }
+
+                    // Ensure we have valid numbers
+                    const mfValue = parseFloat(mfRecord.student_enrolment);
+                    const fValue = parseFloat(femaleRecord.student_enrolment);
+                    const mfTeachers = parseFloat(mfRecord.no_of_teacher);
+                    const fTeachers = parseFloat(femaleRecord.no_of_teacher);
+
+                    if (isNaN(mfValue) || isNaN(fValue) || isNaN(mfTeachers) || isNaN(fTeachers)) {
+                        console.log(`Invalid number values for ${school} in ${year}`);
+                        return null;
+                    }
 
                     return {
-                        ...totalRecord,
+                        ...mfRecord,
                         sex: 'M',
-                        student_enrolment: (parseFloat(totalRecord.student_enrolment) - parseFloat(femaleRecord.student_enrolment)).toString(),
-                        no_of_teacher: (parseFloat(totalRecord.no_of_teacher) - parseFloat(femaleRecord.no_of_teacher)).toString()
+                        student_enrolment: (mfValue - fValue).toString(),
+                        no_of_teacher: (mfTeachers - fTeachers).toString()
                     };
                 })
             ).filter(record => record !== null);
