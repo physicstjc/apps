@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Trend Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #2c3e50;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .filter-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .filter-container label {
+            font-weight: 600;
+            margin-right: 15px;
+            color: #34495e;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        input[type="radio"], input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        input[type="radio"] + label, input[type="checkbox"] + label {
+            margin-right: 15px;
+        }
+
+        canvas {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #errorMessage {
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #fee;
+            border: 1px solid #fcc;
+            margin-top: 10px;
+        }
+
+        .main-container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-container {
+                width: 95%;
+                padding: 10px;
+            }
+            
+            select {
+                width: 100%;
+                margin-top: 5px;
+            }
+            
+            .filter-container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>School Statistics Visualization</h1>
+    
+    <div class="main-container">
+        <div class="filter-container">
+            <label>School Type:</label>
+            <select id="schoolType">
+                <option value="all">All Schools</option>
+            </select>
+        </div>
+        <div class="filter-container">
+            <label>Gender Filter:</label>
+            <input type="radio" name="gender" value="all" checked> Both
+            <input type="radio" name="gender" value="F"> Female
+            <input type="radio" name="gender" value="M"> Male
+        </div>
+        <div class="filter-container">
+            <label>Metrics:</label>
+            <div>
+                <input type="checkbox" id="enrolment" value="student_enrolment" checked> Student Enrolment
+                <input type="checkbox" id="teachers" value="no_of_teacher" checked> No. of Teachers
+            </div>
+        </div>
+        <canvas id="trendChart"></canvas>
+        <div id="errorMessage" style="color: red;"></div>
+    </div>
+
+    <script>
+        const dataset_id = "d_dc92b9d107acfa23e1df76b1a33ffb4a";
+        const originalUrl = "https://data.gov.sg/api/action/datastore_search?resource_id=" + dataset_id + "&limit=10000";
+        const corsProxyUrl = "https://cors-anywhere.herokuapp.com/";
+        const url = corsProxyUrl + originalUrl;
+
+        let globalRecords = [];
+        let currentChart = null;
+
+        function filterDataByGender(records, gender) {
+            if (gender === 'all') return records;
+            if (gender === 'F') return records.filter(record => record.sex === gender);
+            
+            // For male, calculate as difference between total and female
+            const years = [...new Set(records.map(record => record.year))];
+            const schools = [...new Set(records.map(record => record.school))];
+            
+            return years.flatMap(year => 
+                schools.map(school => {
+                    const totalRecord = records.find(r => r.year === year && r.school === school && r.sex === 'all');
+                    const femaleRecord = records.find(r => r.year === year && r.school === school && r.sex === 'F');
+                    
+                    if (!totalRecord || !femaleRecord) return null;
+
+                    return {
+                        ...totalRecord,
+                        sex: 'M',
+                        student_enrolment: (parseFloat(totalRecord.student_enrolment) - parseFloat(femaleRecord.student_enrolment)).toString(),
+                        no_of_teacher: (parseFloat(totalRecord.no_of_teacher) - parseFloat(femaleRecord.no_of_teacher)).toString()
+                    };
+                })
+            ).filter(record => record !== null);
+        }
+
+        async function updateChart(records, gender) {
+            const filteredRecords = filterDataByGender(records, gender);
+            const selectedSchool = document.getElementById('schoolType').value;
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            // Get unique years for x-axis
+            const years = [...new Set(filteredRecords.map(record => record.year))].sort();
+            
+            // Filter school types based on selection
+            let schoolTypes = [...new Set(filteredRecords.map(record => record.school))];
+            if (selectedSchool !== 'all') {
+                schoolTypes = schoolTypes.filter(school => school === selectedSchool);
+            }
+
+            const colors = [
+                'rgb(75, 192, 192)',   // Teal
+                'rgb(255, 99, 132)',   // Pink
+            ];
+
+            const metrics = [
+                { id: 'enrolment', field: 'student_enrolment', label: 'Student Enrolment' },
+                { id: 'teachers', field: 'no_of_teacher', label: 'No. of Teachers' }
+            ].filter(metric => document.getElementById(metric.id).checked);
+
+            const datasets = schoolTypes.flatMap((schoolType, typeIndex) => {
+                return metrics.map((metric, metricIndex) => {
+                    const yearlyData = years.map(year => {
+                        const matchingRecords = filteredRecords.filter(record => 
+                            record.school === schoolType && 
+                            record.year === year
+                        );
+                        
+                        const sum = matchingRecords.reduce((acc, record) => 
+                            acc + parseFloat(record[metric.field] || 0), 0);
+                        return sum;
+                    });
+
+                    return {
+                        label: `${schoolType} - ${metric.label} (${gender === 'all' ? 'Both' : gender === 'F' ? 'Female' : 'Male'})`,
+                        data: yearlyData,
+                        borderColor: colors[metricIndex % colors.length],
+                        backgroundColor: colors[metricIndex % colors.length],
+                        tension: 0.1,
+                        hidden: false,
+                        yAxisID: metric.id === 'teachers' ? 'y1' : 'y' // Specify which y-axis to use
+                    };
+                });
+            });
+
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Number of Students'
+                            }
+                        },
+                        y1: {
+                            beginAtZero: false,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Number of Teachers'
+                            },
+                            grid: {
+                                drawOnChartArea: false // Only show grid lines for primary y-axis
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Year'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                filter: function(legendItem, data) {
+                                    return !data.datasets[legendItem.datasetIndex].hidden;
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `School Statistics by Type - ${gender === 'all' ? 'Both Genders' : gender === 'F' ? 'Female' : 'Male'}`
+                        }
+                    }
+                }
+            });
+        }
+
+        async function fetchDataAndCreateChart() {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Origin': 'null',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+                
+                if (!data.result || !data.result.records || !data.result.records.length) {
+                    throw new Error('No data available');
+                }
+
+                globalRecords = data.result.records;
+                
+                // Populate school type dropdown
+                const schoolTypes = [...new Set(globalRecords.map(record => record.school))].sort();
+                const schoolSelect = document.getElementById('schoolType');
+                schoolTypes.forEach(school => {
+                    const option = document.createElement('option');
+                    option.value = school;
+                    option.textContent = school;
+                    schoolSelect.appendChild(option);
+                });
+
+                // Initial chart
+                updateChart(globalRecords, 'all');
+
+                // Add school type change listener
+                document.getElementById('schoolType').addEventListener('change', () => {
+                    const selectedGender = document.querySelector('input[name="gender"]:checked').value;
+                    updateChart(globalRecords, selectedGender);
+                });
+
+                // Event listeners
+                document.querySelectorAll('input[name="gender"]').forEach(radio => {
+                    radio.addEventListener('change', (event) => {
+                        updateChart(globalRecords, event.target.value);
+                    });
+                });
+
+                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.addEventListener('change', () => {
+                        const selectedGender = document.querySelector('input[name="gender"]:checked').value;
+                        updateChart(globalRecords, selectedGender);
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('errorMessage').textContent = 'Error loading data: ' + error.message;
+            }
+        }
+
+        fetchDataAndCreateChart();
+    </script>
+</body>
+</html>
