@@ -113,7 +113,6 @@
             </div>
         </div>
         <canvas id="trendChart"></canvas>
-        <div id="errorMessage" style="color: red;"></div>
     </div>
 
     <script>
@@ -158,8 +157,10 @@
                 currentChart.destroy();
             }
 
-            // Get unique years for x-axis
-            const years = [...new Set(filteredRecords.map(record => record.year))].sort();
+            // Get unique years for x-axis, excluding 2003 and 2004
+            const years = [...new Set(filteredRecords.map(record => record.year))]
+                .filter(year => parseInt(year) >= 2005)
+                .sort();
             
             // Filter school types based on selection
             let schoolTypes = selectedSchool === 'all' ? ['All Schools'] : [selectedSchool];
@@ -177,10 +178,16 @@
             const datasets = schoolTypes.flatMap((schoolType, typeIndex) => {
                 return metrics.map((metric, metricIndex) => {
                     const yearlyData = years.map(year => {
-                        const matchingRecords = filteredRecords.filter(record => 
-                            (selectedSchool === 'all' || record.school === schoolType) && 
-                            record.year === year
-                        );
+                        let matchingRecords;
+                        if (selectedSchool === 'all') {
+                            // For all schools, get any records that have data for this year
+                            matchingRecords = filteredRecords.filter(record => record.year === year);
+                        } else {
+                            matchingRecords = filteredRecords.filter(record => 
+                                record.school === schoolType && 
+                                record.year === year
+                            );
+                        }
                         
                         const sum = matchingRecords.reduce((acc, record) => 
                             acc + parseFloat(record[metric.field] || 0), 0);
