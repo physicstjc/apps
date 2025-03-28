@@ -162,10 +162,7 @@
             const years = [...new Set(filteredRecords.map(record => record.year))].sort();
             
             // Filter school types based on selection
-            let schoolTypes = [...new Set(filteredRecords.map(record => record.school))];
-            if (selectedSchool !== 'all') {
-                schoolTypes = schoolTypes.filter(school => school === selectedSchool);
-            }
+            let schoolTypes = selectedSchool === 'all' ? ['All Schools'] : [selectedSchool];
 
             const colors = [
                 'rgb(75, 192, 192)',   // Teal
@@ -181,7 +178,7 @@
                 return metrics.map((metric, metricIndex) => {
                     const yearlyData = years.map(year => {
                         const matchingRecords = filteredRecords.filter(record => 
-                            record.school === schoolType && 
+                            (selectedSchool === 'all' || record.school === schoolType) && 
                             record.year === year
                         );
                         
@@ -197,7 +194,7 @@
                         backgroundColor: colors[metricIndex % colors.length],
                         tension: 0.1,
                         hidden: false,
-                        yAxisID: metric.id === 'teachers' ? 'y1' : 'y' // Specify which y-axis to use
+                        yAxisID: metric.id === 'teachers' ? 'y1' : 'y'
                     };
                 });
             });
