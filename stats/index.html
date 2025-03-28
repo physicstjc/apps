@@ -138,30 +138,13 @@
                     const mfRecord = records.find(r => r.year === year && r.school === school && r.sex === 'MF');
                     const femaleRecord = records.find(r => r.year === year && r.school === school && r.sex === 'F');
                     
-                    if (!mfRecord || !femaleRecord) {
-                        console.log(`Missing data for ${school} in ${year}:`, {
-                            hasMF: !!mfRecord,
-                            hasF: !!femaleRecord
-                        });
-                        return null;
-                    }
-
-                    // Ensure we have valid numbers
-                    const mfValue = parseFloat(mfRecord.student_enrolment);
-                    const fValue = parseFloat(femaleRecord.student_enrolment);
-                    const mfTeachers = parseFloat(mfRecord.no_of_teacher);
-                    const fTeachers = parseFloat(femaleRecord.no_of_teacher);
-
-                    if (isNaN(mfValue) || isNaN(fValue) || isNaN(mfTeachers) || isNaN(fTeachers)) {
-                        console.log(`Invalid number values for ${school} in ${year}`);
-                        return null;
-                    }
+                    if (!mfRecord || !femaleRecord) return null;
 
                     return {
                         ...mfRecord,
                         sex: 'M',
-                        student_enrolment: (mfValue - fValue).toString(),
-                        no_of_teacher: (mfTeachers - fTeachers).toString()
+                        student_enrolment: (parseFloat(mfRecord.student_enrolment) - parseFloat(femaleRecord.student_enrolment)).toString(),
+                        no_of_teacher: (parseFloat(mfRecord.no_of_teacher) - parseFloat(femaleRecord.no_of_teacher)).toString()
                     };
                 })
             ).filter(record => record !== null);
