@@ -109,7 +109,8 @@
             <label>Metrics:</label>
             <div>
                 <input type="checkbox" id="enrolment" value="student_enrolment" checked> Student Enrolment
-                <input type="checkbox" id="teachers" value="no_of_teacher" checked> No. of Teachers
+                <input type="radio" name="teacherMetric" value="teachers" checked> No. of Teachers
+                <input type="radio" name="teacherMetric" value="ratio"> Student-Teacher Ratio
             </div>
         </div>
         <canvas id="trendChart"></canvas>
@@ -152,6 +153,7 @@
         async function updateChart(records, gender) {
             const filteredRecords = filterDataByGender(records, gender);
             const selectedSchool = document.getElementById('schoolType').value;
+            const showRatio = document.querySelector('input[name="teacherMetric"]:checked').value === 'ratio';
             
             if (currentChart) {
                 currentChart.destroy();
@@ -162,7 +164,6 @@
                 .filter(year => parseInt(year) >= 2005)
                 .sort();
             
-            // Filter school types based on selection
             let schoolTypes = selectedSchool === 'all' ? ['All Schools'] : [selectedSchool];
 
             const colors = [
@@ -172,15 +173,20 @@
 
             const metrics = [
                 { id: 'enrolment', field: 'student_enrolment', label: 'Student Enrolment' },
-                { id: 'teachers', field: 'no_of_teacher', label: 'No. of Teachers' }
-            ].filter(metric => document.getElementById(metric.id).checked);
+                { 
+                    id: showRatio ? 'ratio' : 'teachers', 
+                    field: showRatio ? 'ratio' : 'no_of_teacher', 
+                    label: showRatio ? 'Student-Teacher Ratio' : 'No. of Teachers'
+                }
+            ].filter(metric => 
+                metric.id === 'enrolment' ? document.getElementById('enrolment').checked : true
+            );
 
             const datasets = schoolTypes.flatMap((schoolType, typeIndex) => {
                 return metrics.map((metric, metricIndex) => {
                     const yearlyData = years.map(year => {
                         let matchingRecords;
                         if (selectedSchool === 'all') {
-                            // For all schools, get any records that have data for this year
                             matchingRecords = filteredRecords.filter(record => record.year === year);
                         } else {
                             matchingRecords = filteredRecords.filter(record => 
@@ -189,9 +195,16 @@
                             );
                         }
                         
-                        const sum = matchingRecords.reduce((acc, record) => 
+                        if (metric.id === 'ratio') {
+                            const totalStudents = matchingRecords.reduce((acc, record) => 
+                                acc + parseFloat(record.student_enrolment || 0), 0);
+                            const totalTeachers = matchingRecords.reduce((acc, record) => 
+                                acc + parseFloat(record.no_of_teacher || 0), 0);
+                            return totalTeachers > 0 ? (totalStudents / totalTeachers).toFixed(1) : 0;
+                        }
+
+                        return matchingRecords.reduce((acc, record) => 
                             acc + parseFloat(record[metric.field] || 0), 0);
-                        return sum;
                     });
 
                     return {
@@ -201,7 +214,7 @@
                         backgroundColor: colors[metricIndex % colors.length],
                         tension: 0.1,
                         hidden: false,
-                        yAxisID: metric.id === 'teachers' ? 'y1' : 'y'
+                        yAxisID: metric.id === 'enrolment' ? 'y' : 'y1'
                     };
                 });
             });
@@ -221,7 +234,11 @@
                             position: 'left',
                             title: {
                                 display: true,
-                                text: 'Number of Students'
+                                text: 'Number of Students',
+                                color: colors[0]
+                            },
+                            ticks: {
+                                color: colors[0]
                             }
                         },
                         y1: {
@@ -229,10 +246,14 @@
                             position: 'right',
                             title: {
                                 display: true,
-                                text: 'Number of Teachers'
+                                text: showRatio ? 'Students per Teacher' : 'Number of Teachers',
+                                color: colors[1]
+                            },
+                            ticks: {
+                                color: colors[1]
                             },
                             grid: {
-                                drawOnChartArea: false // Only show grid lines for primary y-axis
+                                drawOnChartArea: false
                             }
                         },
                         x: {
@@ -311,6 +332,12 @@
                     });
                 });
 
+                document.querySelectorAll('input[name="teacherMetric"]').forEach(radio => {
+                    radio.addEventListener('change', () => {
+                        const selectedGender = document.querySelector('input[name="gender"]:checked').value;
+                        updateChart(globalRecords, selectedGender);
+                    });
+                });
             } catch (error) {
                 console.error('Error:', error);
                 document.getElementById('errorMessage').textContent = 'Error loading data: ' + error.message;
