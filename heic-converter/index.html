@@ -153,96 +153,101 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
-    <script>
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const convertBtn = document.getElementById('convertBtn');
-        const fileList = document.getElementById('fileList');
-        const progressContainer = document.querySelector('.progress-container');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        
-        let selectedFiles = [];
-
-        dropZone.addEventListener('click', () => fileInput.click());
-        
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            const files = Array.from(e.dataTransfer.files).filter(file => 
-                file.name.toLowerCase().endsWith('.heic')
-            );
-            handleFiles(files);
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            handleFiles(Array.from(e.target.files));
-        });
-
-        function handleFiles(files) {
-            selectedFiles = files;
-            fileList.innerHTML = files.map(file => 
-                `<div>${file.name}</div>`
-            ).join('');
-            convertBtn.disabled = files.length === 0;
-        }
-
-        convertBtn.addEventListener('click', async () => {
-            convertBtn.disabled = true;
-            progressContainer.style.display = 'block';
+    <!-- Update CDN links to use latest versions and CORS-friendly URLs -->
+        <script src="https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+    
+        <script>
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            const convertBtn = document.getElementById('convertBtn');
+            const fileList = document.getElementById('fileList');
+            const progressContainer = document.querySelector('.progress-container');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
             
-            const zip = new JSZip();
+            let selectedFiles = [];
+    
+            dropZone.addEventListener('click', () => fileInput.click());
             
-            for (let i = 0; i < selectedFiles.length; i++) {
-                const file = selectedFiles[i];
-                try {
-                    progressText.textContent = `Converting ${file.name}...`;
-                    progressBar.style.width = `${(i / selectedFiles.length) * 100}%`;
-                    
-                    const blob = new Blob([file], { type: file.type });
-                    const convertedBuffer = await heic2any({
-                        blob: blob,
-                        toType: "image/jpeg",
-                        quality: 0.8
-                    });
-            
-                    // Add the converted file to the zip
-                    const fileName = file.name.toLowerCase().replace('.heic', '.jpg');
-                    zip.file(fileName, convertedBuffer);
-                } catch (error) {
-                    console.error(`Error converting ${file.name}:`, error);
-                }
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+    
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+    
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files).filter(file => 
+                    file.name.toLowerCase().endsWith('.heic')
+                );
+                handleFiles(files);
+            });
+    
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(Array.from(e.target.files));
+            });
+    
+            function handleFiles(files) {
+                selectedFiles = files;
+                fileList.innerHTML = files.map(file => 
+                    `<div>${file.name}</div>`
+                ).join('');
+                convertBtn.disabled = files.length === 0;
             }
     
-            progressText.textContent = 'Creating ZIP file...';
-            
-            // Generate the zip file and trigger download
-            const zipBlob = await zip.generateAsync({type: 'blob'});
-            saveAs(zipBlob, 'converted_images.zip');
+            convertBtn.addEventListener('click', async () => {
+                convertBtn.disabled = true;
+                progressContainer.style.display = 'block';
+                
+                const zip = new JSZip();
+                
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    try {
+                        progressText.textContent = `Converting ${file.name}...`;
+                        progressBar.style.width = `${(i / selectedFiles.length) * 100}%`;
+                        
+                        // Modified file handling
+                        const convertedBuffer = await heic2any({
+                            blob: file,  // Pass the file directly instead of creating a new blob
+                            toType: "image/jpeg",
+                            quality: 0.8
+                        });
+                
+                        const fileName = file.name.toLowerCase().replace('.heic', '.jpg');
+                        zip.file(fileName, convertedBuffer);
+                    } catch (error) {
+                        console.error(`Error converting ${file.name}:`, error);
+                        progressText.textContent = `Error converting ${file.name}. Please try again.`;
+                    }
+                }
+        
+                try {
+                    progressText.textContent = 'Creating ZIP file...';
+                    const zipBlob = await zip.generateAsync({type: 'blob'});
+                    saveAs(zipBlob, 'converted_images.zip');
+                    
+                    progressBar.style.width = '100%';
+                    progressText.textContent = 'Conversion complete!';
+                } catch (error) {
+                    console.error('Error creating zip:', error);
+                    progressText.textContent = 'Error creating zip file. Please try again.';
+                }
     
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Conversion complete!';
-            setTimeout(() => {
-                progressContainer.style.display = 'none';
-                progressBar.style.width = '0';
-                convertBtn.disabled = false;
-                fileList.innerHTML = '';
-                selectedFiles = [];
-            }, 2000);
-        });
-    </script>
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressBar.style.width = '0';
+                    convertBtn.disabled = false;
+                    fileList.innerHTML = '';
+                    selectedFiles = [];
+                }, 2000);
+            });
+        </script>
 </body>
 </html>
