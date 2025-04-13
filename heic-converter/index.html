@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEIC to JPG Converter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            text-align: center;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 0.5em;
+            color: #1d1d1f;
+        }
+
+        .description {
+            margin-bottom: 2em;
+            color: #666;
+        }
+
+        .description p {
+            margin: 0.5em 0;
+        }
+
+        .description .sub-text {
+            font-size: 0.9em;
+            color: #888;
+            max-width: 600px;
+            margin: 0.5em auto;
+        }
+
+        .drop-zone {
+            border: 3px dashed #4CAF50;
+            padding: 40px;
+            margin: 40px 0;
+            border-radius: 16px;
+            cursor: pointer;
+            min-height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .drop-zone.dragover {
+            background-color: #f0f9f0;
+            border-color: #2e7d32;
+            transform: scale(1.02);
+        }
+
+        #convertBtn {
+            padding: 12px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #convertBtn:hover:not(:disabled) {
+            background-color: #45a049;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #convertBtn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #fileList {
+            margin: 20px 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        #fileList div {
+            padding: 8px;
+            background-color: white;
+            margin: 5px 0;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .progress-container {
+            margin-top: 30px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background-color: #e8e8e8;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        #progressText {
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>HEIC to JPG Converter</h1>
+    <div class="description">
+        <p>Convert your iPhone's HEIC photos to standard JPG format</p>
+        <p class="sub-text">HEIC is Apple's high-efficiency image format. This tool helps you convert these photos to the widely-compatible JPG format.</p>
+    </div>
+    <div class="drop-zone" id="dropZone">
+        Drop HEIC files here or click to select
+        <input type="file" id="fileInput" multiple accept=".heic" style="display: none;">
+    </div>
+    <button id="convertBtn" disabled>Convert Files</button>
+    <div id="fileList"></div>
+    <div class="progress-container" style="display: none;">
+        <div id="progressText">Converting...</div>
+        <div class="progress-bar">
+            <div class="progress" id="progressBar"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const fileList = document.getElementById('fileList');
+        const progressContainer = document.querySelector('.progress-container');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        
+        let selectedFiles = [];
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(file => 
+                file.name.toLowerCase().endsWith('.heic')
+            );
+            handleFiles(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(Array.from(e.target.files));
+        });
+
+        function handleFiles(files) {
+            selectedFiles = files;
+            fileList.innerHTML = files.map(file => 
+                `<div>${file.name}</div>`
+            ).join('');
+            convertBtn.disabled = files.length === 0;
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            convertBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            
+            const zip = new JSZip();
+            
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                try {
+                    progressText.textContent = `Converting ${file.name}...`;
+                    progressBar.style.width = `${(i / selectedFiles.length) * 100}%`;
+                    
+                    const blob = new Blob([file], { type: file.type });
+                    const convertedBuffer = await heic2any({
+                        blob: blob,
+                        toType: "image/jpeg",
+                        quality: 0.8
+                    });
+            
+                    // Add the converted file to the zip
+                    const fileName = file.name.toLowerCase().replace('.heic', '.jpg');
+                    zip.file(fileName, convertedBuffer);
+                } catch (error) {
+                    console.error(`Error converting ${file.name}:`, error);
+                }
+            }
+    
+            progressText.textContent = 'Creating ZIP file...';
+            
+            // Generate the zip file and trigger download
+            const zipBlob = await zip.generateAsync({type: 'blob'});
+            saveAs(zipBlob, 'converted_images.zip');
+    
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Conversion complete!';
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0';
+                convertBtn.disabled = false;
+                fileList.innerHTML = '';
+                selectedFiles = [];
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
