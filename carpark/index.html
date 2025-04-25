@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HDB Carpark Availability Checker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        input { padding: 5px; margin-right: 10px; }
+        button { padding: 5px 10px; }
+    </style>
+</head>
+<body>
+    <h1>HDB Carpark Availability Checker</h1>
+    <h2>Carparks near Temasek JC</h2>
+
+    <div>
+        <label for="carparks">Enter additional carpark numbers (comma-separated):</label>
+        <input type="text" id="carparks">
+        <button onclick="checkAvailability()">Check Availability</button>
+    </div>
+
+    <table id="results">
+        <thead>
+            <tr>
+                <th>Carpark Number</th>
+                <th>Block Number</th>
+                <th>Update Time</th>
+                <th>Lot Type</th>
+                <th>Total Lots</th>
+                <th>Lots Available</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.6988590155843!2d103.9536105768848!3d1.3572997615478641!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31da22b7b378525b%3A0xb349c60aceb7e7e5!2sTemasek%20Junior%20College!5e0!3m2!1sen!2ssg!4v1716004031153!5m2!1sen!2ssg" width="600" height="450" style="border:0; margin-top: 20px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+    <p>Check carpark no. using <a href="https://services2.hdb.gov.sg/webapp/BN22AWCarParkEnqWeb/BN22CpkInfoSearch.jsp" target="_blank">HDB Carpark Info Search</a></p>
+
+    <script>
+        const carparkDetails = {
+            'TM44': 'Blk 499 Tampines Ave 9',
+            'T79': 'Blk 460 Tampines St 42',
+            'TM12': 'Blk 390A Tampines Ave 7'
+        };
+
+        const predefinedCarparks = ['TM44', 'T79', 'TM12'];
+
+        async function checkAvailability() {
+            const additionalCarparks = document.getElementById('carparks').value
+                .split(',')
+                .map(cp => cp.trim())
+                .filter(cp => cp);
+            
+            const carparksToMonitor = [...predefinedCarparks, ...additionalCarparks];
+            const results = await getCarparkAvailability(carparksToMonitor);
+            displayResults(results);
+        }
+
+        async function getCarparkAvailability(carparkNumbers) {
+            const url = 'https://api.data.gov.sg/v1/transport/carpark-availability';
+            const dateTime = new Date().toISOString();
+            
+            try {
+                const response = await fetch(`${url}?date_time=${dateTime}`);
+                const data = await response.json();
+                
+                // Check API status
+                if (!data.api_info || data.api_info.status !== 'healthy') {
+                    return { error: 'API is currently unavailable. Please try again later.' };
+                }
+
+                const carparkData = data.items[0].carpark_data;
+                const results = [];
+                
+                carparkNumbers.forEach(carparkNumber => {
+                    const carpark = carparkData.find(c => c.carpark_number === carparkNumber);
+                    if (carpark) {
+                        const carparkInfo = {
+                            carpark_number: carpark.carpark_number,
+                            update_datetime: data.items[0].timestamp,
+                            block_number: carparkDetails[carpark.carpark_number] || 'Unknown',
+                            lots_available: carpark.carpark_info.map(info => ({
+                                lot_type: info.lot_type,
+                                total_lots: info.total_lots,
+                                lots_available: info.lots_available
+                            }))
+                        };
+                        results.push(carparkInfo);
+                    }
+                });
+                
+                return results;
+            } catch (error) {
+                console.error('Error:', error);
+                return { error: 'Failed to fetch data. Please check your internet connection.' };
+            }
+        }
+
+        async function checkAvailability() {
+            const additionalCarparks = document.getElementById('carparks').value
+                .split(',')
+                .map(cp => cp.trim())
+                .filter(cp => cp);
+            
+            const carparksToMonitor = [...predefinedCarparks, ...additionalCarparks];
+            const results = await getCarparkAvailability(carparksToMonitor);
+            
+            if (results.error) {
+                alert(results.error);
+                return;
+            }
+            
+            displayResults(results);
+        }
+
+        function displayResults(results) {
+            const tbody = document.querySelector('#results tbody');
+            tbody.innerHTML = '';
+            
+            results.forEach(carpark => {
+                carpark.lots_available.forEach(lot => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${carpark.carpark_number}</td>
+                        <td>${carpark.block_number}</td>
+                        <td>${carpark.update_datetime}</td>
+                        <td>${lot.lot_type}</td>
+                        <td>${lot.total_lots}</td>
+                        <td>${lot.lots_available}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
