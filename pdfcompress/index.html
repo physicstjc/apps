@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF Compressor (PPI Control)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      color: #333;
+      text-align: center;
+      padding: 2rem;
+      max-width: 700px;
+      margin: auto;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+
+    input[type="file"] {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    #status {
+      margin-top: 1.5rem;
+      font-size: 1rem;
+    }
+
+    a {
+      display: inline-block;
+      margin-top: 1rem;
+      font-weight: bold;
+      color: #27ae60;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h2>📄 PDF Compressor with Adjustable PPI</h2>
+
+  <input type="file" id="pdf-upload" accept="application/pdf" />
+  
+  <label for="ppi">
+    Resolution (PPI): <span id="ppiVal">72</span>
+  </label>
+  <input type="range" id="ppi" min="36" max="720" step="36" value="72" />
+
+  <button onclick="compressPDF()">Compress PDF</button>
+
+  <div id="status"></div>
+
+  <script>
+    const ppiSlider = document.getElementById("ppi");
+    const ppiVal = document.getElementById("ppiVal");
+    ppiSlider.oninput = () => ppiVal.textContent = ppiSlider.value;
+
+    async function compressPDF() {
+      const fileInput = document.getElementById('pdf-upload');
+      const status = document.getElementById('status');
+      const selectedPPI = parseInt(ppiSlider.value);
+      const scale = selectedPPI / 72;
+
+      if (!fileInput.files[0]) {
+        status.innerText = '❗ Please select a PDF file.';
+        return;
+      }
+
+      status.innerText = '📥 Loading PDF...';
+
+      const file = fileInput.files[0];
+      const fileBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
+      const pdf = await loadingTask.promise;
+
+      const pdfDoc = await PDFLib.PDFDocument.create();
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        status.innerText = `🛠️ Compressing page ${pageNum} of ${pdf.numPages}...`;
+
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+
+        await page.render({ canvasContext: context, viewport }).promise;
+
+        const imageData = canvas.toDataURL('image/jpeg', 0.7);
+        const embeddedImg = await pdfDoc.embedJpg(imageData);
+
+        const pageDims = pdfDoc.addPage([viewport.width, viewport.height]);
+        pageDims.drawImage(embeddedImg, {
+          x: 0,
+          y: 0,
+          width: viewport.width,
+          height: viewport.height
+        });
+      }
+
+      status.innerText = '✅ Saving compressed PDF...';
+
+      const compressedBytes = await pdfDoc.save();
+      const sizeMB = (compressedBytes.length / (1024 * 1024)).toFixed(2);
+      const blob = new Blob([compressedBytes], { type: 'application/pdf' });
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'compressed.pdf';
+      link.innerText = `📥 Download Compressed PDF (${sizeMB} MB)`;
+
+      status.innerHTML = '';
+      status.appendChild(link);
+
+      if (compressedBytes.length > 5 * 1024 * 1024) {
+        status.innerHTML += `<p style="color:red">⚠️ Still over 5MB. Try a lower PPI (e.g. 72 or 108).</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
