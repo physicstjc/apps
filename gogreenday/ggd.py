@@ -1,8 +1,9 @@
 import os
 import streamlit as st
 import pandas as pd
+from collections import defaultdict
 
-st.set_page_config(page_title="🏢 Go Green Day Block Allocation", layout="wide")
+st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
@@ -10,7 +11,6 @@ st.markdown("""
     <hr>
 """, unsafe_allow_html=True)
 
-# Get script directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 @st.cache_data
@@ -21,12 +21,13 @@ def load_blocks():
     df["blk_no"] = df["blk_no"].astype(str).str.strip()
     df["max_floor_lvl"] = pd.to_numeric(df["max_floor_lvl"], errors="coerce")
     df["total_dwelling_units"] = pd.to_numeric(df["total_dwelling_units"], errors="coerce")
+    df = df[~df["street"].str.upper().str.contains("SIMEI")]
     return df
 
 @st.cache_data
 def load_area_blocks():
     df = pd.read_csv(os.path.join(script_dir, "area.csv"))
-    df.columns = [col.strip() for col in df.columns]
+    df.columns = ["Area", "Blocks", "No. of blocks", "Class"]
 
     def expand_blocks(row):
         blocks_text = str(row["Blocks"]).replace("Tampines Blk", "").replace(")", "")
@@ -37,11 +38,26 @@ def load_area_blocks():
             for cls in class_list for blk in blk_list
         ])
 
-    return pd.concat([expand_blocks(row) for _, row in df.iterrows()], ignore_index=True)
+    return pd.concat([expand_blocks(row) for _, row in df.iterrows()], ignore_index=True), df
 
 # Load data
 blocks_df = load_blocks()
-area_blocks_df = load_area_blocks()
+area_blocks_df, full_area_df = load_area_blocks()
+
+# Build class pairing mapping
+class_pairs = defaultdict(set)
+for class_str in full_area_df["Class"]:
+    classes = [cls.strip() for cls in str(class_str).split(",") if cls.strip()]
+    if len(classes) > 1:
+        for i in range(len(classes)):
+            for j in range(i + 1, len(classes)):
+                c1, c2 = classes[i], classes[j]
+                class_pairs[c1].add(c2)
+                class_pairs[c2].add(c1)
+
+paired_class_statements = {
+    cls: ", ".join(sorted(peers)) for cls, peers in class_pairs.items()
+}
 
 # --- Class filter
 st.subheader("📍 Filter by Class")
@@ -49,6 +65,12 @@ st.subheader("📍 Filter by Class")
 class_options = sorted(area_blocks_df["class"].dropna().unique())
 selected_class = st.selectbox("Class", class_options)
 
+# Show paired class info
+paired_with = paired_class_statements.get(selected_class)
+if paired_with:
+    st.info(f"🔗 Class **{selected_class}** is paired with: **{paired_with}**")
+
+# Filter blocks based on selected class
 blk_nos = area_blocks_df[
     area_blocks_df["class"].astype(str).str.contains(selected_class, case=False, na=False)
 ]["blk_no"].unique()
@@ -87,4 +109,4 @@ st.markdown(f"""
         <h2 style='color: #0078D4;'>Total Dwelling Units</h2>
         <h1 style='font-size: 3em; color: #003366;'>{int(total_units):,}</h1>
     </div>
-""", unsafe_allow_html=True)
+""", unsafe_all_
