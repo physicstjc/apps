@@ -26,10 +26,10 @@ def load_blocks():
 @st.cache_data
 def load_area_blocks():
     try:
-    area_df = pd.read_csv("area.csv", engine="python", encoding="utf-8", on_bad_lines="skip")
-except Exception as e:
-    st.error(f"Failed to read area.csv: {e}")
-    st.stop()
+        area_df = pd.read_csv("area.csv", engine="python", encoding="utf-8", on_bad_lines="skip")
+    except Exception as e:
+        st.error(f"Failed to read area.csv: {e}")
+        st.stop()
     area_df.columns = [col.lower().strip() for col in area_df.columns]
 
     if "area" not in area_df.columns or "blocks" not in area_df.columns:
