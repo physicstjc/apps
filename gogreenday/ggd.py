@@ -109,4 +109,4 @@ st.markdown(f"""
         <h2 style='color: #0078D4;'>Total Dwelling Units</h2>
         <h1 style='font-size: 3em; color: #003366;'>{int(total_units):,}</h1>
     </div>
-""", unsafe_all_
+""", unsafe_allow_html=True)
