@@ -2,17 +2,21 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Tampines HDB Block Explorer", layout="wide")
-st.title("🏢 Tampines HDB Block Explorer by Area")
+st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
-# Get directory of current script
+st.markdown("""
+    <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
+    <p style='text-align: center;'>Filter by Area and Class. Totals update live as you select blocks.</p>
+    <hr>
+""", unsafe_allow_html=True)
+
+# Get script directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# --- Load and clean HDB block data ---
+# --- Load HDB blocks ---
 @st.cache_data
 def load_blocks():
-    hdb_path = os.path.join(script_dir, "HDBPropertyInformation.csv")
-    df = pd.read_csv(hdb_path)
+    df = pd.read_csv(os.path.join(script_dir, "HDBPropertyInformation.csv"))
     df.columns = [col.lower().strip() for col in df.columns]
 
     required = ["blk_no", "street", "max_floor_lvl", "total_dwelling_units", "bldg_contract_town"]
@@ -27,62 +31,80 @@ def load_blocks():
     df["total_dwelling_units"] = pd.to_numeric(df["total_dwelling_units"], errors="coerce")
     return df
 
-# --- Load and expand area.csv ---
+# --- Load area-to-blocks mapping ---
 @st.cache_data
 def load_area_blocks():
-    area_path = os.path.join(script_dir, "area.csv")
-    area_df = pd.read_csv(area_path)
-    area_df.columns = [col.lower().strip() for col in area_df.columns]
+    df = pd.read_csv(os.path.join(script_dir, "area.csv"))
+    df.columns = [col.strip() for col in df.columns]
 
-    if "area" not in area_df.columns or "blocks" not in area_df.columns:
-        st.error("❌ 'area.csv' must contain 'Area' and 'Blocks' columns.")
+    if not {"Area", "Blocks", "Class"}.issubset(df.columns):
+        st.error("❌ 'area.csv' must include 'Area', 'Blocks', and 'Class' columns.")
         st.stop()
 
     def expand_blocks(row):
-        area = row["area"]
-        blocks_text = row["blocks"]
-        cleaned = blocks_text.replace("Tampines Blk", "").replace(")", "")
-        blk_list = [blk.strip() for blk in cleaned.split(",")]
-        return pd.DataFrame({"area": area, "blk_no": blk_list})
+        area = row["Area"]
+        class_name = row["Class"]
+        blocks_text = str(row["Blocks"]).replace("Tampines Blk", "").replace(")", "")
+        blk_list = [blk.strip() for blk in blocks_text.split(",")]
+        return pd.DataFrame({"area": area, "class": class_name, "blk_no": blk_list})
 
-    flattened = pd.concat([expand_blocks(row) for _, row in area_df.iterrows()], ignore_index=True)
-    flattened["blk_no"] = flattened["blk_no"].astype(str)
-    return flattened
+    return pd.concat([expand_blocks(row) for _, row in df.iterrows()], ignore_index=True)
 
-# --- Load datasets ---
+# Load data
 blocks_df = load_blocks()
-area_map_df = load_area_blocks()
+area_blocks_df = load_area_blocks()
 
-# --- Area selector ---
-st.subheader("📍 Select Area")
-area_choices = sorted(area_map_df["area"].unique())
-selected_area = st.selectbox("Choose an area number:", area_choices)
+# --- AREA selection ---
+st.subheader("📍 Select Area and Class")
 
-# --- Filter by selected area ---
-blk_nos_in_area = area_map_df[area_map_df["area"] == selected_area]["blk_no"]
-filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_nos_in_area)]
+col1, col2 = st.columns(2)
+area_options = sorted(area_blocks_df["area"].unique())
+selected_area = col1.selectbox("Area", area_options)
+
+# --- CLASS selection (filtered by area) ---
+class_options = sorted(area_blocks_df[area_blocks_df["area"] == selected_area]["class"].unique())
+selected_class = col2.selectbox("Class", class_options)
+
+# --- Filter blocks by area & class ---
+blk_list = area_blocks_df[
+    (area_blocks_df["area"] == selected_area) &
+    (area_blocks_df["class"] == selected_class)
+]["blk_no"]
+
+filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_list)].copy()
 
 if filtered_blocks.empty:
-    st.warning("No blocks found in this area.")
+    st.warning("No blocks found for this area/class combination.")
     st.stop()
 
-# --- Checkbox selection ---
-st.subheader(f"✅ Blocks in Area {selected_area}")
-selected_rows = []
+# --- Add 'Select' column for UI
+filtered_blocks["Select"] = True
 
-for i, row in filtered_blocks.iterrows():
-    label = f"{row['blk_no']} {row['street']} | Floors: {row['max_floor_lvl']}, Units: {row['total_dwelling_units']}"
-    if st.checkbox(label, key=i):
-        selected_rows.append(row)
+st.subheader(f"🏘️ Blocks in Area {selected_area} – Class {selected_class}")
+
+edited_df = st.data_editor(
+    filtered_blocks[["Select", "blk_no", "street", "max_floor_lvl", "total_dwelling_units"]],
+    num_rows="dynamic",
+    use_container_width=True,
+    key=f"editor_area_{selected_area}_class_{selected_class}"
+)
+
+selected_df = edited_df[edited_df["Select"] == True]
 
 # --- Results display ---
 st.markdown("---")
-st.subheader(f"🔢 {len(selected_rows)} block(s) selected")
+st.subheader(f"✅ {len(selected_df)} block(s) selected")
 
-if selected_rows:
-    selected_df = pd.DataFrame(selected_rows)
+if not selected_df.empty:
     st.dataframe(selected_df[["blk_no", "street", "max_floor_lvl", "total_dwelling_units"]])
+
     total_units = selected_df["total_dwelling_units"].sum()
-    st.success(f"🏘️ Total dwelling units: **{int(total_units)}**")
+
+    st.markdown(f"""
+        <div style='background-color: #f0f8ff; padding: 1.2em; border-radius: 10px; text-align: center;'>
+            <h2 style='color: #0078D4;'>Total Dwelling Units</h2>
+            <h1 style='font-size: 3em; color: #003366;'>{int(total_units):,}</h1>
+        </div>
+    """, unsafe_allow_html=True)
 else:
     st.info("No blocks selected.")
