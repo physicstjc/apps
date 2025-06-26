@@ -6,14 +6,14 @@ st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
-    <p style='text-align: center;'>Filter by Area and Class. Totals update live as you select blocks.</p>
+    <p style='text-align: center;'>Filter by <strong>Area</strong> and <strong>Class</strong>. Blocks are selected by default. Totals update live.</p>
     <hr>
 """, unsafe_allow_html=True)
 
 # Get script directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# --- Load HDB blocks ---
+# --- Load HDB block data ---
 @st.cache_data
 def load_blocks():
     df = pd.read_csv(os.path.join(script_dir, "HDBPropertyInformation.csv"))
@@ -31,7 +31,7 @@ def load_blocks():
     df["total_dwelling_units"] = pd.to_numeric(df["total_dwelling_units"], errors="coerce")
     return df
 
-# --- Load area-to-blocks mapping ---
+# --- Load area.csv and expand blocks ---
 @st.cache_data
 def load_area_blocks():
     df = pd.read_csv(os.path.join(script_dir, "area.csv"))
@@ -54,44 +54,47 @@ def load_area_blocks():
 blocks_df = load_blocks()
 area_blocks_df = load_area_blocks()
 
-# --- AREA selection ---
+# --- AREA & CLASS selection UI ---
 st.subheader("📍 Select Area and Class")
 
 col1, col2 = st.columns(2)
+
 area_options = sorted(area_blocks_df["area"].unique())
 selected_area = col1.selectbox("Area", area_options)
 
-# --- CLASS selection (filtered by area) ---
-class_options = sorted(area_blocks_df[area_blocks_df["area"] == selected_area]["class"].unique())
-selected_class = col2.selectbox("Class", class_options)
+# Filter class options for this area
+filtered_classes = area_blocks_df[area_blocks_df["area"] == selected_area]["class"].unique()
+selected_class = col2.selectbox("Class", sorted(filtered_classes))
 
 # --- Filter blocks by area & class ---
-blk_list = area_blocks_df[
+blk_nos = area_blocks_df[
     (area_blocks_df["area"] == selected_area) &
     (area_blocks_df["class"] == selected_class)
 ]["blk_no"]
 
-filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_list)].copy()
+filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_nos)].copy()
 
 if filtered_blocks.empty:
     st.warning("No blocks found for this area/class combination.")
     st.stop()
 
-# --- Add 'Select' column for UI
+# --- Add 'Select' column (checked by default)
 filtered_blocks["Select"] = True
 
+# --- Display table
 st.subheader(f"🏘️ Blocks in Area {selected_area} – Class {selected_class}")
 
 edited_df = st.data_editor(
     filtered_blocks[["Select", "blk_no", "street", "max_floor_lvl", "total_dwelling_units"]],
     num_rows="dynamic",
     use_container_width=True,
-    key=f"editor_area_{selected_area}_class_{selected_class}"
+    key=f"editor_{selected_area}_{selected_class}"
 )
 
+# --- Filter selected
 selected_df = edited_df[edited_df["Select"] == True]
 
-# --- Results display ---
+# --- Results section
 st.markdown("---")
 st.subheader(f"✅ {len(selected_df)} block(s) selected")
 
