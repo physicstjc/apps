@@ -6,14 +6,14 @@ st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
-    <p style='text-align: center;'>Filter by <strong>Area</strong> <em>or</em> <strong>Class</strong>. Blocks are pre-selected. Totals update live.</p>
+    <p style='text-align: center;'>Filter by <strong>Class</strong>. Blocks are pre-selected. Totals update live.</p>
     <hr>
 """, unsafe_allow_html=True)
 
-# Get script directory
+# Get current directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# --- Load HDB data ---
+# --- Load HDB blocks ---
 @st.cache_data
 def load_blocks():
     df = pd.read_csv(os.path.join(script_dir, "HDBPropertyInformation.csv"))
@@ -31,22 +31,21 @@ def load_blocks():
     df["total_dwelling_units"] = pd.to_numeric(df["total_dwelling_units"], errors="coerce")
     return df
 
-# --- Load area.csv and expand blocks ---
+# --- Load area.csv and extract blocks with class ---
 @st.cache_data
 def load_area_blocks():
     df = pd.read_csv(os.path.join(script_dir, "area.csv"))
     df.columns = [col.strip() for col in df.columns]
 
-    if not {"Area", "Blocks", "Class"}.issubset(df.columns):
-        st.error("❌ 'area.csv' must include 'Area', 'Blocks', and 'Class' columns.")
+    if not {"Blocks", "Class"}.issubset(df.columns):
+        st.error("❌ 'area.csv' must include 'Blocks' and 'Class' columns.")
         st.stop()
 
     def expand_blocks(row):
-        area = row["Area"]
         class_name = row["Class"]
         blocks_text = str(row["Blocks"]).replace("Tampines Blk", "").replace(")", "")
         blk_list = [blk.strip() for blk in blocks_text.split(",")]
-        return pd.DataFrame({"area": area, "class": class_name, "blk_no": blk_list})
+        return pd.DataFrame({"class": class_name, "blk_no": blk_list})
 
     return pd.concat([expand_blocks(row) for _, row in df.iterrows()], ignore_index=True)
 
@@ -54,42 +53,37 @@ def load_area_blocks():
 blocks_df = load_blocks()
 area_blocks_df = load_area_blocks()
 
-# --- Filters: Area and Class ---
-st.subheader("📍 Select Area or Class")
-
-col1, col2 = st.columns(2)
-area_options = sorted(area_blocks_df["area"].unique())
-selected_area = col1.selectbox("Area", area_options)
+# --- Class filter only ---
+st.subheader("📍 Filter by Class")
 
 class_options = sorted(area_blocks_df["class"].dropna().unique())
-selected_class = col2.selectbox("Class", class_options)
+selected_class = st.selectbox("Class", class_options)
 
-# --- Filter blk_nos by Area OR Class
+# --- Match blocks that contain the selected class
 blk_nos = area_blocks_df[
-    (area_blocks_df["area"] == selected_area) |
-    (area_blocks_df["class"].astype(str).str.contains(selected_class, case=False, na=False))
+    area_blocks_df["class"].astype(str).str.contains(selected_class, case=False, na=False)
 ]["blk_no"].unique()
 
-# --- Get full block data
+# --- Filter HDB records
 filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_nos)].copy()
 
 if filtered_blocks.empty:
-    st.warning("No blocks found for this area/class combination.")
+    st.warning("No blocks found for this class.")
     st.stop()
 
-# --- Add 'Select' column (default all True)
 filtered_blocks["Select"] = True
 
-st.subheader(f"🏘️ Blocks matching Area {selected_area} or Class '{selected_class}'")
+st.subheader(f"🏘️ Blocks matching Class '{selected_class}'")
 
+# --- Display table
 edited_df = st.data_editor(
     filtered_blocks[["Select", "blk_no", "street", "max_floor_lvl", "total_dwelling_units"]],
     num_rows="dynamic",
     use_container_width=True,
-    key=f"editor_{selected_area}_{selected_class}"
+    key=f"editor_class_{selected_class}"
 )
 
-# --- Show total for selected
+# --- Total for selected
 selected_df = edited_df[edited_df["Select"] == True]
 total_units = selected_df["total_dwelling_units"].sum() if not selected_df.empty else 0
 
