@@ -2,7 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
+st.set_page_config(page_title="🏢 Go Green Day Block Allocation", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
