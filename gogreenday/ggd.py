@@ -6,7 +6,7 @@ st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
-    <p style='text-align: center;'>Filter by <strong>Class</strong>. Blocks are pre-selected. Click a block to view it on <strong>Google Maps</strong>. Totals update live.</p>
+    <p style='text-align: center;'>Filter by <strong>Class</strong>. Blocks are pre-selected. Click the block number to view it on <strong>Google Maps</strong>. Totals update live.</p>
     <hr>
 """, unsafe_allow_html=True)
 
@@ -74,12 +74,12 @@ if filtered_blocks.empty:
     st.warning("No blocks found for this class.")
     st.stop()
 
-# --- Add Google Maps links
+# --- Add Google Maps links (only blk_no as text)
 def create_gmap_link(row):
     blk = row["blk_no"].replace(" ", "+")
     street = row["street"].replace(" ", "+")
     url = f"https://www.google.com/maps/search/Blk+{blk}+{street}"
-    return f"[Blk {row['blk_no']}]({url})"
+    return f"[{row['blk_no']}]({url})"
 
 filtered_blocks["Google Maps"] = filtered_blocks.apply(create_gmap_link, axis=1)
 filtered_blocks["Select"] = True
