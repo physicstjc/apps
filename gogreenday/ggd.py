@@ -13,7 +13,7 @@ st.markdown("""
 # Get script directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# --- Load HDB block data ---
+# --- Load HDB data ---
 @st.cache_data
 def load_blocks():
     df = pd.read_csv(os.path.join(script_dir, "HDBPropertyInformation.csv"))
@@ -31,7 +31,7 @@ def load_blocks():
     df["total_dwelling_units"] = pd.to_numeric(df["total_dwelling_units"], errors="coerce")
     return df
 
-# --- Load area.csv and expand blocks ---
+# --- Load and expand area.csv ---
 @st.cache_data
 def load_area_blocks():
     df = pd.read_csv(os.path.join(script_dir, "area.csv"))
@@ -54,36 +54,35 @@ def load_area_blocks():
 blocks_df = load_blocks()
 area_blocks_df = load_area_blocks()
 
-# --- AREA & CLASS selection UI ---
+# --- Filters: Area and Class ---
 st.subheader("📍 Select Area and Class")
 
 col1, col2 = st.columns(2)
-
 area_options = sorted(area_blocks_df["area"].unique())
 selected_area = col1.selectbox("Area", area_options)
 
-# Filter class options for this area
-filtered_classes = area_blocks_df[area_blocks_df["area"] == selected_area]["class"].unique()
-selected_class = col2.selectbox("Class", sorted(filtered_classes))
+class_options = sorted(area_blocks_df[area_blocks_df["area"] == selected_area]["class"].unique())
+selected_class = col2.selectbox("Class", class_options)
 
-# --- Filter blocks by area & class ---
+# --- Filter blk_no list by Area AND substring match on Class
 blk_nos = area_blocks_df[
     (area_blocks_df["area"] == selected_area) &
-    (area_blocks_df["class"] == selected_class)
+    (area_blocks_df["class"].astype(str).str.contains(selected_class, case=False, na=False))
 ]["blk_no"]
 
+# --- Filter full block records
 filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_nos)].copy()
 
 if filtered_blocks.empty:
     st.warning("No blocks found for this area/class combination.")
     st.stop()
 
-# --- Add 'Select' column (checked by default)
+# --- Add 'Select' column (pre-checked)
 filtered_blocks["Select"] = True
 
-# --- Display table
-st.subheader(f"🏘️ Blocks in Area {selected_area} – Class {selected_class}")
+st.subheader(f"🏘️ Blocks in Area {selected_area} – Class '{selected_class}'")
 
+# --- Display editor table
 edited_df = st.data_editor(
     filtered_blocks[["Select", "blk_no", "street", "max_floor_lvl", "total_dwelling_units"]],
     num_rows="dynamic",
@@ -91,23 +90,13 @@ edited_df = st.data_editor(
     key=f"editor_{selected_area}_{selected_class}"
 )
 
-# --- Filter selected
+# --- Calculate total for selected blocks
 selected_df = edited_df[edited_df["Select"] == True]
+total_units = selected_df["total_dwelling_units"].sum() if not selected_df.empty else 0
 
-# --- Results section
-st.markdown("---")
-st.subheader(f"✅ {len(selected_df)} block(s) selected")
-
-if not selected_df.empty:
-    st.dataframe(selected_df[["blk_no", "street", "max_floor_lvl", "total_dwelling_units"]])
-
-    total_units = selected_df["total_dwelling_units"].sum()
-
-    st.markdown(f"""
-        <div style='background-color: #f0f8ff; padding: 1.2em; border-radius: 10px; text-align: center;'>
-            <h2 style='color: #0078D4;'>Total Dwelling Units</h2>
-            <h1 style='font-size: 3em; color: #003366;'>{int(total_units):,}</h1>
-        </div>
-    """, unsafe_allow_html=True)
-else:
-    st.info("No blocks selected.")
+st.markdown(f"""
+    <div style='background-color: #f0f8ff; padding: 1.2em; border-radius: 10px; text-align: center;'>
+        <h2 style='color: #0078D4;'>Total Dwelling Units</h2>
+        <h1 style='font-size: 3em; color: #003366;'>{int(total_units):,}</h1>
+    </div>
+""", unsafe_allow_html=True)
