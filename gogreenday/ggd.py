@@ -74,7 +74,7 @@ if filtered_blocks.empty:
     st.warning("No blocks found for this class.")
     st.stop()
 
-# --- Add Google Maps links (only blk_no as text)
+# --- Add Google Maps links (only blk_no as visible text)
 def create_gmap_link(row):
     blk = row["blk_no"].replace(" ", "+")
     street = row["street"].replace(" ", "+")
@@ -86,11 +86,11 @@ filtered_blocks["Select"] = True
 
 st.subheader(f"🏘️ Blocks matching Class '{selected_class}'")
 
-# --- Show editable table
+# --- Show editable table with proper link text
 edited_df = st.data_editor(
     filtered_blocks[["Select", "Google Maps", "street", "max_floor_lvl", "total_dwelling_units"]],
     column_config={
-        "Google Maps": st.column_config.LinkColumn("Block", display_text="Google Maps")
+        "Google Maps": st.column_config.LinkColumn("Block")  # ✅ Shows block number, not "Google Maps"
     },
     num_rows="dynamic",
     use_container_width=True,
