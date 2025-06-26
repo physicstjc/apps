@@ -1,13 +1,18 @@
 import streamlit as st
 import pandas as pd
+import os
 
 st.set_page_config(page_title="Tampines HDB Block Explorer", layout="wide")
 st.title("🏢 Tampines HDB Block Explorer by Area")
 
-# --- Load and clean HDB data ---
+# Get directory of current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# --- Load and clean HDB block data ---
 @st.cache_data
 def load_blocks():
-    df = pd.read_csv("HDBPropertyInformation.csv")
+    hdb_path = os.path.join(script_dir, "HDBPropertyInformation.csv")
+    df = pd.read_csv(hdb_path)
     df.columns = [col.lower().strip() for col in df.columns]
 
     required = ["blk_no", "street", "max_floor_lvl", "total_dwelling_units", "bldg_contract_town"]
@@ -25,11 +30,8 @@ def load_blocks():
 # --- Load and expand area.csv ---
 @st.cache_data
 def load_area_blocks():
-    try:
-        area_df = pd.read_csv("area.csv", engine="python", encoding="utf-8", on_bad_lines="skip")
-    except Exception as e:
-        st.error(f"Failed to read area.csv: {e}")
-        st.stop()
+    area_path = os.path.join(script_dir, "area.csv")
+    area_df = pd.read_csv(area_path)
     area_df.columns = [col.lower().strip() for col in area_df.columns]
 
     if "area" not in area_df.columns or "blocks" not in area_df.columns:
@@ -56,7 +58,7 @@ st.subheader("📍 Select Area")
 area_choices = sorted(area_map_df["area"].unique())
 selected_area = st.selectbox("Choose an area number:", area_choices)
 
-# --- Filter by area ---
+# --- Filter by selected area ---
 blk_nos_in_area = area_map_df[area_map_df["area"] == selected_area]["blk_no"]
 filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_nos_in_area)]
 
@@ -64,7 +66,7 @@ if filtered_blocks.empty:
     st.warning("No blocks found in this area.")
     st.stop()
 
-# --- Block selection ---
+# --- Checkbox selection ---
 st.subheader(f"✅ Blocks in Area {selected_area}")
 selected_rows = []
 
@@ -73,7 +75,7 @@ for i, row in filtered_blocks.iterrows():
     if st.checkbox(label, key=i):
         selected_rows.append(row)
 
-# --- Output section ---
+# --- Results display ---
 st.markdown("---")
 st.subheader(f"🔢 {len(selected_rows)} block(s) selected")
 
