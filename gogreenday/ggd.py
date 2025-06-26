@@ -1,56 +1,73 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Tampines HDB Blocks", layout="wide")
+st.set_page_config(page_title="Tampines HDB Block Explorer", layout="wide")
 st.title("🏢 Tampines HDB Block Explorer (from CSV)")
 
-# Load local CSV file
+# Load CSV and process
 @st.cache_data
 def load_data():
-    # Load CSV
     df = pd.read_csv("HDBPropertyInformation.csv")
-
-    # Normalize column names
     df.columns = [col.lower().strip() for col in df.columns]
 
-    # Confirm required columns exist
-    required_cols = ["bldg_contract_town", "block", "street_name"]
-    for col in required_cols:
-        if col not in df.columns:
-            st.error(f"Missing expected column: {col}")
-            st.stop()
+    # Define expected column names
+    col = {
+        "block": "blk_no",
+        "street_name": "street_name",
+        "floors": "no_of_floors" if "no_of_floors" in df.columns else None,
+        "lifts": "no_of_lifts" if "no_of_lifts" in df.columns else None,
+        "units": "total_dwelling_units" if "total_dwelling_units" in df.columns else None,
+        "contract_town": "bldg_contract_town"
+    }
 
-    # Filter to Tampines blocks
-    df = df[df["bldg_contract_town"] == "TAP"]
+    # Filter to Tampines blocks (TAP)
+    df = df[df[col["contract_town"]] == "TAP"]
 
-    # Convert numeric columns if present
-    df["no_of_floors"] = pd.to_numeric(df.get("no_of_floors", 0), errors="coerce")
-    df["total_dwelling_units"] = pd.to_numeric(df.get("total_dwelling_units", 0), errors="coerce")
+    # Convert numeric fields
+    if col["floors"]:
+        df[col["floors"]] = pd.to_numeric(df[col["floors"]], errors="coerce")
+    if col["units"]:
+        df[col["units"]] = pd.to_numeric(df[col["units"]], errors="coerce")
 
-    return df.sort_values(by=["street_name", "block"]).reset_index(drop=True)
+    return df.reset_index(drop=True), col
 
 # Load data
-df = load_data()
+df, col = load_data()
 
 if df.empty:
-    st.error("No Tampines blocks (TAP) found in the dataset.")
+    st.warning("No Tampines (TAP) blocks found.")
     st.stop()
 
 # Selection UI
-st.subheader("🔍 Select Blocks in Tampines (TAP)")
-selected_rows = []
+st.subheader("✅ Select Blocks to View")
 
+selected_rows = []
 for i, row in df.iterrows():
-    label = f"{row['block']} {row['street_name']} | Floors: {row.get('no_of_floors', 'N/A')}, Lifts: {row.get('no_of_lifts', 'N/A')}, Units: {row.get('total_dwelling_units', 'N/A')}"
+    label = f"{row[col['block']]} {row[col['street_name']]}"
+
+    # Add extra info
+    extras = []
+    if col["floors"]: extras.append(f"Floors: {row.get(col['floors'], 'N/A')}")
+    if col["lifts"]:  extras.append(f"Lifts: {row.get(col['lifts'], 'N/A')}")
+    if col["units"]: extras.append(f"Units: {row.get(col['units'], 'N/A')}")
+    if extras: label += " | " + ", ".join(extras)
+
     if st.checkbox(label, key=i):
         selected_rows.append(row)
 
 # Display results
 st.markdown("---")
-st.subheader(f"✅ {len(selected_rows)} block(s) selected")
+st.subheader(f"🔢 {len(selected_rows)} block(s) selected")
 
 if selected_rows:
     selected_df = pd.DataFrame(selected_rows)
-    st.dataframe(selected_df[["block", "street_name", "no_of_floors", "no_of_lifts", "total_dwelling_units"]])
+
+    # Display table
+    st.dataframe(selected_df[[col["block"], col["street_name"], col["floors"], col["lifts"], col["units"]]])
+
+    # Sum of dwelling units
+    if col["units"]:
+        total_units = selected_df[col["units"]].sum(skipna=True)
+        st.success(f"🏘️ Total Dwelling Units in selected blocks: **{int(total_units)}**")
 else:
-    st.info("Select blocks above to view their details.")
+    st.info("No blocks selected yet.")
