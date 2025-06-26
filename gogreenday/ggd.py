@@ -6,7 +6,7 @@ st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
-    <p style='text-align: center;'>Filter by <strong>Class</strong>. Blocks are pre-selected. Totals update live. Google Maps links shown below.</p>
+    <p style='text-align: center;'>Filter by <strong>Class</strong>. Blocks are pre-selected. Totals update live. Google Maps links are shown next to each block.</p>
     <hr>
 """, unsafe_allow_html=True)
 
@@ -59,13 +59,20 @@ if filtered_blocks.empty:
     st.warning("No blocks found for this class.")
     st.stop()
 
-# Add selection checkbox
+# Add selection checkbox and Google Maps link
 filtered_blocks["Select"] = True
+filtered_blocks["Google Maps"] = filtered_blocks.apply(
+    lambda row: f"https://www.google.com/maps/search/Blk+{row['blk_no'].replace(' ', '+')}+{row['street'].replace(' ', '+')}",
+    axis=1
+)
 
 # Display editable block table
 st.subheader(f"🏘️ Blocks matching Class '{selected_class}'")
 edited_df = st.data_editor(
-    filtered_blocks[["Select", "blk_no", "street", "max_floor_lvl", "total_dwelling_units"]],
+    filtered_blocks[["Select", "blk_no", "Google Maps", "street", "max_floor_lvl", "total_dwelling_units"]],
+    column_config={
+        "Google Maps": st.column_config.LinkColumn("Google Maps", display_text="View")
+    },
     num_rows="dynamic",
     use_container_width=True,
     key=f"editor_class_{selected_class}"
@@ -81,14 +88,3 @@ st.markdown(f"""
         <h1 style='font-size: 3em; color: #003366;'>{int(total_units):,}</h1>
     </div>
 """, unsafe_allow_html=True)
-
-# Show Google Maps links for selected blocks
-st.markdown("### 🗺️ Google Maps Links for Selected Blocks")
-if not selected_df.empty:
-    for _, row in selected_df.iterrows():
-        blk = row["blk_no"].replace(" ", "+")
-        street = row["street"].replace(" ", "+")
-        url = f"https://www.google.com/maps/search/Blk+{blk}+{street}"
-        st.markdown(f"- [Blk {row['blk_no']} - {row['street']}]({url})", unsafe_allow_html=True)
-else:
-    st.markdown("*No blocks selected.*")
