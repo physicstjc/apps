@@ -6,7 +6,7 @@ st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
-    <p style='text-align: center;'>Filter by <strong>Area</strong> and <strong>Class</strong>. Blocks are selected by default. Totals update live.</p>
+    <p style='text-align: center;'>Filter by <strong>Area</strong> <em>or</em> <strong>Class</strong>. Blocks are pre-selected. Totals update live.</p>
     <hr>
 """, unsafe_allow_html=True)
 
@@ -31,7 +31,7 @@ def load_blocks():
     df["total_dwelling_units"] = pd.to_numeric(df["total_dwelling_units"], errors="coerce")
     return df
 
-# --- Load and expand area.csv ---
+# --- Load area.csv and expand blocks ---
 @st.cache_data
 def load_area_blocks():
     df = pd.read_csv(os.path.join(script_dir, "area.csv"))
@@ -55,34 +55,33 @@ blocks_df = load_blocks()
 area_blocks_df = load_area_blocks()
 
 # --- Filters: Area and Class ---
-st.subheader("📍 Select Area and Class")
+st.subheader("📍 Select Area or Class")
 
 col1, col2 = st.columns(2)
 area_options = sorted(area_blocks_df["area"].unique())
 selected_area = col1.selectbox("Area", area_options)
 
-class_options = sorted(area_blocks_df[area_blocks_df["area"] == selected_area]["class"].unique())
+class_options = sorted(area_blocks_df["class"].dropna().unique())
 selected_class = col2.selectbox("Class", class_options)
 
-# --- Filter blk_no list by Area AND substring match on Class
+# --- Filter blk_nos by Area OR Class
 blk_nos = area_blocks_df[
-    (area_blocks_df["area"] == selected_area) &
+    (area_blocks_df["area"] == selected_area) |
     (area_blocks_df["class"].astype(str).str.contains(selected_class, case=False, na=False))
-]["blk_no"]
+]["blk_no"].unique()
 
-# --- Filter full block records
+# --- Get full block data
 filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_nos)].copy()
 
 if filtered_blocks.empty:
     st.warning("No blocks found for this area/class combination.")
     st.stop()
 
-# --- Add 'Select' column (pre-checked)
+# --- Add 'Select' column (default all True)
 filtered_blocks["Select"] = True
 
-st.subheader(f"🏘️ Blocks in Area {selected_area} – Class '{selected_class}'")
+st.subheader(f"🏘️ Blocks matching Area {selected_area} or Class '{selected_class}'")
 
-# --- Display editor table
 edited_df = st.data_editor(
     filtered_blocks[["Select", "blk_no", "street", "max_floor_lvl", "total_dwelling_units"]],
     num_rows="dynamic",
@@ -90,7 +89,7 @@ edited_df = st.data_editor(
     key=f"editor_{selected_area}_{selected_class}"
 )
 
-# --- Calculate total for selected blocks
+# --- Show total for selected
 selected_df = edited_df[edited_df["Select"] == True]
 total_units = selected_df["total_dwelling_units"].sum() if not selected_df.empty else 0
 
