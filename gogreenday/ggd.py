@@ -89,7 +89,9 @@ paired_class_statements = {
 
 st.subheader("📍 Filter by Class")
 class_options = sorted(area_blocks_df["class"].dropna().unique())
-selected_class = st.selectbox("Class", class_options)
+col1, col2 = st.columns([1, 1])  # Adjust width ratios as needed
+with col1:
+    selected_class = st.selectbox("Class", class_options)
 
 paired_with = paired_class_statements.get(selected_class)
 if paired_with:
