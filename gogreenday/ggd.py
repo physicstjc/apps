@@ -7,7 +7,7 @@ st.set_page_config(page_title="🏢 Tampines Block Explorer", layout="wide")
 
 st.markdown("""
     <h1 style='text-align: center;'>🏢 Tampines HDB Block Explorer</h1>
-    <p style='text-align: center;'>Filter by <strong>Class</strong>. Blocks are pre-selected. Totals update live. You can also toggle Google Maps links.</p>
+    <p style='text-align: center;'>Filter by <strong>Class</strong>. Google Maps links are optional. The total dwelling units are shown prominently.</p>
     <hr>
 """, unsafe_allow_html=True)
 
@@ -44,7 +44,7 @@ def load_area_blocks():
 blocks_df = load_blocks()
 area_blocks_df, full_area_df = load_area_blocks()
 
-# Build pairing info
+# Build class-pairing info
 class_pairs = defaultdict(set)
 for class_str in full_area_df["Class"]:
     classes = [cls.strip() for cls in str(class_str).split(",") if cls.strip()]
@@ -59,62 +59,47 @@ paired_class_statements = {
     cls: ", ".join(sorted(peers)) for cls, peers in class_pairs.items()
 }
 
-# Sidebar class selection
+# Sidebar filter
 st.subheader("📍 Filter by Class")
 class_options = sorted(area_blocks_df["class"].dropna().unique())
 selected_class = st.selectbox("Class", class_options)
 
-# Display pairing info
+# Paired class info
 paired_with = paired_class_statements.get(selected_class)
 if paired_with:
     st.info(f"🔗 Class **{selected_class}** is paired with: **{paired_with}**")
 
-# Get all blocks associated with this class
+# Google Maps toggle
+show_map_links = st.checkbox("Show Google Maps column", value=True)
+
+# Filter blocks by class
 blk_nos = area_blocks_df[
     area_blocks_df["class"].str.contains(selected_class, case=False, na=False)
 ]["blk_no"].unique()
 
 filtered_blocks = blocks_df[blocks_df["blk_no"].isin(blk_nos)].copy()
 
-# Add Select column and Google Maps column
-filtered_blocks["Select"] = True
+# Add Google Maps link
 filtered_blocks["Google Maps"] = filtered_blocks.apply(
     lambda row: f"https://www.google.com/maps/search/Blk+{row['blk_no'].replace(' ', '+')}+{row['street'].replace(' ', '+')}",
     axis=1
 )
 
-# Google Maps link toggle
-show_map_links = st.checkbox("Show Google Maps column", value=True)
-
-# Determine which columns to show
-columns_to_show = ["Select", "blk_no", "street", "max_floor_lvl", "total_dwelling_units"]
+# Columns to show
+columns_to_show = ["blk_no", "street", "max_floor_lvl", "total_dwelling_units"]
 if show_map_links:
-    columns_to_show.insert(2, "Google Maps")
+    columns_to_show.insert(1, "Google Maps")
 
-# Final block table
+# Show table
 st.subheader(f"🏘️ Blocks in Class '{selected_class}'")
-edited_df = st.data_editor(
-    filtered_blocks[["Select", "blk_no", "Google Maps", "street", "max_floor_lvl", "total_dwelling_units"]],
-    column_order=columns_to_show,
-    column_config={
-        "Select": st.column_config.CheckboxColumn("Select", disabled=False),
-        "blk_no": st.column_config.TextColumn("Block", disabled=True),
-        "Google Maps": st.column_config.LinkColumn("Google Maps", display_text="View", disabled=True),
-        "street": st.column_config.TextColumn("Street", disabled=True),
-        "max_floor_lvl": st.column_config.NumberColumn("Max Floor", disabled=True),
-        "total_dwelling_units": st.column_config.NumberColumn("Dwelling Units", disabled=True),
-    },
-    use_container_width=True,
-    hide_index=True,
-    disabled=True,
-    key=f"editor_class_{selected_class}"
+st.dataframe(
+    filtered_blocks[columns_to_show].set_index("blk_no"),
+    use_container_width=True
 )
 
-# Compute total
-selected_df = edited_df[edited_df["Select"] == True]
-total_units = selected_df["total_dwelling_units"].sum() if not selected_df.empty else 0
+# Total dwelling units
+total_units = filtered_blocks["total_dwelling_units"].sum()
 
-# Display total
 st.markdown(f"""
     <div style='background-color: #f0f8ff; padding: 1.2em; border-radius: 10px; text-align: center;'>
         <h2 style='color: #0078D4;'>Total Dwelling Units</h2>
