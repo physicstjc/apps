@@ -89,7 +89,7 @@ paired_class_statements = {
 
 st.subheader("📍 Filter by Class")
 class_options = sorted(area_blocks_df["class"].dropna().unique())
-col1, col2 = st.columns([1, 1])  # Adjust width ratios as needed
+col1, col2 = st.columns([1, 4])  # Adjust width ratios as needed
 with col1:
     selected_class = st.selectbox("Class", class_options)
 
