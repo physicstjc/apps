@@ -1,4 +1,3 @@
-
 import os
 import streamlit as st
 import pandas as pd
@@ -20,9 +19,10 @@ def load_blocks():
     df.columns = [col.lower().strip() for col in df.columns]
     df = df[df["bldg_contract_town"] == "TAP"].copy()
     df["blk_no"] = df["blk_no"].astype(str).str.strip()
+    df["street"] = df["street"].astype(str).str.upper().str.strip()
     df["max_floor_lvl"] = pd.to_numeric(df["max_floor_lvl"], errors="coerce")
     df["total_dwelling_units"] = pd.to_numeric(df["total_dwelling_units"], errors="coerce")
-    df = df[~df["street"].str.upper().str.contains("SIMEI")]
+    df = df[~df["street"].str.contains("SIMEI")]
     return df
 
 @st.cache_data
@@ -44,6 +44,7 @@ def load_area_blocks():
 blocks_df = load_blocks()
 area_blocks_df, full_area_df = load_area_blocks()
 
+# Pairing logic
 class_pairs = defaultdict(set)
 for class_str in full_area_df["Class"]:
     classes = [cls.strip() for cls in str(class_str).split(",") if cls.strip()]
@@ -58,8 +59,8 @@ paired_class_statements = {
     cls: ", ".join(sorted(peers)) for cls, peers in class_pairs.items()
 }
 
+# Class filter
 st.subheader("📍 Filter by Class")
-
 class_options = sorted(area_blocks_df["class"].dropna().unique())
 selected_class = st.selectbox("Class", class_options)
 
@@ -67,6 +68,7 @@ paired_with = paired_class_statements.get(selected_class)
 if paired_with:
     st.info(f"🔗 Class **{selected_class}** is paired with: **{paired_with}**")
 
+# Filter blocks by selected class
 blk_nos = area_blocks_df[
     area_blocks_df["class"].astype(str).str.contains(selected_class, case=False, na=False)
 ]["blk_no"].unique()
@@ -77,14 +79,15 @@ if filtered_blocks.empty:
     st.warning("No blocks found for this class.")
     st.stop()
 
+# Add checkbox and Google Maps link
 filtered_blocks["Select"] = True
 filtered_blocks["Google Maps"] = filtered_blocks.apply(
     lambda row: f"https://www.google.com/maps/search/Blk+{row['blk_no'].replace(' ', '+')}+{row['street'].replace(' ', '+')}",
     axis=1
 )
 
+# Show editable table
 st.subheader(f"🏘️ Blocks matching Class '{selected_class}'")
-
 edited_df = st.data_editor(
     filtered_blocks[["Select", "blk_no", "Google Maps", "street", "max_floor_lvl", "total_dwelling_units"]],
     column_config={
@@ -99,6 +102,7 @@ edited_df = st.data_editor(
     key=f"editor_class_{selected_class}"
 )
 
+# Show total units
 selected_df = edited_df[edited_df["Select"] == True]
 total_units = selected_df["total_dwelling_units"].sum() if not selected_df.empty else 0
 
