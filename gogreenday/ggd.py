@@ -91,7 +91,7 @@ st.subheader(f"🏘️ Blocks matching Class '{selected_class}'")
 edited_df = st.data_editor(
     filtered_blocks[["Select", "blk_no", "Google Maps", "street", "max_floor_lvl", "total_dwelling_units"]],
     column_config={
-        "Select": st.column_config.CheckboxColumn("Select"),
+        "Select": st.column_config.CheckboxColumn("Select", disabled=False),
         "blk_no": st.column_config.TextColumn("Block", disabled=True),
         "Google Maps": st.column_config.LinkColumn("Google Maps", display_text="View", disabled=True),
         "street": st.column_config.TextColumn("Street", disabled=True),
@@ -99,8 +99,11 @@ edited_df = st.data_editor(
         "total_dwelling_units": st.column_config.NumberColumn("Dwelling Units", disabled=True),
     },
     use_container_width=True,
+    hide_index=True,
+    disabled=True,  # disable all cells except checkbox
     key=f"editor_class_{selected_class}"
 )
+
 
 # Show total units
 selected_df = edited_df[edited_df["Select"] == True]
