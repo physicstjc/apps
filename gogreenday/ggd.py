@@ -3,10 +3,10 @@ import streamlit as st
 import pandas as pd
 from collections import defaultdict
 
-st.set_page_config(page_title="🏢 Go Green Day Block Allocation", layout="wide")
+st.set_page_config(page_title="🏢 TJC Go Green Day Block Allocation", layout="wide")
 
 st.markdown("""
-    <h1 style='text-align: center;'>🏢 Go Green Day Block Allocation</h1>
+    <h1 style='text-align: center;'>🏢 TJC Go Green Day Block Allocation</h1>
     <p style='text-align: center;'>Filter by <strong>Class</strong>. View block data with optional Google Maps links.</p>
     <hr>
 """, unsafe_allow_html=True)
