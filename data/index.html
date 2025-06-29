@@ -1,36 +1,20 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Google Sheet Updater</title>
-</head>
-<body>
-  <h2>Update Google Sheet</h2>
-  <form id="dataForm">
-    Name: <input type="text" id="name"><br>
-    Email: <input type="text" id="email"><br>
-    <button type="submit">Submit</button>
-  </form>
+<form id="dataForm">
+  Name: <input type="text" id="name"><br>
+  Email: <input type="text" id="email"><br>
+  <button type="submit">Submit</button>
+</form>
 
-  <script>
-    document.getElementById("dataForm").addEventListener("submit", function(e) {
-      e.preventDefault();
+<script>
+  document.getElementById("dataForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
 
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
+    const url = `https://script.google.com/macros/s/AKfycbx8lW-42lze7cXSds8zjysmObgnVywKFQQnhDzrhauXbJw9x6SAG8P-U0B5yq7vimfvqQ/exec?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`;
 
-      fetch("https://script.google.com/macros/s/AKfycbxLuWp9rYie3emTGOGubP8JvEoJj99YJSWHczp9ERaYAbElg6kEPfhZCE6KGl3WlcgEvw/exec", {
-        method: "POST",
-        body: JSON.stringify({ name, email }),
-        headers: {
-          "Content-Type": "application/json"
-        }
-      })
+    fetch(url)
       .then(response => response.text())
       .then(data => alert("Submitted: " + data))
-      .catch(error => alert("Error: " + error));
-    });
-  </script>
-</body>
-</html>
-
-
+      .catch(err => console.error("Error:", err));
+  });
+</script>
