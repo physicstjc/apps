@@ -18,11 +18,19 @@
       const name = document.getElementById("name").value;
       const email = document.getElementById("email").value;
 
-    fetch(`https://script.google.com/a/macros/moe.edu.sg/s/AKfycb.../exec?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`)
-      .then(res => res.text())
+      fetch("https://script.google.com/macros/s/AKfycbxLuWp9rYie3emTGOGubP8JvEoJj99YJSWHczp9ERaYAbElg6kEPfhZCE6KGl3WlcgEvw/exec", {
+        method: "POST",
+        body: JSON.stringify({ name, email }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+      .then(response => response.text())
       .then(data => alert("Submitted: " + data))
-      .catch(err => console.error(err));
-
+      .catch(error => alert("Error: " + error));
+    });
   </script>
 </body>
 </html>
+
+
