@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flowchart Editor</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #fdfdfd;
+      display: flex;
+      height: 100vh;
+    }
+
+    #editor-container {
+      width: 60%;
+      position: relative;
+      border-right: 2px solid #eee;
+    }
+
+    #instructions {
+      width: 40%;
+      padding: 20px;
+      background: #f9f9f9;
+      color: #333;
+      overflow-y: auto;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #666;
+    }
+
+    #editor {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      cursor: crosshair;
+    }
+
+    .node {
+      position: absolute;
+      min-width: 100px;
+      min-height: 50px;
+      padding: 10px;
+      background: #ffe6e6;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: center;
+      cursor: move;
+      user-select: none;
+    }
+
+    .node:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px #ffcccc;
+    }
+
+    svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    code {
+      background: #eee;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="editor-container">
+    <div id="editor" onclick="addNode(event)">
+      <svg id="arrowLayer"></svg>
+    </div>
+  </div>
+
+  <div id="instructions">
+    <h2>🛠 Flowchart Editor Instructions</h2>
+    <ul>
+      <li>👉 Click on empty space to <strong>add a node</strong>.</li>
+      <li>✍️ <strong>Double-click</strong> a node to edit its text.</li>
+      <li>🖱️ <strong>Drag</strong> nodes to reposition.</li>
+      <li>⇧ <strong>Shift + Drag</strong> a node onto another to connect them with an arrow.</li>
+    </ul>
+    <p>Each node is styled with a pastel color and can be moved freely. Try creating a simple workflow!</p>
+    <hr>
+    <p><em>Tip: This app runs fully in your browser — no internet connection needed after loading.</em></p>
+  </div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const svg = document.getElementById('arrowLayer');
+    const pastelColors = ['#FFDFD3', '#FEC8D8', '#D8E2DC', '#A9DEF9', '#E4C1F9'];
+    let nodes = [];
+    let connections = [];
+
+    function addNode(e) {
+      if (e.target !== editor) return;
+      const node = document.createElement('div');
+      node.className = 'node';
+      node.innerText = 'Double-click to edit';
+      node.setAttribute('contenteditable', 'false');
+      node.style.left = `${e.clientX - editor.offsetLeft - 50}px`;
+      node.style.top = `${e.clientY - editor.offsetTop - 25}px`;
+      node.style.backgroundColor = pastelColors[Math.floor(Math.random() * pastelColors.length)];
+
+      node.onmousedown = dragMouseDown;
+      editor.appendChild(node);
+      nodes.push(node);
+    }
+
+    function dragMouseDown(e) {
+      const el = this;
+
+      // Allow text editing on double-click
+      if (e.detail === 2) {
+        el.setAttribute('contenteditable', 'true');
+        el.focus();
+        return;
+      }
+
+      // Don't drag if focused for text editing
+      if (document.activeElement === el) return;
+
+      e.preventDefault();
+      let offsetX = e.clientX - el.offsetLeft;
+      let offsetY = e.clientY - el.offsetTop;
+
+      document.onmousemove = function (e) {
+        el.style.left = `${e.clientX - offsetX}px`;
+        el.style.top = `${e.clientY - offsetY}px`;
+        updateArrows();
+      };
+
+      document.onmouseup = function () {
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+
+      // Shift + click to connect nodes
+      if (e.shiftKey) {
+        if (!window.lastSelectedNode || window.lastSelectedNode === el) {
+          window.lastSelectedNode = el;
+        } else {
+          connections.push([window.lastSelectedNode, el]);
+          window.lastSelectedNode = null;
+          updateArrows();
+        }
+      }
+    }
+
+    function updateArrows() {
+      svg.innerHTML = '';
+      connections.forEach(([from, to]) => {
+        const startX = from.offsetLeft + from.offsetWidth / 2;
+        const startY = from.offsetTop + from.offsetHeight / 2;
+        const endX = to.offsetLeft + to.offsetWidth / 2;
+        const endY = to.offsetTop + to.offsetHeight / 2;
+        drawArrow(startX, startY, endX, endY);
+      });
+    }
+
+    function drawArrow(x1, y1, x2, y2) {
+      const arrow = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      arrow.setAttribute("x1", x1);
+      arrow.setAttribute("y1", y1);
+      arrow.setAttribute("x2", x2);
+      arrow.setAttribute("y2", y2);
+      arrow.setAttribute("stroke", "#999");
+      arrow.setAttribute("stroke-width", "2");
+      arrow.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(arrow);
+    }
+
+    // Arrowhead marker
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML = `
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+              refX="10" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#999" />
+      </marker>
+    `;
+    svg.appendChild(defs);
+
+    // Blur contentEditable on Enter key
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && document.activeElement.classList.contains('node')) {
+        e.preventDefault();
+        document.activeElement.blur();
+        document.activeElement.setAttribute('contenteditable', 'false');
+      }
+    });
+  </script>
+</body>
+</html>
