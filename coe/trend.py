@@ -1,50 +1,59 @@
 import streamlit as st
 import pandas as pd
 import requests
-import matplotlib.pyplot as plt
-from datetime import datetime
+import plotly.express as px
 
-# Set up page
-st.set_page_config(page_title="COE Premiums Over Time", layout="centered")
-st.title("📊 COE Premiums by Vehicle Class and Year")
+# Set up Streamlit page
+st.set_page_config(page_title="COE Premium Trends", layout="centered")
+st.title("📈 COE Premium Trends by Vehicle Class and Year")
 
-# Dataset from Data.gov.sg
+# Define dataset API URL
 dataset_id = "d_69b3380ad7e51aff3a7dcc84eba52b8a"
 url = f"https://data.gov.sg/api/action/datastore_search?resource_id={dataset_id}&limit=10000"
 
-# Fetch data
+# Load data with caching
 @st.cache_data
 def load_data():
     response = requests.get(url)
-    records = response.json()["result"]["records"]
+    data = response.json()
+    records = data["result"]["records"]
     df = pd.DataFrame(records)
-    # Parse date and premium
+
+    # Process columns
     df["date"] = pd.to_datetime(df["month"])
     df["year"] = df["date"].dt.year
-    df["premium"] = pd.to_numeric(df["quota_premium"], errors='coerce')
-    return df.dropna(subset=["premium"])
+    df["premium"] = pd.to_numeric(df["quota_premium"], errors="coerce")
+    df = df.dropna(subset=["premium"])
+    df["date_mmdd"] = df["date"].dt.strftime("%m-%d")
+    
+    return df
 
+# Load and prepare data
 df = load_data()
 
-# Dropdown for vehicle classes
+# Dropdown for vehicle class
 vehicle_classes = sorted(df["vehicle_class"].unique())
 selected_class = st.selectbox("Select Vehicle Class", vehicle_classes)
 
-# Filter data
-filtered = df[df["vehicle_class"] == selected_class]
+# Filter by selected class
+filtered_df = df[df["vehicle_class"] == selected_class]
 
-# Plotting
-fig, ax = plt.subplots(figsize=(10, 5))
-for year in sorted(filtered["year"].unique()):
-    yearly_data = filtered[filtered["year"] == year]
-    ax.plot(yearly_data["date"].dt.strftime("%m-%d"), yearly_data["premium"],
-            label=str(year), marker='o', linewidth=2)
+# Plot with Plotly
+fig = px.line(
+    filtered_df,
+    x="date_mmdd",
+    y="premium",
+    color="year",
+    markers=True,
+    title=f"COE Premiums for '{selected_class}' Over the Years",
+    labels={"premium": "Premium (S$)", "date_mmdd": "Date (MM-DD)", "year": "Year"}
+)
 
-ax.set_title(f"COE Premiums for {selected_class}")
-ax.set_xlabel("Date (MM-DD)")
-ax.set_ylabel("Premium (S$)")
-ax.legend(title="Year", bbox_to_anchor=(1.05, 1), loc='upper left')
-plt.xticks(rotation=45)
-plt.tight_layout()
+fig.update_layout(
+    xaxis_tickangle=-45,
+    legend_title_text="Year",
+    height=500
+)
 
-st.pyplot(fig)
+# Display chart
+st.plotly_chart(fig, use_container_width=True)
