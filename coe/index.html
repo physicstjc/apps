@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>COE Premium Trends</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    label, select {
+      font-size: 1rem;
+      margin-top: 20px;
+    }
+    canvas {
+      margin-top: 30px;
+    }
+    #yearCheckboxes {
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>📈 COE Premium Trends (by Bidding Round)</h1>
+  <label for="vehicleClassSelect">Select Vehicle Class:</label>
+  <select id="vehicleClassSelect"></select>
+
+  <div id="yearControls">
+      <input type="checkbox" id="toggleAllYears" checked>
+      <label for="toggleAllYears"><strong>Select / Unselect All Years</strong></label>
+      <div id="yearCheckboxes" style="margin-top: 10px;"></div>
+  </div>
+
+
+  <canvas id="coeChart" width="800" height="400"></canvas>
+
+  <script>
+    const datasetId = "d_69b3380ad7e51aff3a7dcc84eba52b8a";
+    const url = "https://data.gov.sg/api/action/datastore_search?resource_id=" + datasetId + "&limit=10000";
+
+    const select = document.getElementById("vehicleClassSelect");
+    const ctx = document.getElementById("coeChart").getContext("2d");
+    const yearCheckboxesDiv = document.getElementById("yearCheckboxes");
+
+    let chart;
+    let parsedData = [];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    fetch(url)
+      .then(response => {
+        if (!response.ok) throw new Error("Failed to fetch data");
+        return response.json();
+      })
+      .then(data => {
+        const records = data.result.records;
+
+        parsedData = records.map(r => {
+          const [year, month] = r.month.split("-");
+          const monthLabel = monthNames[parseInt(month, 10) - 1];
+          const biddingLabel = `${monthLabel}-${r.bidding_no}`;
+          return {
+            bidding_label: biddingLabel,
+            year: parseInt(year),
+            vehicle_class: r.vehicle_class,
+            premium: parseFloat(r.premium)
+          };
+        }).filter(r => !isNaN(r.premium));
+
+        const vehicleClasses = [...new Set(parsedData.map(r => r.vehicle_class))].sort();
+
+        // Populate dropdown
+        vehicleClasses.forEach(vc => {
+          const option = document.createElement("option");
+          option.value = vc;
+          option.textContent = vc;
+          select.appendChild(option);
+        });
+
+        // Initial plot
+        select.value = vehicleClasses[0];
+        updateChart(select.value);
+
+        // Listen for change
+        select.addEventListener("change", () => {
+          updateChart(select.value);
+        });
+      })
+      .catch(error => {
+        console.error("Error fetching data:", error);
+      });
+
+    function updateChart(selectedClass) {
+      const data = parsedData.filter(d => d.vehicle_class === selectedClass);
+      if (data.length === 0) {
+        console.warn("No data for class:", selectedClass);
+        return;
+      }
+
+      const labelOrder = monthNames.flatMap(m => [`${m}-1`, `${m}-2`]);
+
+      const grouped = {};
+      data.forEach(entry => {
+        if (!grouped[entry.year]) grouped[entry.year] = [];
+        grouped[entry.year].push(entry);
+      });
+
+      const datasets = Object.entries(grouped).map(([year, values]) => {
+        const dataPoints = labelOrder.map(label => {
+          const match = values.find(v => v.bidding_label === label);
+          return match ? match.premium : null;
+        });
+        return {
+          label: year,
+          data: dataPoints,
+          spanGaps: true,
+          fill: false,
+          tension: 0.2,
+          borderWidth: 1,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          hidden: false
+        };
+      });
+
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labelOrder,
+          datasets
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: {
+              display: true,
+              text: `COE Premiums for ${selectedClass} (Overlayed by Year)`
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Bidding Round (Month-Bid)' }
+            },
+            y: {
+              title: { display: true, text: 'Premium (S$)' }
+            }
+          }
+        }
+      });
+
+      // Create checkboxes
+      yearCheckboxesDiv.innerHTML = '';
+      datasets.forEach((ds, i) => {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.id = `year-${ds.label}`;
+        checkbox.dataset.index = i;
+
+        checkbox.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          chart.data.datasets[idx].hidden = !e.target.checked;
+          chart.update();
+        });
+
+        const label = document.createElement('label');
+        label.htmlFor = checkbox.id;
+        label.style.marginRight = '15px';
+        label.textContent = ds.label;
+
+        yearCheckboxesDiv.appendChild(checkbox);
+        yearCheckboxesDiv.appendChild(label);
+      });
+        // === Clear and re-add all year checkboxes ===
+yearCheckboxesDiv.innerHTML = '';
+datasets.forEach((ds, i) => {
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = true;
+  checkbox.id = `year-${ds.label}`;
+  checkbox.dataset.index = i;
+
+  checkbox.addEventListener('change', (e) => {
+    const idx = parseInt(e.target.dataset.index);
+    chart.data.datasets[idx].hidden = !e.target.checked;
+    chart.update();
+
+    // If any checkbox is unchecked, uncheck toggleAll
+    if (!e.target.checked) {
+      document.getElementById('toggleAllYears').checked = false;
+    }
+  });
+
+  const label = document.createElement('label');
+  label.htmlFor = checkbox.id;
+  label.style.marginRight = '15px';
+  label.textContent = ds.label;
+
+  yearCheckboxesDiv.appendChild(checkbox);
+  yearCheckboxesDiv.appendChild(label);
+});
+
+// === Handle Toggle All Checkbox ===
+const toggleAll = document.getElementById('toggleAllYears');
+toggleAll.checked = true; // default
+
+toggleAll.onchange = function () {
+  const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(cb => {
+    cb.checked = toggleAll.checked;
+    const idx = parseInt(cb.dataset.index);
+    chart.data.datasets[idx].hidden = !cb.checked;
+  });
+  chart.update();
+};
+
+    }
+  </script>
+</body>
+</html>
