@@ -139,6 +139,8 @@
           quotaData.push(match && match.quota ? match.quota : null);
         });
 
+        const isCurrent = parseInt(year) === currentYear;
+
         // Premium dataset
         datasets.push({
           label: year,
@@ -151,7 +153,7 @@
           pointHoverRadius: 5,
           hitRadius: 10,
           pointStyle: 'circle',
-          hidden: parseInt(year) !== currentYear,
+          hidden: !isCurrent,
           borderColor: yearColor,
           yAxisID: 'y'
         });
@@ -166,7 +168,7 @@
           borderWidth: 1,
           borderDash: [4, 4],
           pointRadius: 0,
-          hidden: !toggleQuota.checked || parseInt(year) !== currentYear,
+          hidden: !isCurrent || !toggleQuota.checked,
           borderColor: yearColor,
           yAxisID: 'y1'
         });
@@ -188,7 +190,6 @@
                 filter: function(legendItem, data) {
                   const label = legendItem.text;
                   const dataset = data.datasets[legendItem.datasetIndex];
-                  // ✅ Show only premium (non-quota) lines that are currently visible
                   return !label.endsWith("Quota") && !dataset.hidden;
                 }
               }
@@ -221,10 +222,7 @@
               const datasetIndex = element.datasetIndex;
               const index = element.index;
               const dataset = chart.data.datasets[datasetIndex];
-
-              // Only respond to premium lines
               if (dataset.label.endsWith("Quota")) return;
-
               const year = dataset.label;
               const round = chart.data.labels[index];
               const premium = dataset.data[index];
@@ -235,30 +233,30 @@
         }
       });
 
-      // === Create checkboxes ===
+      // === Generate checkboxes ===
       yearCheckboxesDiv.innerHTML = '';
       datasets.forEach((ds, i) => {
-        if (ds.label.endsWith('Quota')) return; // skip quota lines
+        if (ds.label.endsWith('Quota')) return;
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.checked = parseInt(ds.label) === currentYear;
+        checkbox.checked = !ds.hidden;
         checkbox.id = `year-${ds.label}`;
         checkbox.dataset.index = i;
 
         checkbox.addEventListener('change', (e) => {
           const idx = parseInt(e.target.dataset.index);
-          chart.data.datasets[idx].hidden = !e.target.checked;
+          const isChecked = e.target.checked;
+          chart.data.datasets[idx].hidden = !isChecked;
 
-          // Also toggle the matching quota line (index + 1)
           const quotaDataset = chart.data.datasets[idx + 1];
-            if (quotaDataset.label.endsWith('Quota')) {
-              quotaDataset.hidden = !e.target.checked || !toggleQuota.checked;
-            }
+          if (quotaDataset.label.endsWith('Quota')) {
+            quotaDataset.hidden = !isChecked || !toggleQuota.checked;
+          }
 
           chart.update();
 
-          // Update toggleAll state
+          // Sync "toggle all"
           const allChecked = [...yearCheckboxesDiv.querySelectorAll('input')].every(cb => cb.checked);
           toggleAll.checked = allChecked;
         });
@@ -272,37 +270,32 @@
         yearCheckboxesDiv.appendChild(label);
       });
 
-      // Toggle All logic
-      toggleAll.checked = false;
-        toggleAll.onchange = function () {
-          const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
-          checkboxes.forEach(cb => {
-            cb.checked = toggleAll.checked;
-            const idx = parseInt(cb.dataset.index);
-            chart.data.datasets[idx].hidden = !cb.checked;
+      toggleAll.onchange = function () {
+        const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+          cb.checked = toggleAll.checked;
+          const idx = parseInt(cb.dataset.index);
+          chart.data.datasets[idx].hidden = !cb.checked;
+          const quotaDataset = chart.data.datasets[idx + 1];
+          if (quotaDataset.label.endsWith('Quota')) {
+            quotaDataset.hidden = !cb.checked || !toggleQuota.checked;
+          }
+        });
+        chart.update();
+      };
 
-            const quotaDataset = chart.data.datasets[idx + 1];
-            if (quotaDataset.label.endsWith('Quota')) {
-              quotaDataset.hidden = !cb.checked || !toggleQuota.checked;
-            }
-          });
-          chart.update();
-        };
-
-
-      // Toggle Quota logic
-        toggleQuota.onchange = function () {
-          const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
-          checkboxes.forEach(cb => {
-            const idx = parseInt(cb.dataset.index);
-            const quotaDataset = chart.data.datasets[idx + 1];
-            if (quotaDataset.label.endsWith('Quota')) {
-              quotaDataset.hidden = !toggleQuota.checked || !cb.checked;
-            }
-          });
-          chart.update();
-        };
-
+      toggleQuota.onchange = function () {
+        const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+          const idx = parseInt(cb.dataset.index);
+          const isChecked = cb.checked;
+          const quotaDataset = chart.data.datasets[idx + 1];
+          if (quotaDataset.label.endsWith('Quota')) {
+            quotaDataset.hidden = !toggleQuota.checked || !isChecked;
+          }
+        });
+        chart.update();
+      };
     }
   </script>
 </body>
