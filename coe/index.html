@@ -102,139 +102,197 @@
       });
 
     function updateChart(selectedClass) {
-      const data = parsedData.filter(d => d.vehicle_class === selectedClass);
-      if (data.length === 0) return;
+  const data = parsedData.filter(d => d.vehicle_class === selectedClass);
+  if (data.length === 0) return;
 
-      const labelOrder = monthNames.flatMap(m => [`${m}-1`, `${m}-2`]);
-      const grouped = {};
-      data.forEach(entry => {
-        if (!grouped[entry.year]) grouped[entry.year] = [];
-        grouped[entry.year].push(entry);
-      });
+  const labelOrder = monthNames.flatMap(m => [`${m}-1`, `${m}-2`]);
+  const grouped = {};
+  data.forEach(entry => {
+    if (!grouped[entry.year]) grouped[entry.year] = [];
+    grouped[entry.year].push(entry);
+  });
 
-      const currentYear = new Date().getFullYear();
-      const datasets = [];
-      const colorPalette = ['#3366cc', '#dc3912', '#ff9900', '#109618', '#990099', '#0099c6', '#dd4477', '#66aa00', '#b82e2e', '#316395'];
-      let colorIndex = 0;
+  const currentYear = new Date().getFullYear();
+  const yearStates = {};
 
-      Object.entries(grouped).forEach(([year, values]) => {
-        const yearColor = colorPalette[colorIndex++ % colorPalette.length];
-        const isVisible = parseInt(year) === currentYear;
+  // Save checkbox states
+  document.querySelectorAll('#yearCheckboxes input[type="checkbox"]').forEach(cb => {
+    yearStates[cb.dataset.year] = cb.checked;
+  });
 
-        const premiums = [], quotas = [], bids = [];
-        labelOrder.forEach(label => {
-          const match = values.find(v => v.bidding_label === label);
-          premiums.push(match ? match.premium : null);
-          quotas.push(match && !isNaN(match.quota) ? match.quota : null);
-          bids.push(match && !isNaN(match.bids) ? match.bids : null);
-        });
+  yearCheckboxesDiv.innerHTML = '';
+  const datasets = [];
+  const colorPalette = ['#3366cc', '#dc3912', '#ff9900', '#109618', '#990099', '#0099c6', '#dd4477', '#66aa00', '#b82e2e', '#316395'];
+  let colorIndex = 0;
 
-        datasets.push({ label: year, data: premiums, borderColor: yearColor, borderWidth: 1, pointRadius: 2, pointHoverRadius: 5, hidden: !isVisible, spanGaps: true, fill: false, tension: 0.2, yAxisID: 'y' });
-        datasets.push({ label: year + " Quota", data: quotas, borderColor: yearColor, borderDash: [4, 4], borderWidth: 1, hidden: !isVisible || !toggleQuota.checked, spanGaps: true, fill: false, tension: 0.2, pointRadius: 0, yAxisID: 'y1' });
-        datasets.push({ label: year + " Bids", data: bids, borderColor: yearColor, borderDash: [2, 6], borderWidth: 2, hidden: !isVisible || !toggleBids.checked, spanGaps: true, fill: false, tension: 0.2, pointRadius: 0, yAxisID: 'y2' });
-      });
+  Object.entries(grouped).forEach(([year, values]) => {
+    const yearColor = colorPalette[colorIndex++ % colorPalette.length];
+    const isVisible = yearStates[year] ?? (parseInt(year) === currentYear);
 
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: labelOrder, datasets },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              position: 'top',
-              labels: {
-                filter: (item, data) => {
-                  const label = item.text;
-                  const ds = data.datasets[item.datasetIndex];
-                  return !label.endsWith("Quota") && !label.endsWith("Bids") && !ds.hidden;
-                }
-              }
-            },
-            title: {
-              display: true,
-              text: `COE Premiums for ${selectedClass} (Overlayed by Year)`
-            }
-          },
-          scales: {
-            x: { title: { display: true, text: 'Bidding Round' } },
-            y: { title: { display: true, text: 'Premium (S$)' }, beginAtZero: true },
-            y1: { title: { display: true, text: 'Quota' }, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } },
-            y2: { title: { display: true, text: 'Bids Received' }, beginAtZero: true, position: 'right', offset: true, grid: { drawOnChartArea: false } }
-          },
-          onClick(evt, activeElements) {
-            if (activeElements.length > 0) {
-              const el = activeElements[0];
-              const index = el.index;
-              const groupStart = el.datasetIndex - (el.datasetIndex % 3);
-              const year = chart.data.datasets[groupStart].label;
-              const round = chart.data.labels[index];
-              const premium = chart.data.datasets[groupStart].data[index];
-              const quota = chart.data.datasets[groupStart + 1].data[index];
-              const bids = chart.data.datasets[groupStart + 2].data[index];
-              clickInfo.innerHTML = `
-                🗓 Year: ${year}<br>
-                📆 Bidding Round: ${round}<br>
-                💰 Premium: $${premium?.toLocaleString() ?? "N/A"}<br>
-                🎟 Quota: ${quota?.toLocaleString() ?? "N/A"}<br>
-                🧾 Bids Received: ${bids?.toLocaleString() ?? "N/A"}`;
+    const premiums = [], quotas = [], bids = [];
+    labelOrder.forEach(label => {
+      const match = values.find(v => v.bidding_label === label);
+      premiums.push(match ? match.premium : null);
+      quotas.push(match && !isNaN(match.quota) ? match.quota : null);
+      bids.push(match && !isNaN(match.bids) ? match.bids : null);
+    });
+
+    const baseIndex = datasets.length;
+
+    datasets.push({
+      label: year,
+      data: premiums,
+      borderColor: yearColor,
+      borderWidth: 1,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      hidden: !isVisible,
+      spanGaps: true,
+      fill: false,
+      tension: 0.2,
+      yAxisID: 'y'
+    });
+
+    datasets.push({
+      label: year + " Quota",
+      data: quotas,
+      borderColor: yearColor,
+      borderDash: [4, 4],
+      borderWidth: 1,
+      hidden: !isVisible || !toggleQuota.checked,
+      spanGaps: true,
+      fill: false,
+      tension: 0.2,
+      pointRadius: 0,
+      yAxisID: 'yRight'
+    });
+
+    datasets.push({
+      label: year + " Bids",
+      data: bids,
+      borderColor: yearColor,
+      borderDash: [2, 6],
+      borderWidth: 2,
+      hidden: !isVisible || !toggleBids.checked,
+      spanGaps: true,
+      fill: false,
+      tension: 0.2,
+      pointRadius: 0,
+      yAxisID: 'yRight'
+    });
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = isVisible;
+    cb.dataset.year = year;
+    cb.dataset.index = baseIndex;
+    cb.addEventListener('change', () => {
+      const i = parseInt(cb.dataset.index);
+      const checked = cb.checked;
+      chart.data.datasets[i].hidden = !checked;
+      chart.data.datasets[i + 1].hidden = !checked || !toggleQuota.checked;
+      chart.data.datasets[i + 2].hidden = !checked || !toggleBids.checked;
+      chart.update();
+      toggleAll.checked = [...yearCheckboxesDiv.querySelectorAll('input')].every(cb => cb.checked);
+    });
+
+    const label = document.createElement('label');
+    label.textContent = year;
+    label.style.marginRight = '15px';
+
+    yearCheckboxesDiv.appendChild(cb);
+    yearCheckboxesDiv.appendChild(label);
+  });
+
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: labelOrder, datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            filter: (item, data) => {
+              const label = item.text;
+              const ds = data.datasets[item.datasetIndex];
+              return !label.endsWith("Quota") && !label.endsWith("Bids") && !ds.hidden;
             }
           }
+        },
+        title: {
+          display: true,
+          text: `COE Premiums for ${selectedClass} (Overlayed by Year)`
         }
-      });
+      },
+      scales: {
+        x: { title: { display: true, text: 'Bidding Round' } },
+        y: { title: { display: true, text: 'Premium (S$)' }, beginAtZero: true },
+        yRight: {
+          title: { display: true, text: 'Quota / Bids Received' },
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false }
+        }
+      },
+    onClick(evt, activeElements) {
+      if (activeElements.length > 0) {
+        const el = activeElements[0];
+        const index = el.index;
+        const datasetIndex = el.datasetIndex;
 
-      yearCheckboxesDiv.innerHTML = '';
-      for (let i = 0; i < datasets.length; i += 3) {
-        const premiumDS = datasets[i];
-        const quotaDS = datasets[i + 1];
-        const bidsDS = datasets[i + 2];
+        const baseIndex = datasetIndex - (datasetIndex % 3);
+        const year = chart.data.datasets[baseIndex].label;
+        const round = chart.data.labels[index];
+        const premium = chart.data.datasets[baseIndex].data[index];
+        const quota = chart.data.datasets[baseIndex + 1].data[index];
+        const bids = chart.data.datasets[baseIndex + 2].data[index];
 
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = !premiumDS.hidden;
-        cb.dataset.index = i;
-        cb.addEventListener('change', () => {
-          const checked = cb.checked;
-          premiumDS.hidden = !checked;
-          quotaDS.hidden = !checked || !toggleQuota.checked;
-          bidsDS.hidden = !checked || !toggleBids.checked;
-          chart.update();
-          toggleAll.checked = [...yearCheckboxesDiv.querySelectorAll('input')].every(cb => cb.checked);
-        });
-        const label = document.createElement('label');
-        label.style.marginRight = '15px';
-        label.textContent = premiumDS.label;
-        yearCheckboxesDiv.appendChild(cb);
-        yearCheckboxesDiv.appendChild(label);
+        clickInfo.innerHTML = `
+          🗓 Year: ${year}<br>
+          📆 Bidding Round: ${round}<br>
+          💰 Premium: $${premium?.toLocaleString() ?? "N/A"}<br>
+          🎟 Quota: ${quota?.toLocaleString() ?? "N/A"}<br>
+          🧾 Bids Received: ${bids?.toLocaleString() ?? "N/A"}
+        `;
       }
-
-      toggleAll.onchange = () => {
-        yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          cb.checked = toggleAll.checked;
-          const idx = parseInt(cb.dataset.index);
-          chart.data.datasets[idx].hidden = !cb.checked;
-          chart.data.datasets[idx + 1].hidden = !cb.checked || !toggleQuota.checked;
-          chart.data.datasets[idx + 2].hidden = !cb.checked || !toggleBids.checked;
-        });
-        chart.update();
-      };
-
-      toggleQuota.onchange = () => {
-        yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          const idx = parseInt(cb.dataset.index);
-          chart.data.datasets[idx + 1].hidden = !cb.checked || !toggleQuota.checked;
-        });
-        chart.update();
-      };
-
-      toggleBids.onchange = () => {
-        yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          const idx = parseInt(cb.dataset.index);
-          chart.data.datasets[idx + 2].hidden = !cb.checked || !toggleBids.checked;
-        });
-        chart.update();
-      };
     }
+
+    }
+  });
+
+  toggleAll.onchange = () => {
+    const checks = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+    checks.forEach(cb => {
+      cb.checked = toggleAll.checked;
+      const i = parseInt(cb.dataset.index);
+      chart.data.datasets[i].hidden = !cb.checked;
+      chart.data.datasets[i + 1].hidden = !cb.checked || !toggleQuota.checked;
+      chart.data.datasets[i + 2].hidden = !cb.checked || !toggleBids.checked;
+    });
+    chart.update();
+  };
+
+  toggleQuota.onchange = () => {
+    const checks = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+    checks.forEach(cb => {
+      const i = parseInt(cb.dataset.index);
+      chart.data.datasets[i + 1].hidden = !cb.checked || !toggleQuota.checked;
+    });
+    chart.update();
+  };
+
+  toggleBids.onchange = () => {
+    const checks = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+    checks.forEach(cb => {
+      const i = parseInt(cb.dataset.index);
+      chart.data.datasets[i + 2].hidden = !cb.checked || !toggleBids.checked;
+    });
+    chart.update();
+  };
+}
+
   </script>
 </body>
 </html>
