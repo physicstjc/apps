@@ -42,6 +42,11 @@
     <input type="checkbox" id="toggleAllYears" checked>
     <label for="toggleAllYears"><strong>Select / Unselect All Years</strong></label>
     <div id="yearCheckboxes" style="margin-top: 10px;"></div>
+
+    <div style="margin: 10px 0;">
+      <input type="checkbox" id="toggleQuota" checked>
+      <label for="toggleQuota">Show Quota (Dotted Line)</label>
+    </div>
   </div>
 
   <canvas id="coeChart" width="800" height="400"></canvas>
@@ -55,6 +60,7 @@
     const ctx = document.getElementById("coeChart").getContext("2d");
     const yearCheckboxesDiv = document.getElementById("yearCheckboxes");
     const toggleAll = document.getElementById("toggleAllYears");
+    const toggleQuota = document.getElementById("toggleQuota");
     const clickInfo = document.getElementById("clickInfo");
 
     let chart;
@@ -77,7 +83,8 @@
             bidding_label: biddingLabel,
             year: parseInt(year),
             vehicle_class: r.vehicle_class,
-            premium: parseFloat(r.premium)
+            premium: parseFloat(r.premium),
+            quota: parseInt(r.quota)
           };
         }).filter(r => !isNaN(r.premium));
 
@@ -102,13 +109,9 @@
 
     function updateChart(selectedClass) {
       const data = parsedData.filter(d => d.vehicle_class === selectedClass);
-      if (data.length === 0) {
-        console.warn("No data for class:", selectedClass);
-        return;
-      }
+      if (data.length === 0) return;
 
       const labelOrder = monthNames.flatMap(m => [`${m}-1`, `${m}-2`]);
-
       const grouped = {};
       data.forEach(entry => {
         if (!grouped[entry.year]) grouped[entry.year] = [];
@@ -116,15 +119,30 @@
       });
 
       const currentYear = new Date().getFullYear();
+      const datasets = [];
+      const colorPalette = [
+        '#3366cc', '#dc3912', '#ff9900', '#109618', '#990099',
+        '#0099c6', '#dd4477', '#66aa00', '#b82e2e', '#316395'
+      ];
+      let colorIndex = 0;
 
-      const datasets = Object.entries(grouped).map(([year, values]) => {
-        const dataPoints = labelOrder.map(label => {
+      Object.entries(grouped).forEach(([year, values]) => {
+        const premiumData = [];
+        const quotaData = [];
+
+        const yearColor = colorPalette[colorIndex % colorPalette.length];
+        colorIndex++;
+
+        labelOrder.forEach(label => {
           const match = values.find(v => v.bidding_label === label);
-          return match ? match.premium : null;
+          premiumData.push(match ? match.premium : null);
+          quotaData.push(match && match.quota ? match.quota : null);
         });
-        return {
+
+        // Premium dataset
+        datasets.push({
           label: year,
-          data: dataPoints,
+          data: premiumData,
           spanGaps: true,
           fill: false,
           tension: 0.2,
@@ -133,8 +151,25 @@
           pointHoverRadius: 5,
           hitRadius: 10,
           pointStyle: 'circle',
-          hidden: parseInt(year) !== currentYear
-        };
+          hidden: parseInt(year) !== currentYear,
+          borderColor: yearColor,
+          yAxisID: 'y'
+        });
+
+        // Quota dataset (dotted)
+        datasets.push({
+          label: year + ' Quota',
+          data: quotaData,
+          spanGaps: true,
+          fill: false,
+          tension: 0.2,
+          borderWidth: 1,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          hidden: !toggleQuota.checked || parseInt(year) !== currentYear,
+          borderColor: yearColor,
+          yAxisID: 'y1'
+        });
       });
 
       if (chart) chart.destroy();
@@ -147,7 +182,17 @@
         options: {
           responsive: true,
           plugins: {
-            legend: { position: 'top' },
+            legend: {
+              position: 'top',
+              labels: {
+                filter: function(legendItem, data) {
+                  const label = legendItem.text;
+                  const dataset = data.datasets[legendItem.datasetIndex];
+                  // ✅ Show only premium (non-quota) lines that are currently visible
+                  return !label.endsWith("Quota") && !dataset.hidden;
+                }
+              }
+            },
             title: {
               display: true,
               text: `COE Premiums for ${selectedClass} (Overlayed by Year)`
@@ -158,7 +203,16 @@
               title: { display: true, text: 'Bidding Round (Month-Bid)' }
             },
             y: {
-              title: { display: true, text: 'Premium (S$)' }
+              title: { display: true, text: 'Premium (S$)' },
+              beginAtZero: true
+            },
+            y1: {
+              title: { display: true, text: 'Quota' },
+              beginAtZero: true,
+              position: 'right',
+              grid: {
+                drawOnChartArea: false
+              }
             }
           },
           onClick(evt, activeElements) {
@@ -168,10 +222,12 @@
               const index = element.index;
               const dataset = chart.data.datasets[datasetIndex];
 
+              // Only respond to premium lines
+              if (dataset.label.endsWith("Quota")) return;
+
               const year = dataset.label;
               const round = chart.data.labels[index];
               const premium = dataset.data[index];
-
               const output = `🗓 Year: ${year}<br>📆 Bidding Round: ${round}<br>💰 Premium: $${premium.toLocaleString()}`;
               clickInfo.innerHTML = output;
             }
@@ -179,9 +235,11 @@
         }
       });
 
-      // === Generate checkboxes for each year ===
+      // === Create checkboxes ===
       yearCheckboxesDiv.innerHTML = '';
       datasets.forEach((ds, i) => {
+        if (ds.label.endsWith('Quota')) return; // skip quota lines
+
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = parseInt(ds.label) === currentYear;
@@ -191,9 +249,16 @@
         checkbox.addEventListener('change', (e) => {
           const idx = parseInt(e.target.dataset.index);
           chart.data.datasets[idx].hidden = !e.target.checked;
+
+          // Also toggle the matching quota line (index + 1)
+          const quotaDataset = chart.data.datasets[idx + 1];
+            if (quotaDataset.label.endsWith('Quota')) {
+              quotaDataset.hidden = !e.target.checked || !toggleQuota.checked;
+            }
+
           chart.update();
 
-          // Uncheck "toggle all" if any are unchecked
+          // Update toggleAll state
           const allChecked = [...yearCheckboxesDiv.querySelectorAll('input')].every(cb => cb.checked);
           toggleAll.checked = allChecked;
         });
@@ -207,17 +272,37 @@
         yearCheckboxesDiv.appendChild(label);
       });
 
-      // === Toggle All Checkbox Logic ===
-      toggleAll.checked = false; // not all visible
-      toggleAll.onchange = function () {
-        const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => {
-          cb.checked = toggleAll.checked;
-          const idx = parseInt(cb.dataset.index);
-          chart.data.datasets[idx].hidden = !cb.checked;
-        });
-        chart.update();
-      };
+      // Toggle All logic
+      toggleAll.checked = false;
+        toggleAll.onchange = function () {
+          const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+          checkboxes.forEach(cb => {
+            cb.checked = toggleAll.checked;
+            const idx = parseInt(cb.dataset.index);
+            chart.data.datasets[idx].hidden = !cb.checked;
+
+            const quotaDataset = chart.data.datasets[idx + 1];
+            if (quotaDataset.label.endsWith('Quota')) {
+              quotaDataset.hidden = !cb.checked || !toggleQuota.checked;
+            }
+          });
+          chart.update();
+        };
+
+
+      // Toggle Quota logic
+        toggleQuota.onchange = function () {
+          const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+          checkboxes.forEach(cb => {
+            const idx = parseInt(cb.dataset.index);
+            const quotaDataset = chart.data.datasets[idx + 1];
+            if (quotaDataset.label.endsWith('Quota')) {
+              quotaDataset.hidden = !toggleQuota.checked || !cb.checked;
+            }
+          });
+          chart.update();
+        };
+
     }
   </script>
 </body>
