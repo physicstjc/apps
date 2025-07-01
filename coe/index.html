@@ -19,8 +19,17 @@
     canvas {
       margin-top: 30px;
     }
-    #yearCheckboxes {
+    #yearControls {
       margin: 20px 0;
+    }
+    #clickInfo {
+      margin-top: 20px;
+      font-size: 1rem;
+      background: #eef;
+      padding: 10px;
+      border-left: 4px solid #339;
+      border-radius: 5px;
+      display: inline-block;
     }
   </style>
 </head>
@@ -30,13 +39,13 @@
   <select id="vehicleClassSelect"></select>
 
   <div id="yearControls">
-      <input type="checkbox" id="toggleAllYears" checked>
-      <label for="toggleAllYears"><strong>Select / Unselect All Years</strong></label>
-      <div id="yearCheckboxes" style="margin-top: 10px;"></div>
+    <input type="checkbox" id="toggleAllYears" checked>
+    <label for="toggleAllYears"><strong>Select / Unselect All Years</strong></label>
+    <div id="yearCheckboxes" style="margin-top: 10px;"></div>
   </div>
 
-
   <canvas id="coeChart" width="800" height="400"></canvas>
+  <div id="clickInfo"></div>
 
   <script>
     const datasetId = "d_69b3380ad7e51aff3a7dcc84eba52b8a";
@@ -45,6 +54,8 @@
     const select = document.getElementById("vehicleClassSelect");
     const ctx = document.getElementById("coeChart").getContext("2d");
     const yearCheckboxesDiv = document.getElementById("yearCheckboxes");
+    const toggleAll = document.getElementById("toggleAllYears");
+    const clickInfo = document.getElementById("clickInfo");
 
     let chart;
     let parsedData = [];
@@ -71,8 +82,6 @@
         }).filter(r => !isNaN(r.premium));
 
         const vehicleClasses = [...new Set(parsedData.map(r => r.vehicle_class))].sort();
-
-        // Populate dropdown
         vehicleClasses.forEach(vc => {
           const option = document.createElement("option");
           option.value = vc;
@@ -80,11 +89,9 @@
           select.appendChild(option);
         });
 
-        // Initial plot
         select.value = vehicleClasses[0];
         updateChart(select.value);
 
-        // Listen for change
         select.addEventListener("change", () => {
           updateChart(select.value);
         });
@@ -108,6 +115,8 @@
         grouped[entry.year].push(entry);
       });
 
+      const currentYear = new Date().getFullYear();
+
       const datasets = Object.entries(grouped).map(([year, values]) => {
         const dataPoints = labelOrder.map(label => {
           const match = values.find(v => v.bidding_label === label);
@@ -120,9 +129,11 @@
           fill: false,
           tension: 0.2,
           borderWidth: 1,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          hidden: false
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          hitRadius: 10,
+          pointStyle: 'circle',
+          hidden: parseInt(year) !== currentYear
         };
       });
 
@@ -149,16 +160,31 @@
             y: {
               title: { display: true, text: 'Premium (S$)' }
             }
+          },
+          onClick(evt, activeElements) {
+            if (activeElements.length > 0) {
+              const element = activeElements[0];
+              const datasetIndex = element.datasetIndex;
+              const index = element.index;
+              const dataset = chart.data.datasets[datasetIndex];
+
+              const year = dataset.label;
+              const round = chart.data.labels[index];
+              const premium = dataset.data[index];
+
+              const output = `🗓 Year: ${year}<br>📆 Bidding Round: ${round}<br>💰 Premium: $${premium.toLocaleString()}`;
+              clickInfo.innerHTML = output;
+            }
           }
         }
       });
 
-      // Create checkboxes
+      // === Generate checkboxes for each year ===
       yearCheckboxesDiv.innerHTML = '';
       datasets.forEach((ds, i) => {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.checked = true;
+        checkbox.checked = parseInt(ds.label) === currentYear;
         checkbox.id = `year-${ds.label}`;
         checkbox.dataset.index = i;
 
@@ -166,6 +192,10 @@
           const idx = parseInt(e.target.dataset.index);
           chart.data.datasets[idx].hidden = !e.target.checked;
           chart.update();
+
+          // Uncheck "toggle all" if any are unchecked
+          const allChecked = [...yearCheckboxesDiv.querySelectorAll('input')].every(cb => cb.checked);
+          toggleAll.checked = allChecked;
         });
 
         const label = document.createElement('label');
@@ -176,49 +206,18 @@
         yearCheckboxesDiv.appendChild(checkbox);
         yearCheckboxesDiv.appendChild(label);
       });
-        // === Clear and re-add all year checkboxes ===
-yearCheckboxesDiv.innerHTML = '';
-datasets.forEach((ds, i) => {
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.checked = true;
-  checkbox.id = `year-${ds.label}`;
-  checkbox.dataset.index = i;
 
-  checkbox.addEventListener('change', (e) => {
-    const idx = parseInt(e.target.dataset.index);
-    chart.data.datasets[idx].hidden = !e.target.checked;
-    chart.update();
-
-    // If any checkbox is unchecked, uncheck toggleAll
-    if (!e.target.checked) {
-      document.getElementById('toggleAllYears').checked = false;
-    }
-  });
-
-  const label = document.createElement('label');
-  label.htmlFor = checkbox.id;
-  label.style.marginRight = '15px';
-  label.textContent = ds.label;
-
-  yearCheckboxesDiv.appendChild(checkbox);
-  yearCheckboxesDiv.appendChild(label);
-});
-
-// === Handle Toggle All Checkbox ===
-const toggleAll = document.getElementById('toggleAllYears');
-toggleAll.checked = true; // default
-
-toggleAll.onchange = function () {
-  const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
-  checkboxes.forEach(cb => {
-    cb.checked = toggleAll.checked;
-    const idx = parseInt(cb.dataset.index);
-    chart.data.datasets[idx].hidden = !cb.checked;
-  });
-  chart.update();
-};
-
+      // === Toggle All Checkbox Logic ===
+      toggleAll.checked = false; // not all visible
+      toggleAll.onchange = function () {
+        const checkboxes = yearCheckboxesDiv.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+          cb.checked = toggleAll.checked;
+          const idx = parseInt(cb.dataset.index);
+          chart.data.datasets[idx].hidden = !cb.checked;
+        });
+        chart.update();
+      };
     }
   </script>
 </body>
