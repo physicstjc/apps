@@ -1,1 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Physics MCQ Quiz</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 30px auto;
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { text-align: center; }
+    label, button {
+      display: block;
+      margin: 10px 0;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 10px;
+      background: #eef;
+      border-left: 4px solid #4CAF50;
+    }
+    .correct { color: green; }
+  </style>
+</head>
+<body>
+  <h1>Physics Quiz</h1>
+  <form id="quizForm">
+    <label>Email:
+      <input type="email" name="email" required placeholder="Enter your email">
+    </label>
+    <div id="questions"></div>
+    <button type="submit">Submit Quiz</button>
+  </form>
+  <div id="result" class="result" style="display:none;"></div>
 
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzxMUfR6DKGzghjv-74H6sKdlxR6v9mbO21DxLKDXVjjkQpBm4yZChu_kbsVl61E0ImRA/exec';
+    const questions = [
+      { text: "1. Unit of force?", options: ["A) Newton", "B) Joule", "C) Watt", "D) Pascal"], correct: "A" },
+      { text: "2. Scalar quantity?", options: ["A) Velocity", "B) Force", "C) Energy", "D) Displacement"], correct: "C" },
+      { text: "3. g on Earth?", options: ["A) 8.9 m/s²", "B) 10 m/s²", "C) 9.8 m/s²", "D) 12 m/s²"], correct: "C" },
+      { text: "4. Work formula?", options: ["A) Fd", "B) mgh", "C) ½mv²", "D) VIt"], correct: "A" },
+      { text: "5. Law: F=ma?", options: ["A) Newton 1", "B) Newton 2", "C) Newton 3", "D) Hooke"], correct: "B" },
+      { text: "6. PE formula?", options: ["A) mgh", "B) ½mv²", "C) Fd", "D) qV"], correct: "A" },
+      { text: "7. SI unit of power?", options: ["A) Joule", "B) Watt", "C) Newton", "D) Ampere"], correct: "B" },
+      { text: "8. Ohm's law?", options: ["A) V=IR", "B) P=IV", "C) Q=It", "D) F=ma"], correct: "A" },
+      { text: "9. Slope of v-t graph?", options: ["A) Displacement", "B) Speed", "C) Acceleration", "D) Force"], correct: "C" },
+      { text: "10. Momentum formula?", options: ["A) mv", "B) ma", "C) mgh", "D) qV"], correct: "A" }
+    ];
+
+    const questionsDiv = document.getElementById('questions');
+    questions.forEach((q, i) => {
+      const div = document.createElement('div');
+      div.innerHTML = `<p>${q.text}</p>` + q.options.map(opt =>
+        `<label><input type="radio" name="q${i+1}" value="${opt.charAt(0)}" required> ${opt}</label>`
+      ).join('');
+      questionsDiv.appendChild(div);
+    });
+
+    document.getElementById('quizForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      fetch(API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      })
+      .then(r => r.json())
+      .then(res => {
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `<h3>Your Score: ${res.score}/10</h3>` + questions.map((q, i) => {
+          const userAns = data[`q${i+1}`];
+          const correct = q.correct;
+          const status = userAns === correct ? '✅ Correct' : '❌ Wrong';
+          return `<p><b>${q.text}</b><br>Your Answer: ${userAns}<br>Correct Answer: <span class="correct">${correct}</span> (${status})</p>`;
+        }).join('');
+      })
+      .catch(err => alert('Error submitting quiz: ' + err));
+    });
+  </script>
+</body>
+</html>
