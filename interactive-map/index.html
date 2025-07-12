@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>TJC Interactive Map</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      
+      <select id="floorSelect">
+        <option value="overview">Overview</option>
+        <option value="L1">1 st Storey</option>
+        <option value="L2">2 nd Storey</option>
+        <option value="L3">3 rd Storey</option>
+        <option value="LG">Lower Ground & Hall</option>
+      </select>
+      <button id="fsBtn" title="Full screen" aria-label="Toggle full‑screen">
+        <!-- minimalist fullscreen icon (SVG) -->
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"
+                fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- scrollable viewport -->
+    <div id="viewport">
+      <!-- image + pins live inside this container -->
+      <div id="canvas">
+        <img id="floorImg" src="assets/img/overview.png" alt="floor plan" />
+        <!-- .pin elements injected by JS -->
+      </div>
+    </div>
+
+    <aside id="directions"></aside>
+
+    <script src="locations.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
