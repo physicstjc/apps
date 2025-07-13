@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parents Gateway Group Automation</title>
+
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:20px;}
+  h1{color:#333;margin-bottom:20px;}
+  ol{margin-bottom:30px;}
+  li{margin-bottom:10px;}
+  pre{background:#f5f5f5;padding:15px;border-radius:5px;overflow-x:auto;}
+  code{font-family:'Courier New',monospace;font-size:0.9rem;white-space:pre;}
+  .btn{background:#4CAF50;color:#fff;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;margin:8px 5px 0 0;}
+  .btn:hover{background:#45a049;}
+  .btn:active{transform:scale(0.97);}
+</style>
+</head>
+<body>
+  <h1>Automate Adding Users to SLS Group</h1>
+
+  <p>Automate adding of users into a SLS Group from a CSV file.</p>
+
+  <ol>
+    <li>Prepare a CSV file with the full list of user email addresses.</li>
+    <li>Create the SLS Class Group in Chrome.</li>
+    <li>Click <em>Add Student</em> &nbsp;→&nbsp; choose the correct role.</li>
+    <li>If adding teachers‑as‑students, pick <strong>All&nbsp;Schools</strong> in the dropdown.</li>
+    <li>Right‑click anywhere in Chrome → <strong>Inspect</strong>.</li>
+    <li>Open the <strong>Console</strong> tab, paste (or drop) this script.</li>
+    <li>Upload the CSV when prompted.</li>
+    <li>After all names are ticked, click the blue “＋ Add” button.</li>
+    <li>A CSV of any unfound emails will be downloaded for manual follow‑up.</li>
+  </ol>
+
+  <pre><code id="automation-code"></code></pre>
+
+  <button class="btn" id="copy-btn">Copy Code</button>
+
+<p>
+  <iframe width="560" height="315" src="https://www.youtube.com/embed/JQk3cEozfUM?si=AdkezD1SXn9kMopF"
+          title="YouTube video player" frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </p>
+  <hr style="margin:30px 0;">
+  <p style="text-align:center;">
+    <a href="https://physicstjc.github.io/apps/" style="color:#4CAF50;text-decoration:none;">← Back to TJC Productivity Apps</a>
+  </p>
+
+<script>
+/* --------------------------- automation script --------------------------- */
+const automationScript = `
+// === Parents Gateway – Add Users from CSV ===
+(async () => {
+  const TYPE_DELAY=40, AFTER_TYPE=400, MENU_APPEAR=400, AFTER_PICK=300, CLEAR_DELAY=160;
+  /* 1. load CSV (picker → hidden input → prompt) */
+  let csv='';
+  if(window.showOpenFilePicker){
+    try{const[h]=await showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
+        csv=await h.getFile().then(f=>f.text());}catch{}
+  }
+  if(!csv)csv=await new Promise(r=>{
+    const i=Object.assign(document.createElement('input'),{type:'file',accept:'.csv',style:'display:none'});
+    document.body.appendChild(i);
+    i.onchange=async()=>{r(i.files.length?await i.files[0].text():'');i.remove();};
+    i.click();setTimeout(()=>r(''),1500);
+  });
+  if(!csv)csv=prompt('Paste CSV (one name per line):')||'';
+  const names=csv.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);
+  if(!names.length){console.warn('No names');return;}
+
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const set=(e,v)=>Object.getOwnPropertyDescriptor(Object.getPrototypeOf(e),'value').set.call(e,v);
+  const key=(e,t,k)=>e.dispatchEvent(new KeyboardEvent(t,{key:k,bubbles:true,cancelable:true}));
+  const $=s=>document.querySelector(s);
+
+  const search='input.bx--search-input[role="searchbox"]';
+  const combo ='input.bx--text-input[role="combobox"]';
+  const menu  ='div.bx--list-box__menu[role="listbox"] .bx--list-box__menu-item__option';
+
+  const unfound=[];
+  for(const n of names){
+    const sb=$(search); if(!sb){console.error('search box missing');return;}
+    set(sb,''); sb.dispatchEvent(new Event('input',{bubbles:true}));
+    for(const ch of n){set(sb,sb.value+ch);key(sb,'keydown',ch);key(sb,'keyup',ch);
+      sb.dispatchEvent(new Event('input',{bubbles:true}));await wait(TYPE_DELAY);}
+    sb.dispatchEvent(new Event('change',{bubbles:true}));await wait(AFTER_TYPE);
+
+    const ci=$(combo);
+    if(ci){ci.focus();key(ci,'keydown','ArrowDown');key(ci,'keyup','ArrowDown');await wait(MENU_APPEAR);
+      const all=[...document.querySelectorAll(menu)].find(o=>o.textContent.trim().toLowerCase()==='all schools');
+      if(all){all.click();await wait(AFTER_PICK);}
+    }
+
+    const row=[...document.querySelectorAll('div,li,tr')]
+               .find(el=>el.textContent.toLowerCase().includes(n.toLowerCase()));
+    let ok=false;
+    if(row){
+      const cb=row.querySelector('input[type="checkbox"][aria-disabled="false"]');
+      if(cb){if(!cb.checked)cb.click();ok=true;}
+    }
+    console[ok?'log':'warn'](ok?'✔':'✖',n);
+    if(!ok)unfound.push(n);
+
+    set(sb,'');sb.dispatchEvent(new Event('input',{bubbles:true}));
+    sb.dispatchEvent(new Event('change',{bubbles:true}));await wait(CLEAR_DELAY);
+  }
+
+  if(unfound.length){
+    const blob=new Blob([unfound.join('\\n')],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const a=Object.assign(document.createElement('a'),{
+      href:url,
+      download:'not-found-'+Date.now()+'.csv'
+    });
+    document.body.appendChild(a);a.click();a.remove();
+    console.log('📄 CSV of unfound names downloaded.');
+  }else{
+    console.log('🎉 All names processed successfully.');
+  }
+})();
+`;
+/* ------------------------------------------------------------------------ */
+
+/* inject script into code block */
+document.getElementById('automation-code').textContent = automationScript;
+
+/* copy to clipboard */
+document.getElementById('copy-btn').onclick = () => {
+  navigator.clipboard.writeText(automationScript)
+    .then(()=>alert('Code copied to clipboard!'))
+    .catch(err=>alert('Copy failed: '+err));
+};
+
+/* download as .js file */
+document.getElementById('download-btn').onclick = () => {
+  const blob = new Blob([automationScript], {type:'application/javascript'});
+  const url  = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), {
+    href:url,
+    download:'parents-gateway-automation.js'
+  });
+  document.body.appendChild(a); a.click(); a.remove();
+};
+</script>
+</body>
+</html>
