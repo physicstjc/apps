@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Excused Students Uploader</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f9f9f9;
+      color: #333;
+    }
+
+    h2 {
+      color: #005b96;
+      text-align: center;
+    }
+
+    form {
+      max-width: 500px;
+      margin: 0 auto;
+      background: #e6f2ff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="time"],
+    input[type="email"],
+    input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      background-color: #005b96;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    button:hover {
+      background-color: #003f6b;
+    }
+
+    #output {
+      margin-top: 20px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      background: #f1f1f1;
+      border-radius: 5px;
+      padding: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .success {
+      color: green;
+      font-weight: bold;
+    }
+
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Excused Students Uploader</h2>
+
+  <form id="detailsForm">
+    <label for="email">Your Email (for confirmation):</label>
+    <input type="email" id="email" placeholder="you@school.edu.sg" required>
+
+    <label for="date">Date of Excuse:</label>
+    <input type="date" id="date" required>
+
+    <label for="reason">Reason for Excuse:</label>
+    <input type="text" id="reason" placeholder="e.g., Medical Appointment" required>
+
+    <label for="startTime">Start Time:</label>
+    <input type="time" id="startTime" required>
+
+    <label for="endTime">End Time:</label>
+    <input type="time" id="endTime" required>
+
+    <label for="csvFile">Upload CSV of Student Names:</label>
+    <input type="file" id="csvFile" accept=".csv" required>
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <div id="output"></div>
+
+  <script>
+    document.getElementById('detailsForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) {
+        alert("Please upload a CSV file.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const csvText = event.target.result;
+        const names = csvText.split('\n').map(line => line.trim()).filter(Boolean);
+
+        const payload = {
+          data: names,
+          date: document.getElementById('date').value,
+          reason: document.getElementById('reason').value,
+          startTime: document.getElementById('startTime').value,
+          endTime: document.getElementById('endTime').value,
+          userEmail: document.getElementById('email').value
+        };
+
+        document.getElementById('output').innerHTML = "Processing... Please wait.";
+
+        google.script.run.withSuccessHandler(function(response) {
+          let resultHTML = `<p class="success"><strong>${response.successCount}</strong> students added successfully.</p>`;
+          if (response.rejected.length > 0) {
+            resultHTML += `<p class="error">Rejected Names (not found):<br>${response.rejected.join('<br>')}</p>`;
+          }
+          resultHTML += `<p>A summary has been emailed to <strong>${payload.userEmail}</strong>.</p>`;
+          document.getElementById('output').innerHTML = resultHTML;
+        }).validateAndSave(payload.data, payload.date, payload.reason, payload.startTime, payload.endTime, payload.userEmail);
+      };
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html>
