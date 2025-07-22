@@ -749,12 +749,34 @@
                     
                     // Check for double tap
                     if (now - lastTouchTime < 300) {
-                        // Double tap detected - reset zoom and pan
-                        scale = 1;
-                        translateX = 0;
-                        translateY = 0;
-                        updateTransform();
                         e.preventDefault();
+                        
+                        if (scale > 1.1) {
+                            // When zoomed in, double tap should trigger cell interaction
+                            const touchX = touch.clientX;
+                            const touchY = touch.clientY;
+                            
+                            // Find the cell under the touch point
+                            const element = document.elementFromPoint(touchX, touchY);
+                            const cell = element ? element.closest('.bingo-cell') : null;
+                            
+                            if (cell) {
+                                // Get cell number from the cell
+                                const cellNumberElement = cell.querySelector('.cell-number');
+                                const cellNumber = cellNumberElement ? parseInt(cellNumberElement.textContent) : null;
+                                
+                                if (cellNumber) {
+                                    // Trigger cell interaction
+                                    setTimeout(() => handleCellClick(cell, cellNumber), 50);
+                                }
+                            }
+                        } else {
+                            // When at normal zoom, double tap resets view
+                            scale = 1;
+                            translateX = 0;
+                            translateY = 0;
+                            updateTransform();
+                        }
                         return;
                     }
                     
