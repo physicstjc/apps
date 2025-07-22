@@ -1052,6 +1052,88 @@
             return "Unknown pattern";
         }
 
+        async function submitBingo() {
+            if (bingoLines.length === 0) {
+                alert('Please complete at least one bingo line before submitting!');
+                return;
+            }
+
+            // Disable submit button during processing
+            submitBtn.disabled = true;
+            submitStatus.textContent = 'Preparing submission...';
+
+            try {
+                // Get team name
+                const teamName = prompt("Enter your team name:") || "Anonymous Team";
+                
+                // Collect all completed cell data
+                const cells = document.querySelectorAll('.bingo-cell');
+                const allCompletedData = [];
+                
+                submitStatus.textContent = 'Processing images...';
+                
+                for (let cellIndex of completedCells) {
+                    const cell = cells[cellIndex];
+                    if (cell.dataset.imageData) {
+                        const resizedImage = await resizeImage(cell.dataset.imageData);
+                        allCompletedData.push({
+                            cellNumber: cell.dataset.cellNumber,
+                            cellText: cell.dataset.cellText,
+                            imageData: resizedImage
+                        });
+                    }
+                }
+
+                // Prepare data for Google Apps Script
+                const submissionData = {
+                    teamName: teamName,
+                    timestamp: new Date().toISOString(),
+                    completedLines: bingoLines.map(lineIndex => getBingoLineDescription(bingoPatterns[lineIndex])),
+                    totalCompleted: completedCells.size,
+                    images: allCompletedData
+                };
+
+                submitStatus.textContent = 'Sending to gamemaster...';
+
+                // Send to Google Apps Script
+                await sendToGoogleAppsScript(submissionData);
+                
+                submitStatus.textContent = '✅ Successfully submitted to gamemaster!';
+                alert(`Submission successful!\n\nTeam: ${teamName}\nCompleted Lines: ${submissionData.completedLines.join(', ')}\nTotal Images: ${allCompletedData.length}`);
+
+            } catch (error) {
+                console.error('Submission error:', error);
+                submitStatus.textContent = '❌ Submission failed. Please try again.';
+                alert('Failed to submit. Please check your internet connection and try again.');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function sendToGoogleAppsScript(data) {
+            // ⭐ CHANGE THIS URL TO YOUR GOOGLE APPS SCRIPT WEB APP URL ⭐
+            const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiTc5J4dkz1yocljRNR0clRu3uECbfEr5TLWyz024fd8ohgVwwmMluPOiFitREpy4xzA/exec';
+            // ⭐ REPLACE 'YOUR_SCRIPT_ID_HERE' WITH YOUR ACTUAL SCRIPT ID ⭐
+            
+            const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Required for Google Apps Script
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+
+            // Note: Due to no-cors mode, we can't read the response
+            // The script will assume success if no error is thrown
+            
+            // For testing purposes, log the data that would be sent
+            console.log('Data sent to Google Apps Script:', data);
+            
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
         function closeCamera() {
             modal.style.display = 'none';
             
