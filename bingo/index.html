@@ -296,6 +296,115 @@
             background: #1976D2;
         }
         
+        .camera-btn.gallery {
+            background: #9C27B0;
+        }
+        
+        .camera-btn.gallery:hover {
+            background: #7B1FA2;
+        }
+        
+        /* Image View Modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1500;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+        
+        .image-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            max-width: 90vw;
+            max-height: 90vh;
+        }
+        
+        .image-display {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .image-controls {
+            margin-top: 20px;
+        }
+        
+        .image-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .image-btn:hover {
+            background: #da190b;
+        }
+        
+        .image-btn.close {
+            background: #666;
+        }
+        
+        .image-btn.close:hover {
+            background: #555;
+        }
+        
+        /* Submit Button */
+        .submit-container {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .submit-btn.enabled {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .submit-btn.enabled:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+        }
+        
+        .submit-status {
+            margin-top: 15px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        /* Hidden file input */
+        #fileInput {
+            display: none;
+        }
+        
         #canvas {
             display: none;
         }
@@ -331,31 +440,31 @@
     
     <div class="bingo-grid">
         <!-- Row 1 -->
-        <div class="bingo-cell" onclick="openCamera(this, 18)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 18)">
             <div class="cell-content">
                 <div class="cell-number">18</div>
                 <div class="cell-text">A photo with any of the CLs</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 7)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 7)">
             <div class="cell-content">
                 <div class="cell-number">7</div>
                 <div class="cell-text">Someone in the group can speak 3 different languages</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 14)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 14)">
             <div class="cell-content">
                 <div class="cell-number">14</div>
                 <div class="cell-text">1 pack of tissue paper</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 22)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 22)">
             <div class="cell-content">
                 <div class="cell-number">22</div>
                 <div class="cell-text">Someone who have started eating today's happy bites</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 11)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 11)">
             <div class="cell-content">
                 <div class="cell-number">11</div>
                 <div class="cell-text">At least one person works in MOE less than 5 years</div>
@@ -363,31 +472,31 @@
         </div>
         
         <!-- Row 2 -->
-        <div class="bingo-cell" onclick="openCamera(this, 5)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 5)">
             <div class="cell-content">
                 <div class="cell-number">5</div>
                 <div class="cell-text">At least 3 members wear Green today</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 21)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 21)">
             <div class="cell-content">
                 <div class="cell-number">21</div>
                 <div class="cell-text">More than 7 different colours on clothings for a person</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 16)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 16)">
             <div class="cell-content">
                 <div class="cell-number">16</div>
                 <div class="cell-text">Someone who has taught at this school for more than 10 years</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 8)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 8)">
             <div class="cell-content">
                 <div class="cell-number">8</div>
                 <div class="cell-text">Someone has a gym membership (upload gym membership photo)</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 25)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 25)">
             <div class="cell-content">
                 <div class="cell-number">25</div>
                 <div class="cell-text">An item with school logo (except school T-shirts)</div>
@@ -395,31 +504,31 @@
         </div>
         
         <!-- Row 3 -->
-        <div class="bingo-cell" onclick="openCamera(this, 12)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 12)">
             <div class="cell-content">
                 <div class="cell-number">12</div>
                 <div class="cell-text">Have 4 glasses</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 3)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 3)">
             <div class="cell-content">
                 <div class="cell-number">3</div>
                 <div class="cell-text">At least from 3 different departments</div>
             </div>
         </div>
-        <div class="bingo-cell center-cell" onclick="openCamera(this, 1)">
+        <div class="bingo-cell center-cell" onclick="handleCellClick(this, 1)">
             <div class="cell-content">
                 <div class="cell-number">1</div>
                 <div class="cell-text">Take a group photo with the coins</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 19)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 19)">
             <div class="cell-content">
                 <div class="cell-number">19</div>
                 <div class="cell-text">An item with Singapore flag</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 6)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 6)">
             <div class="cell-content">
                 <div class="cell-number">6</div>
                 <div class="cell-text">Have 3 watches</div>
@@ -427,31 +536,31 @@
         </div>
         
         <!-- Row 4 -->
-        <div class="bingo-cell" onclick="openCamera(this, 17)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 17)">
             <div class="cell-content">
                 <div class="cell-number">17</div>
                 <div class="cell-text">Someone who used to be a student from TJC</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 24)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 24)">
             <div class="cell-content">
                 <div class="cell-number">24</div>
                 <div class="cell-text">Have 4 markers</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 2)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 2)">
             <div class="cell-content">
                 <div class="cell-number">2</div>
                 <div class="cell-text">At least 2 persons with the same Birth month</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 15)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 15)">
             <div class="cell-content">
                 <div class="cell-number">15</div>
                 <div class="cell-text">A group member with visible grey hair</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 9)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 9)">
             <div class="cell-content">
                 <div class="cell-number">9</div>
                 <div class="cell-text">Have 4 key chains</div>
@@ -459,34 +568,55 @@
         </div>
         
         <!-- Row 5 -->
-        <div class="bingo-cell" onclick="openCamera(this, 13)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 13)">
             <div class="cell-content">
                 <div class="cell-number">13</div>
                 <div class="cell-text">Spelling out "TJC" using arms and/or limbs</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 20)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 20)">
             <div class="cell-content">
                 <div class="cell-number">20</div>
                 <div class="cell-text">Someone who walked 12,000 steps in one of the days this week</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 4)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 4)">
             <div class="cell-content">
                 <div class="cell-number">4</div>
                 <div class="cell-text">Have 5 red pens now</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 23)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 23)">
             <div class="cell-content">
                 <div class="cell-number">23</div>
                 <div class="cell-text">A red rubber band</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="openCamera(this, 10)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 10)">
             <div class="cell-content">
                 <div class="cell-number">10</div>
                 <div class="cell-text">At least one person works in MOE for at least 15 years</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="submit-container">
+        <button id="submitBtn" class="submit-btn" onclick="submitBingo()">
+            📧 Submit to Gamemaster
+        </button>
+        <div id="submitStatus" class="submit-status">
+            Complete a bingo line to enable submission
+        </div>
+    </div>
+
+    <!-- Image View Modal -->
+    <div id="imageModal" class="image-modal">
+        <div class="image-content">
+            <img id="imageDisplay" class="image-display" src="" alt="Cell Image">
+            <div class="image-controls">
+                <button class="image-btn" onclick="deleteImage()">🗑️ Delete Image</button>
+                <button class="image-btn close" onclick="closeImageModal()">✖️ Close</button>
             </div>
         </div>
     </div>
@@ -510,17 +640,18 @@
         <div class="camera-content">
             <video id="videoElement" autoplay playsinline></video>
             <div class="camera-controls">
-    <button class="camera-btn" onclick="capturePhoto()">📷 Take Photo</button>
-    <button class="camera-btn switch" onclick="switchCamera()">🔄 Switch Camera</button>
-    <button class="camera-btn" onclick="openGallery()">🖼️ Upload from Gallery</button>
-    <button class="camera-btn cancel" onclick="closeCamera()">❌ Cancel</button>
-</div>
-<input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleGalleryUpload(event)">
-
+                <button class="camera-btn" onclick="capturePhoto()">📷 Take Photo</button>
+                <button class="camera-btn gallery" onclick="selectFromGallery()">🖼️ Photo Library</button>
+                <button class="camera-btn switch" onclick="switchCamera()">🔄 Switch Camera</button>
+                <button class="camera-btn cancel" onclick="closeCamera()">❌ Cancel</button>
+            </div>
         </div>
     </div>
 
     <canvas id="canvas"></canvas>
+    
+    <!-- Hidden file input for photo library -->
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
 
     <script>
         let currentCell = null;
@@ -528,10 +659,15 @@
         let currentFacingMode = 'environment'; // Start with back camera
         let completedCells = new Set(); // Track completed cells
         let bingoLines = []; // Track completed bingo lines
+        let currentImageCell = null; // Track cell for image viewing
         const video = document.getElementById('videoElement');
         const canvas = document.getElementById('canvas');
         const modal = document.getElementById('cameraModal');
         const bingoModal = document.getElementById('bingoModal');
+        const imageModal = document.getElementById('imageModal');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitStatus = document.getElementById('submitStatus');
+        const fileInput = document.getElementById('fileInput');
         
         // Define all possible bingo lines (rows, columns, diagonals)
         const bingoPatterns = [
@@ -542,6 +678,56 @@
             // Diagonals
             [0,6,12,18,24], [4,8,12,16,20]
         ];
+
+        function handleCellClick(cell, cellNumber) {
+            // If cell has image, show image viewer
+            if (cell.classList.contains('has-image')) {
+                showImageModal(cell);
+            } else {
+                // Open camera modal for new photo
+                openCamera(cell, cellNumber);
+            }
+        }
+
+        function showImageModal(cell) {
+            currentImageCell = cell;
+            const imageDisplay = document.getElementById('imageDisplay');
+            const backgroundImage = cell.style.backgroundImage;
+            
+            // Extract URL from CSS background-image property
+            const imageUrl = backgroundImage.slice(5, -2); // Remove 'url("' and '")'
+            imageDisplay.src = imageUrl;
+            imageModal.style.display = 'block';
+        }
+
+        function closeImageModal() {
+            imageModal.style.display = 'none';
+            currentImageCell = null;
+        }
+
+        function deleteImage() {
+            if (currentImageCell) {
+                // Remove image and styling
+                currentImageCell.style.backgroundImage = '';
+                currentImageCell.classList.remove('has-image');
+                currentImageCell.classList.remove('completed');
+                
+                // Remove from completed cells
+                const cells = document.querySelectorAll('.bingo-cell');
+                const cellIndex = Array.from(cells).indexOf(currentImageCell);
+                completedCells.delete(cellIndex);
+                
+                // Clear stored data
+                delete currentImageCell.dataset.imageData;
+                delete currentImageCell.dataset.cellNumber;
+                delete currentImageCell.dataset.cellText;
+                
+                // Update submit button status
+                updateSubmitButton();
+                
+                closeImageModal();
+            }
+        }
 
         async function openCamera(cell, cellNumber) {
             currentCell = cell;
@@ -555,6 +741,25 @@
                 alert('Could not access camera. Please ensure you have given permission to use the camera.');
                 closeCamera();
             }
+        }
+
+        function selectFromGallery() {
+            fileInput.click();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && currentCell) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageDataURL = e.target.result;
+                    setImageToCell(currentCell, imageDataURL);
+                    closeCamera();
+                };
+                reader.readAsDataURL(file);
+            }
+            // Reset file input
+            fileInput.value = '';
         }
 
         async function startCamera() {
@@ -608,8 +813,73 @@
             // Convert to data URL with compression
             const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
             
+            setImageToCell(currentCell, imageDataURL);
+            closeCamera();
+        }
+
+        function setImageToCell(cell, imageDataURL) {
             // Set as background image
-            currentCell.style.backgroundImage = url(${imageDataURL});
+            cell.style.backgroundImage = `url(${imageDataURL})`;
+            cell.classList.add('has-image');
+            cell.classList.add('completed');
+            
+            // Get cell index for bingo checking
+            const cells = document.querySelectorAll('.bingo-cell');
+            const cellIndex = Array.from(cells).indexOf(cell);
+            completedCells.add(cellIndex);
+            
+            // Store image data for email
+            cell.dataset.imageData = imageDataURL;
+            cell.dataset.cellNumber = cell.querySelector('.cell-number').textContent;
+            cell.dataset.cellText = cell.querySelector('.cell-text').textContent;
+            
+            // Add celebration effect
+            cell.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                cell.style.transform = '';
+            }, 300);
+            
+            // Check for bingo
+            checkForBingo();
+        }
+                throw err;
+            }
+        }
+
+        async function switchCamera() {
+            // Toggle between front and back camera
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            
+            try {
+                await startCamera();
+            } catch (err) {
+                console.error('Error switching camera:', err);
+                // If switching fails, revert to previous mode
+                currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                try {
+                    await startCamera();
+                } catch (revertErr) {
+                    console.error('Error reverting camera:', revertErr);
+                    alert('Could not switch camera. Using current camera.');
+                }
+            }
+        }
+
+        function capturePhoto() {
+            const context = canvas.getContext('2d');
+            
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw the video frame to canvas
+            context.drawImage(video, 0, 0);
+            
+            // Convert to data URL with compression
+            const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Set as background image
+            currentCell.style.backgroundImage = `url(${imageDataURL})`;
             currentCell.classList.add('has-image');
             currentCell.classList.add('completed');
             
@@ -737,8 +1007,8 @@
                 const timestamp = new Date().toLocaleString();
                 const teamName = prompt("Enter your team name:") || "Team";
                 
-                const emailSubject = 🎉 BINGO Alert - ${teamName} has completed a line!;
-                const emailBody = 
+                const emailSubject = `🎉 BINGO Alert - ${teamName} has completed a line!`;
+                const emailBody = `
                     A bingo line has been completed!
                     
                     Team: ${teamName}
@@ -746,10 +1016,10 @@
                     Completed Line: ${getBingoLineDescription(completedPattern)}
                     
                     Completed Tasks:
-                    ${completedData.map(item => - Task ${item.cellNumber}: ${item.cellText}).join('\n')}
+                    ${completedData.map(item => `- Task ${item.cellNumber}: ${item.cellText}`).join('\n')}
                     
                     Note: Images are attached as thumbnails (resized to <1MB each).
-                ;
+                `;
                 
                 // For demonstration - in real implementation, you'd use a backend service
                 console.log('Email would be sent with:', {
@@ -760,7 +1030,7 @@
                 });
                 
                 // Simulate email sending - replace with actual email service
-                alert(Bingo notification sent to gamemaster!\n\nTeam: ${teamName}\nCompleted: ${getBingoLineDescription(completedPattern)}\nImages: ${completedData.length} (${completedData.reduce((size, item) => size + (item.imageData.length * 0.75 / 1024), 0).toFixed(0)} KB total));
+                alert(`Bingo notification sent to gamemaster!\n\nTeam: ${teamName}\nCompleted: ${getBingoLineDescription(completedPattern)}\nImages: ${completedData.length} (${completedData.reduce((size, item) => size + (item.imageData.length * 0.75 / 1024), 0).toFixed(0)} KB total)`);
                 
             } catch (error) {
                 console.error('Error sending email notification:', error);
@@ -769,8 +1039,8 @@
 
         function getBingoLineDescription(pattern) {
             const patternIndex = bingoPatterns.indexOf(pattern);
-            if (patternIndex < 5) return Row ${patternIndex + 1};
-            if (patternIndex < 10) return Column ${patternIndex - 4};
+            if (patternIndex < 5) return `Row ${patternIndex + 1}`;
+            if (patternIndex < 10) return `Column ${patternIndex - 4}`;
             if (patternIndex === 10) return "Diagonal (top-left to bottom-right)";
             if (patternIndex === 11) return "Diagonal (top-right to bottom-left)";
             return "Unknown pattern";
@@ -818,48 +1088,6 @@
                 }
             }
         });
-function openGallery() {
-    document.getElementById('galleryInput').click();
-}
-
-function handleGalleryUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const imageDataURL = e.target.result;
-        
-        // Set as background image
-        currentCell.style.backgroundImage = `url(${imageDataURL})`;
-        currentCell.classList.add('has-image');
-        currentCell.classList.add('completed');
-
-        // Get cell index for bingo checking
-        const cells = document.querySelectorAll('.bingo-cell');
-        const cellIndex = Array.from(cells).indexOf(currentCell);
-        completedCells.add(cellIndex);
-
-        // Store image data for email
-        currentCell.dataset.imageData = imageDataURL;
-        currentCell.dataset.cellNumber = currentCell.querySelector('.cell-number').textContent;
-        currentCell.dataset.cellText = currentCell.querySelector('.cell-text').textContent;
-
-        // Close camera modal
-        closeCamera();
-
-        // Add celebration effect
-        currentCell.style.transform = 'scale(1.1)';
-        setTimeout(() => {
-            currentCell.style.transform = '';
-        }, 300);
-
-        // Check for bingo
-        checkForBingo();
-    };
-    reader.readAsDataURL(file);
-}
-
     </script>
 </body>
 </html>
