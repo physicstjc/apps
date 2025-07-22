@@ -128,7 +128,7 @@
         }
         
         .center-cell .cell-number {
-            background: rgba(255,255,255,0.3);
+            background: rgba(0,0,0,0.7);
             color: white;
         }
         
@@ -928,3 +928,267 @@
             const cells = document.querySelectorAll('.bingo-cell');
             line.cells.forEach(index => {
                 cells[index].classList.add('bingo-line');
+            });
+        }
+
+        function showBingoModal() {
+            bingoModal.style.display = 'block';
+        }
+
+        function closeBingo() {
+            bingoModal.style.display = 'none';
+            // Remove highlight
+            document.querySelectorAll('.bingo-line').forEach(cell => {
+                cell.classList.remove('bingo-line');
+            });
+        }
+
+        function resizeImage(dataURL, maxSize = 1024 * 1024) { // 1MB default
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Calculate new dimensions maintaining aspect ratio
+                    let { width, height } = img;
+                    const maxDimension = 1200; // Max width/height
+                    
+                    if (width > height && width > maxDimension) {
+                        height = (height * maxDimension) / width;
+                        width = maxDimension;
+                    } else if (height > maxDimension) {
+                        width = (width * maxDimension) / height;
+                        height = maxDimension;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // Draw and compress
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Try different quality levels to get under size limit
+                    let quality = 0.8;
+                    let result = canvas.toDataURL('image/jpeg', quality);
+                    
+                    while (result.length > maxSize * 1.33 && quality > 0.1) { // 1.33 accounts for base64 overhead
+                        quality -= 0.1;
+                        result = canvas.toDataURL('image/jpeg', quality);
+                    }
+                    
+                    resolve(result);
+                };
+                img.src = dataURL;
+            });
+        }
+
+        async function submitBingo() {
+            const teamName = document.getElementById('teamName').value.trim();
+            const teamEmail = document.getElementById('teamEmail').value.trim();
+            const statusEl = document.getElementById('statusMessage');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (!teamName || !teamEmail) {
+                showStatus('Please fill in all fields', 'error');
+                return;
+            }
+            
+            if (!teamEmail.includes('@')) {
+                showStatus('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = '📧 Sending...';
+                showStatus('Preparing submission...', 'success');
+                
+                // Collect completed cell images
+                const completedCells = document.querySelectorAll('.bingo-cell.completed');
+                const images = [];
+                
+                for (let cell of completedCells) {
+                    const bgImage = cell.style.backgroundImage;
+                    if (bgImage) {
+                        const imageUrl = bgImage.slice(5, -2);
+                        const resizedImage = await resizeImage(imageUrl);
+                        const cellNumber = cell.querySelector('.cell-number').textContent;
+                        const cellText = cell.querySelector('.cell-text').textContent;
+                        
+                        images.push({
+                            number: cellNumber,
+                            challenge: cellText,
+                            image: resizedImage
+                        });
+                    }
+                }
+                
+                showStatus('Sending email...', 'success');
+                
+                // Send email via Google Apps Script
+                await sendBingoEmail(teamName, teamEmail, images);
+                
+                // Mark as submitted
+                const currentLine = getCurrentBingoLine();
+                if (currentLine) {
+                    submittedLines.add(`${currentLine.type}-${currentLine.index}`);
+                }
+                
+                showStatus('🎉 Successfully submitted! Game master has been notified.', 'success');
+                submitBtn.textContent = '✅ Submitted!';
+                
+                // Auto-close after 3 seconds
+                setTimeout(() => {
+                    closeBingo();
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '📧 Submit to Game Master';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Submission error:', error);
+                showStatus('❌ Submission failed. Please try again or contact the game master.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📧 Submit to Game Master';
+            }
+        }
+
+        function getCurrentBingoLine() {
+            const cells = document.querySelectorAll('.bingo-cell');
+            const grid = [];
+            
+            for (let i = 0; i < 5; i++) {
+                grid[i] = [];
+                for (let j = 0; j < 5; j++) {
+                    const index = i * 5 + j;
+                    grid[i][j] = cells[index].classList.contains('completed');
+                }
+            }
+            
+            // Check rows
+            for (let i = 0; i < 5; i++) {
+                if (grid[i].every(cell => cell)) {
+                    return {type: 'row', index: i};
+                }
+            }
+            
+            // Check columns
+            for (let j = 0; j < 5; j++) {
+                if (grid.every(row => row[j])) {
+                    return {type: 'col', index: j};
+                }
+            }
+            
+            // Check diagonals
+            if (grid.every((row, i) => row[i])) {
+                return {type: 'diag1', index: 0};
+            }
+            if (grid.every((row, i) => row[4-i])) {
+                return {type: 'diag2', index: 0};
+            }
+            
+            return null;
+        }
+
+        async function sendBingoEmail(teamName, teamEmail, images) {
+            try {
+                const emailData = {
+                    gamemaster: GAME_MASTER_EMAIL,
+                    teamName: teamName,
+                    teamEmail: teamEmail,
+                    submissionTime: new Date().toLocaleString(),
+                    images: images
+                };
+                
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Required for Google Apps Script
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(emailData)
+                });
+                
+                // Note: With no-cors mode, we can't check response status
+                // So we'll assume success if no error is thrown
+                console.log('Email sent successfully via Google Apps Script');
+                
+            } catch (error) {
+                console.error('Error sending email:', error);
+                throw new Error('Failed to send email via Google Apps Script');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message status-${type}`;
+            statusEl.style.display = 'block';
+        }
+
+        // Close modals when clicking outside
+        optionsModal.addEventListener('click', function(event) {
+            if (event.target === optionsModal) {
+                closeOptions();
+                currentCell = null; // Reset when canceling
+            }
+        });
+
+        cameraModal.addEventListener('click', function(event) {
+            if (event.target === cameraModal) {
+                closeCamera();
+                currentCell = null; // Reset when canceling
+            }
+        });
+
+        previewModal.addEventListener('click', function(event) {
+            if (event.target === previewModal) {
+                closePreview();
+            }
+        });
+
+        bingoModal.addEventListener('click', function(event) {
+            if (event.target === bingoModal) {
+                closeBingo();
+            }
+        });
+
+        // Add keyboard support
+        document.addEventListener('keydown', function(event) {
+            if (optionsModal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    closeOptions();
+                    currentCell = null; // Reset when canceling
+                }
+            } else if (cameraModal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    closeCamera();
+                    currentCell = null; // Reset when canceling
+                } else if (event.key === ' ' || event.key === 'Enter') {
+                    event.preventDefault();
+                    capturePhoto();
+                }
+            } else if (previewModal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    closePreview();
+                } else if (event.key === 'Delete' || event.key === 'Backspace') {
+                    event.preventDefault();
+                    deleteImage();
+                }
+            } else if (bingoModal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    closeBingo();
+                } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitBingo();
+                }
+            }
+        });
+
+        // Initialize the application
+        window.addEventListener('DOMContentLoaded', function() {
+            loadChallenges();
+        });
+    </script>
+</body>
+</html>
