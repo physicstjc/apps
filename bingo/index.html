@@ -21,7 +21,7 @@
         }
         
         .header h1 {
-            font-size: 2em;
+            font-size: 2.5em;
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
@@ -575,6 +575,7 @@
 <body>
     <div class="header">
         <h1>🎯 TJC STAFF BONDING BINGO 🎯</h1>
+        <h2>5×5 Challenge Grid</h2>
     </div>
     
     <div class="instructions">
@@ -677,7 +678,7 @@
         const fileInput = document.getElementById('fileInput');
 
         // Google Apps Script Web App URL
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9Im0-bStMTgq49oop0-Axu1_B9G8WiDiuToGexKbEpKMxh2ZqFtkmHatRqqvU_GA/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiTc5J4dkz1yocljRNR0clRu3uECbfEr5TLWyz024fd8ohgVwwmMluPOiFitREpy4xzA/exec';
         const GAME_MASTER_EMAIL = 'kok_hui_ching@moe.edu.sg';
         
         // Track completed lines to prevent duplicate submissions
@@ -997,19 +998,27 @@
 
         function closePreview() {
             previewModal.style.display = 'none';
-            currentCell = null;
+            // Don't reset currentCell here - it might be needed for delete/retake workflow
         }
 
         function deleteImage() {
             if (currentCell) {
+                // Store reference to the cell before removing image
+                const cellToReuse = currentCell;
+                
                 // Remove image and completed status
                 currentCell.style.backgroundImage = '';
                 currentCell.classList.remove('has-image');
                 currentCell.classList.remove('completed');
                 
-                // Close preview and show options
-                closePreview();
-                showImageOptions(currentCell, null);
+                // Close preview modal
+                previewModal.style.display = 'none';
+                
+                // Reset currentCell and immediately set it to the cell we want to reuse
+                currentCell = cellToReuse;
+                
+                // Show options modal for taking a new photo
+                showImageOptions(cellToReuse, null);
             }
         }
 
@@ -1427,6 +1436,7 @@
         previewModal.addEventListener('click', function(event) {
             if (event.target === previewModal) {
                 closePreview();
+                currentCell = null; // Reset when closing preview
             }
         });
 
@@ -1454,6 +1464,7 @@
             } else if (previewModal.style.display === 'block') {
                 if (event.key === 'Escape') {
                     closePreview();
+                    currentCell = null; // Reset when closing preview with keyboard
                 } else if (event.key === 'Delete' || event.key === 'Backspace') {
                     event.preventDefault();
                     deleteImage();
