@@ -70,20 +70,25 @@
         }
         
         .bingo-cell.has-image {
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background-color: rgba(255,255,255,0.9);
         }
         
-        .bingo-cell.has-image .cell-number {
-            background: rgba(74, 144, 226, 0.9);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        .bingo-cell.has-image:hover {
+            background-color: rgba(232,244,253,0.9);
         }
         
-        .bingo-cell.has-image .cell-text {
-            background: rgba(0,0,0,0.6);
-            padding: 4px 6px;
-            border-radius: 4px;
-            backdrop-filter: blur(2px);
+        .cell-content {
+            background: rgba(255,255,255,0.95);
+            border-radius: 6px;
+            padding: 8px;
+            backdrop-filter: blur(5px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .bingo-cell.has-image .cell-content {
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .cell-number {
@@ -111,6 +116,15 @@
             color: white;
         }
         
+        .center-cell .cell-content {
+            background: rgba(255,255,255,0.95);
+            color: #333;
+        }
+        
+        .center-cell .cell-text {
+            color: #333;
+        }
+        
         .cell-text {
             font-size: 11px;
             line-height: 1.2;
@@ -124,34 +138,81 @@
         .completed .cell-number {
             background: #4CAF50;
         }
-        
-        /* Bingo Celebration Modal */
-        .bingo-modal {
+
+        /* Image Preview Modal */
+        .preview-modal {
             display: none;
             position: fixed;
-            z-index: 2000;
+            z-index: 1000;
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            animation: fadeIn 0.3s ease-in;
+            background-color: rgba(0,0,0,0.9);
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .preview-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            max-width: 90vw;
+            max-height: 90vh;
         }
         
-        @keyframes bounce {
-            0%, 20%, 60%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-30px); }
-            80% { transform: translateY(-15px); }
+        .preview-image {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
         
-        @keyframes sparkle {
-            0%, 100% { opacity: 1; transform: scale(1) rotate(0deg); }
-            50% { opacity: 0.7; transform: scale(1.2) rotate(180deg); }
+        .preview-controls {
+            margin-top: 20px;
+        }
+        
+        .preview-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .preview-btn:hover {
+            background: #da190b;
+        }
+        
+        .preview-btn.close {
+            background: #2196F3;
+        }
+        
+        .preview-btn.close:hover {
+            background: #1976D2;
+        }
+        
+        /* Bingo Success Modal */
+        .bingo-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            animation: bingoAppear 0.5s ease-out;
+        }
+        
+        @keyframes bingoAppear {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
         }
         
         .bingo-content {
@@ -159,73 +220,184 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            padding: 40px;
+            border-radius: 20px;
             text-align: center;
             color: white;
+            min-width: 350px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
         
         .bingo-title {
-            font-size: 8em;
-            font-weight: bold;
-            color: #FFD700;
-            text-shadow: 4px 4px 8px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
-            animation: bounce 1s ease-in-out;
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: bingoGlow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes bingoGlow {
+            from { text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+            to { text-shadow: 2px 2px 20px rgba(255,255,255,0.8); }
         }
         
         .bingo-subtitle {
-            font-size: 2em;
-            margin-bottom: 30px;
-            color: #FFF;
-        }
-        
-        .bingo-message {
             font-size: 1.2em;
             margin-bottom: 30px;
-            max-width: 600px;
+            opacity: 0.9;
         }
         
-        .continue-btn {
-            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+        .submit-form {
+            margin: 20px 0;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+            text-align: left;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .submit-btn {
+            background: #FF6B6B;
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 18px;
-            border-radius: 30px;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 25px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         
-        .continue-btn:hover {
+        .submit-btn:hover {
+            background: #FF5252;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,0,0,0.3);
         }
         
-        .sparkles {
-            position: absolute;
+        .submit-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .cancel-btn {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+        
+        .cancel-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .status-message {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .status-success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #2E7D32;
+        }
+        
+        .status-error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #C62828;
+        }
+        
+        .bingo-line {
+            background: rgba(255, 215, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: bingoHighlight 1s ease-in-out infinite alternate;
+        }
+        
+        @keyframes bingoHighlight {
+            from { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+            to { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
+        }
+        
+        /* Image Options Modal */
+        .options-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            background-color: rgba(0,0,0,0.8);
         }
         
-        .sparkle {
+        .options-content {
             position: absolute;
-            color: #FFD700;
-            font-size: 2em;
-            animation: sparkle 2s infinite;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
         
-        @media (max-width: 600px) {
-            .bingo-title {
-                font-size: 4em;
-            }
-            .bingo-subtitle {
-                font-size: 1.5em;
-            }
-            .bingo-message {
-                font-size: 1em;
-                padding: 0 20px;
-            }
+        .options-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .option-btn {
+            display: block;
+            width: 100%;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .option-btn:hover {
+            background: #45a049;
+        }
+        
+        .option-btn.upload {
+            background: #2196F3;
+        }
+        
+        .option-btn.upload:hover {
+            background: #1976D2;
+        }
+        
+        .option-btn.cancel {
+            background: #f44336;
+        }
+        
+        .option-btn.cancel:hover {
+            background: #da190b;
         }
         
         /* Camera Modal Styles */
@@ -291,116 +463,11 @@
             background: #1976D2;
         }
         
-        .camera-btn.gallery {
-            background: #9C27B0;
-        }
-        
-        .camera-btn.gallery:hover {
-            background: #7B1FA2;
-        }
-        
-        /* Image View Modal */
-        .image-modal {
-            display: none;
-            position: fixed;
-            z-index: 1500;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.9);
-        }
-        
-        .image-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: white;
-            max-width: 90vw;
-            max-height: 90vh;
-        }
-        
-        .image-display {
-            max-width: 100%;
-            max-height: 70vh;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .image-controls {
-            margin-top: 20px;
-        }
-        
-        .image-btn {
-            background: #f44336;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            margin: 0 10px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background 0.3s;
-        }
-        
-        .image-btn:hover {
-            background: #da190b;
-        }
-        
-        .image-btn.close {
-            background: #666;
-        }
-        
-        .image-btn.close:hover {
-            background: #555;
-        }
-        
-        /* Submit Button */
-        .submit-container {
-            text-align: center;
-            margin-top: 30px;
-            padding: 20px;
-        }
-        
-        .submit-btn {
-            background: linear-gradient(45deg, #4CAF50, #45a049);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 18px;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            opacity: 0.5;
-            pointer-events: none;
-        }
-        
-        .submit-btn.enabled {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        
-        .submit-btn.enabled:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            background: linear-gradient(45deg, #45a049, #4CAF50);
-        }
-        
-        .submit-status {
-            margin-top: 15px;
-            color: white;
-            font-size: 14px;
-        }
-        
-        /* Hidden file input */
-        #fileInput {
-            display: none;
-        }
-        
         #canvas {
+            display: none;
+        }
+        
+        #fileInput {
             display: none;
         }
         
@@ -420,6 +487,11 @@
                 font-size: 10px;
                 margin-bottom: 5px;
             }
+            
+            .options-content {
+                min-width: 280px;
+                margin: 20px;
+            }
         }
     </style>
 </head>
@@ -430,153 +502,215 @@
     </div>
     
     <div class="instructions">
-        <strong>Instructions:</strong> Work together to find the items, meet the criteria, and engage with each other to mark off your bingo squares! Click on a square to take a photo as proof of completion. <strong>The first 2 groups to complete a straight line bingo (5 tasks) will win the prize!</strong>
+        <strong>Instructions:</strong> Work together to find the items, meet the criteria, and engage with each other to mark off your bingo squares! Click on a square to take a photo or upload an image as proof of completion. <strong>The first 2 groups to complete a straight line bingo (5 tasks) will win the prize!</strong>
     </div>
     
     <div class="bingo-grid">
         <!-- Row 1 -->
-        <div class="bingo-cell">
-            <div class="cell-number">18</div>
-            <div class="cell-text">A photo with any of the CLs</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 1)">
+            <div class="cell-content">
+                <div class="cell-number">1</div>
+                <div class="cell-text">A photo with any of the CLs</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">7</div>
-            <div class="cell-text">Someone in the group can speak 3 different languages</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 2)">
+            <div class="cell-content">
+                <div class="cell-number">2</div>
+                <div class="cell-text">Someone in the group can speak 3 different languages</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">14</div>
-            <div class="cell-text">1 pack of tissue paper</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 3)">
+            <div class="cell-content">
+                <div class="cell-number">3</div>
+                <div class="cell-text">1 pack of tissue paper</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">22</div>
-            <div class="cell-text">Someone who have started eating today's happy bites</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 4)">
+            <div class="cell-content">
+                <div class="cell-number">4</div>
+                <div class="cell-text">Someone who have started eating today's happy bites</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">11</div>
-            <div class="cell-text">At least one person works in MOE less than 5 years</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 5)">
+            <div class="cell-content">
+                <div class="cell-number">5</div>
+                <div class="cell-text">At least one person works in MOE less than 5 years</div>
+            </div>
         </div>
         
         <!-- Row 2 -->
-        <div class="bingo-cell">
-            <div class="cell-number">5</div>
-            <div class="cell-text">At least 3 members wear Green today</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 6)">
+            <div class="cell-content">
+                <div class="cell-number">6</div>
+                <div class="cell-text">At least 3 members wear Green today</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">21</div>
-            <div class="cell-text">More than 7 different colours on clothings for a person</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 7)">
+            <div class="cell-content">
+                <div class="cell-number">7</div>
+                <div class="cell-text">More than 7 different colours on clothings for a person</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">16</div>
-            <div class="cell-text">Someone who has taught at this school for more than 10 years</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 8)">
+            <div class="cell-content">
+                <div class="cell-number">8</div>
+                <div class="cell-text">Someone who has taught at this school for more than 10 years</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">8</div>
-            <div class="cell-text">Someone has a gym membership (upload gym membership photo)</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 9)">
+            <div class="cell-content">
+                <div class="cell-number">9</div>
+                <div class="cell-text">Someone has a gym membership (upload gym membership photo)</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">25</div>
-            <div class="cell-text">An item with school logo (except school T-shirts)</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 10)">
+            <div class="cell-content">
+                <div class="cell-number">10</div>
+                <div class="cell-text">An item with school logo (except school T-shirts)</div>
+            </div>
         </div>
         
         <!-- Row 3 -->
-        <div class="bingo-cell">
-            <div class="cell-number">12</div>
-            <div class="cell-text">Have 4 glasses</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 11)">
+            <div class="cell-content">
+                <div class="cell-number">11</div>
+                <div class="cell-text">Have 4 glasses</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">3</div>
-            <div class="cell-text">At least from 3 different departments</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 12)">
+            <div class="cell-content">
+                <div class="cell-number">12</div>
+                <div class="cell-text">At least from 3 different departments</div>
+            </div>
         </div>
-        <div class="bingo-cell center-cell">
-            <div class="cell-number">1</div>
-            <div class="cell-text">Take a group photo with the coins</div>
+        <div class="bingo-cell center-cell" onclick="handleCellClick(this, 13)">
+            <div class="cell-content">
+                <div class="cell-number">13</div>
+                <div class="cell-text">Take a group photo with the coins</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">19</div>
-            <div class="cell-text">An item with Singapore flag</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 14)">
+            <div class="cell-content">
+                <div class="cell-number">14</div>
+                <div class="cell-text">An item with Singapore flag</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">6</div>
-            <div class="cell-text">Have 3 watches</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 15)">
+            <div class="cell-content">
+                <div class="cell-number">15</div>
+                <div class="cell-text">Have 3 watches</div>
+            </div>
         </div>
         
         <!-- Row 4 -->
-        <div class="bingo-cell">
-            <div class="cell-number">17</div>
-            <div class="cell-text">Someone who used to be a student from TJC</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 16)">
+            <div class="cell-content">
+                <div class="cell-number">16</div>
+                <div class="cell-text">Someone who used to be a student from TJC</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">24</div>
-            <div class="cell-text">Have 4 markers</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 17)">
+            <div class="cell-content">
+                <div class="cell-number">17</div>
+                <div class="cell-text">Have 4 markers</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">2</div>
-            <div class="cell-text">At least 2 persons with the same Birth month</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 18)">
+            <div class="cell-content">
+                <div class="cell-number">18</div>
+                <div class="cell-text">At least 2 persons with the same Birth month</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">15</div>
-            <div class="cell-text">A group member with visible grey hair</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 19)">
+            <div class="cell-content">
+                <div class="cell-number">19</div>
+                <div class="cell-text">A group member with visible grey hair</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">9</div>
-            <div class="cell-text">Have 4 key chains</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 20)">
+            <div class="cell-content">
+                <div class="cell-number">20</div>
+                <div class="cell-text">Have 4 key chains</div>
+            </div>
         </div>
         
         <!-- Row 5 -->
-        <div class="bingo-cell">
-            <div class="cell-number">13</div>
-            <div class="cell-text">Spelling out "TJC" using arms and/or limbs</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 21)">
+            <div class="cell-content">
+                <div class="cell-number">21</div>
+                <div class="cell-text">Spelling out "TJC" using arms and/or limbs</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">20</div>
-            <div class="cell-text">Someone who walked 12,000 steps in one of the days this week</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 22)">
+            <div class="cell-content">
+                <div class="cell-number">22</div>
+                <div class="cell-text">Someone who walked 12,000 steps in one of the days this week</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">4</div>
-            <div class="cell-text">Have 5 red pens now</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 23)">
+            <div class="cell-content">
+                <div class="cell-number">23</div>
+                <div class="cell-text">Have 5 red pens now</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">23</div>
-            <div class="cell-text">A red rubber band</div>
+        <div class="bingo-cell" onclick="handleCellClick(this, 24)">
+            <div class="cell-content">
+                <div class="cell-number">24</div>
+                <div class="cell-text">A red rubber band</div>
+            </div>
         </div>
-        <div class="bingo-cell">
-            <div class="cell-number">10</div>
-            <div class="cell-text">At least one person works in MOE for at least 15 years</div>
-        </div>
-    </div>
-
-    <!-- Submit Button -->
-    <div class="submit-container">
-        <button id="submitBtn" class="submit-btn" onclick="submitBingo()">
-            📧 Submit to Gamemaster
-        </button>
-        <div id="submitStatus" class="submit-status">
-            Complete a bingo line to enable submission
-        </div>
-    </div>
-
-    <!-- Image View Modal -->
-    <div id="imageModal" class="image-modal">
-        <div class="image-content">
-            <img id="imageDisplay" class="image-display" src="" alt="Cell Image">
-            <div class="image-controls">
-                <button class="image-btn" onclick="deleteImage()">🗑️ Delete Image</button>
-                <button class="image-btn close" onclick="closeImageModal()">✖️ Close</button>
+        <div class="bingo-cell" onclick="handleCellClick(this, 25)">
+            <div class="cell-content">
+                <div class="cell-number">25</div>
+                <div class="cell-text">At least one person works in MOE for at least 15 years</div>
             </div>
         </div>
     </div>
 
-    <!-- Bingo Celebration Modal -->
+    <!-- Bingo Success Modal -->
     <div id="bingoModal" class="bingo-modal">
         <div class="bingo-content">
-            <div class="sparkles" id="sparkles"></div>
             <div class="bingo-title">🎉 BINGO! 🎉</div>
-            <div class="bingo-subtitle">Congratulations!</div>
-            <div class="bingo-message">
-                You've completed a straight line! The gamemaster has been notified.<br>
-                Keep playing to complete more challenges!
+            <div class="bingo-subtitle">Congratulations! You've completed a line!</div>
+            
+            <div class="submit-form">
+                <div class="form-group">
+                    <label class="form-label">Team Name:</label>
+                    <input type="text" id="teamName" class="form-input" placeholder="Enter your team name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Team Leader Email:</label>
+                    <input type="email" id="teamEmail" class="form-input" placeholder="Enter team leader's email" required>
+                </div>
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+                <button class="submit-btn" onclick="submitBingo()" id="submitBtn">
+                    📧 Submit to Game Master
+                </button>
+                <button class="submit-btn cancel-btn" onclick="closeBingo()">
+                    Continue Playing
+                </button>
             </div>
-            <button class="continue-btn" onclick="closeBingoModal()">Continue Playing</button>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-content">
+            <img id="previewImage" class="preview-image" src="" alt="Bingo Evidence">
+            <div class="preview-controls">
+                <button class="preview-btn" onclick="deleteImage()">🗑️ Delete & Retake</button>
+                <button class="preview-btn close" onclick="closePreview()">✅ Keep Photo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Options Modal -->
+    <div id="optionsModal" class="options-modal">
+        <div class="options-content">
+            <div class="options-title">Add Photo Evidence</div>
+            <button class="option-btn" onclick="openCamera()">📷 Take Photo with Camera</button>
+            <button class="option-btn upload" onclick="openFileUpload()">📁 Upload from Gallery</button>
+            <button class="option-btn cancel" onclick="closeOptions()">❌ Cancel</button>
         </div>
     </div>
 
@@ -586,7 +720,6 @@
             <video id="videoElement" autoplay playsinline></video>
             <div class="camera-controls">
                 <button class="camera-btn" onclick="capturePhoto()">📷 Take Photo</button>
-                <button class="camera-btn gallery" onclick="selectFromGallery()">🖼️ Photo Library</button>
                 <button class="camera-btn switch" onclick="switchCamera()">🔄 Switch Camera</button>
                 <button class="camera-btn cancel" onclick="closeCamera()">❌ Cancel</button>
             </div>
@@ -594,125 +727,114 @@
     </div>
 
     <canvas id="canvas"></canvas>
-    
-    <!-- Hidden file input for photo library -->
-    <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(event)">
 
     <script>
         let currentCell = null;
         let stream = null;
         let currentFacingMode = 'environment'; // Start with back camera
-        let completedCells = new Set(); // Track completed cells
-        let bingoLines = []; // Track completed bingo lines
-        let currentImageCell = null; // Track cell for image viewing
         const video = document.getElementById('videoElement');
         const canvas = document.getElementById('canvas');
-        const modal = document.getElementById('cameraModal');
+        const cameraModal = document.getElementById('cameraModal');
+        const optionsModal = document.getElementById('optionsModal');
+        const previewModal = document.getElementById('previewModal');
+        const previewImage = document.getElementById('previewImage');
         const bingoModal = document.getElementById('bingoModal');
-        const imageModal = document.getElementById('imageModal');
-        const submitBtn = document.getElementById('submitBtn');
-        const submitStatus = document.getElementById('submitStatus');
         const fileInput = document.getElementById('fileInput');
-        
-        // Define all possible bingo lines (rows, columns, diagonals)
-        const bingoPatterns = [
-            // Rows
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            // Columns  
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            // Diagonals
-            [0,6,12,18,24], [4,8,12,16,20]
-        ];
 
-        // Add event listeners after page loads
-        window.addEventListener('load', function() {
-            console.log('Page loaded, setting up event listeners...');
-            
-            // Add click handlers to all bingo cells
-            const cells = document.querySelectorAll('.bingo-cell');
-            console.log('Found', cells.length, 'bingo cells');
-            
-            cells.forEach((cell, index) => {
-                const cellNumberElement = cell.querySelector('.cell-number');
-                if (cellNumberElement) {
-                    const cellNumber = parseInt(cellNumberElement.textContent);
-                    console.log('Adding event listener to cell', cellNumber);
-                    
-                    cell.addEventListener('click', function() {
-                        console.log('Cell clicked:', cellNumber);
-                        handleCellClick(cell, cellNumber);
-                    });
-                } else {
-                    console.error('No cell number found for cell', index);
-                }
-            });
-            
-            console.log('All event listeners added');
-        });
+        // Google Apps Script Web App URL (you'll need to deploy and get this URL)
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiTc5J4dkz1yocljRNR0clRu3uECbfEr5TLWyz024fd8ohgVwwmMluPOiFitREpy4xzA/exec'; // Replace with your deployed script URL
+        const GAME_MASTER_EMAIL = 'tan_seng_kwang@moe.edu.sg; // Change this to actual game master email
+        
+        // Track completed lines to prevent duplicate submissions
+        let submittedLines = new Set();
 
         function handleCellClick(cell, cellNumber) {
-            console.log('handleCellClick called for cell:', cellNumber);
+            currentCell = cell;
             
-            // Add click animation
-            cell.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                cell.style.transform = '';
-            }, 150);
-            
-            // If cell has image, show image viewer
-            if (cell.classList.contains('has-image')) {
-                console.log('Cell has image, showing image modal');
-                showImageModal(cell);
+            // Check if cell already has an image
+            if (cell.classList.contains('completed')) {
+                showImagePreview(cell);
             } else {
-                console.log('Cell is empty, opening camera');
-                // Open camera modal for new photo
-                openCamera(cell, cellNumber);
+                showImageOptions(cell, cellNumber);
             }
         }
 
-        function showImageModal(cell) {
-            currentImageCell = cell;
-            const imageDisplay = document.getElementById('imageDisplay');
+        function showImagePreview(cell) {
+            // Extract the background image URL
             const backgroundImage = cell.style.backgroundImage;
-            
-            // Extract URL from CSS background-image property
-            const imageUrl = backgroundImage.slice(5, -2); // Remove 'url("' and '")'
-            imageDisplay.src = imageUrl;
-            imageModal.style.display = 'block';
+            if (backgroundImage) {
+                const imageUrl = backgroundImage.slice(5, -2); // Remove 'url("' and '")'
+                previewImage.src = imageUrl;
+                previewModal.style.display = 'block';
+            }
         }
 
-        function closeImageModal() {
-            imageModal.style.display = 'none';
-            currentImageCell = null;
+        function closePreview() {
+            previewModal.style.display = 'none';
+            // Reset currentCell after successful completion
+            currentCell = null;
+            
+            // Check for bingo after adding image
+            checkForBingo();
         }
 
         function deleteImage() {
-            if (currentImageCell) {
-                // Remove image and styling
-                currentImageCell.style.backgroundImage = '';
-                currentImageCell.classList.remove('has-image');
-                currentImageCell.classList.remove('completed');
+            if (currentCell) {
+                // Remove image and completed status
+                currentCell.style.backgroundImage = '';
+                currentCell.classList.remove('has-image');
+                currentCell.classList.remove('completed');
                 
-                // Remove from completed cells
-                const cells = document.querySelectorAll('.bingo-cell');
-                const cellIndex = Array.from(cells).indexOf(currentImageCell);
-                completedCells.delete(cellIndex);
-                
-                // Clear stored data
-                delete currentImageCell.dataset.imageData;
-                delete currentImageCell.dataset.cellNumber;
-                delete currentImageCell.dataset.cellText;
-                
-                // Update submit button status
-                updateSubmitButton();
-                
-                closeImageModal();
+                // Close preview and show options
+                closePreview();
+                showImageOptions(currentCell, null);
             }
         }
 
-        async function openCamera(cell, cellNumber) {
+        function showImageOptions(cell, cellNumber) {
             currentCell = cell;
-            modal.style.display = 'block';
+            optionsModal.style.display = 'block';
+        }
+
+        function closeOptions() {
+            optionsModal.style.display = 'none';
+            // Don't reset currentCell here - it might be needed for camera
+        }
+
+        function openFileUpload() {
+            closeOptions();
+            fileInput.click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file && currentCell) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Set as background image
+                    currentCell.style.backgroundImage = `url(${e.target.result})`;
+                    currentCell.classList.add('has-image');
+                    currentCell.classList.add('completed');
+                    
+                    // Add celebration effect
+                    currentCell.style.transform = 'scale(1.1)';
+                    setTimeout(() => {
+                        currentCell.style.transform = '';
+                    }, 300);
+                    
+                    // Reset currentCell after successful completion
+                    currentCell = null;
+                };
+                reader.readAsDataURL(file);
+            }
+            // Reset file input
+            fileInput.value = '';
+        }
+
+        async function openCamera() {
+            closeOptions();
+            cameraModal.style.display = 'block';
             
             try {
                 // Request camera access
@@ -724,25 +846,6 @@
             }
         }
 
-        function selectFromGallery() {
-            fileInput.click();
-        }
-
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file && currentCell) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imageDataURL = e.target.result;
-                    setImageToCell(currentCell, imageDataURL);
-                    closeCamera();
-                };
-                reader.readAsDataURL(file);
-            }
-            // Reset file input
-            fileInput.value = '';
-        }
-
         async function startCamera() {
             // Stop existing stream if any
             if (stream) {
@@ -750,114 +853,14 @@
             }
 
             try {
-                // Try to get camera with current facing mode first
-                let constraints = { 
+                stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
-                        facingMode: currentFacingMode,
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        facingMode: currentFacingMode
                     } 
-                };
-
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                } catch (err) {
-                    console.log('Specific camera constraints failed, trying basic video...');
-                    // Fallback for devices that don't support facingMode (like laptops)
-                    constraints = { 
-                        video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    };
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                }
-                
+                });
                 video.srcObject = stream;
-                console.log('Camera started successfully');
             } catch (err) {
                 console.error('Error starting camera:', err);
-                throw err;
-            }
-        }
-
-        async function switchCamera() {
-            // Check if device has multiple cameras
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                
-                console.log('Available video devices:', videoDevices.length);
-                
-                if (videoDevices.length <= 1) {
-                    alert('Only one camera detected. Camera switching is not available on this device.');
-                    return;
-                }
-                
-                // Toggle between front and back camera
-                currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-                
-                try {
-                    await startCamera();
-                } catch (err) {
-                    console.error('Error switching camera:', err);
-                    // If switching fails, revert to previous mode
-                    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-                    try {
-                        await startCamera();
-                    } catch (revertErr) {
-                        console.error('Error reverting camera:', revertErr);
-                        alert('Could not switch camera. Using current camera.');
-                    }
-                }
-            } catch (err) {
-                console.error('Error enumerating devices:', err);
-                alert('Could not access camera information.');
-            }
-        }
-
-        function capturePhoto() {
-            const context = canvas.getContext('2d');
-            
-            // Set canvas dimensions to match video
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            // Draw the video frame to canvas
-            context.drawImage(video, 0, 0);
-            
-            // Convert to data URL with compression
-            const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
-            
-            setImageToCell(currentCell, imageDataURL);
-            closeCamera();
-        }
-
-        function setImageToCell(cell, imageDataURL) {
-            // Set as background image
-            cell.style.backgroundImage = `url(${imageDataURL})`;
-            cell.classList.add('has-image');
-            cell.classList.add('completed');
-            
-            // Get cell index for bingo checking
-            const cells = document.querySelectorAll('.bingo-cell');
-            const cellIndex = Array.from(cells).indexOf(cell);
-            completedCells.add(cellIndex);
-            
-            // Store image data for email
-            cell.dataset.imageData = imageDataURL;
-            cell.dataset.cellNumber = cell.querySelector('.cell-number').textContent;
-            cell.dataset.cellText = cell.querySelector('.cell-text').textContent;
-            
-            // Add celebration effect
-            cell.style.transform = 'scale(1.1)';
-            setTimeout(() => {
-                cell.style.transform = '';
-            }, 300);
-            
-            // Check for bingo
-            checkForBingo();
-        }
                 throw err;
             }
         }
@@ -882,6 +885,11 @@
         }
 
         function capturePhoto() {
+            if (!currentCell) {
+                console.error('No current cell selected');
+                return;
+            }
+            
             const context = canvas.getContext('2d');
             
             // Set canvas dimensions to match video
@@ -891,23 +899,13 @@
             // Draw the video frame to canvas
             context.drawImage(video, 0, 0);
             
-            // Convert to data URL with compression
+            // Convert to data URL
             const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
             
             // Set as background image
             currentCell.style.backgroundImage = `url(${imageDataURL})`;
             currentCell.classList.add('has-image');
             currentCell.classList.add('completed');
-            
-            // Get cell index for bingo checking
-            const cells = document.querySelectorAll('.bingo-cell');
-            const cellIndex = Array.from(cells).indexOf(currentCell);
-            completedCells.add(cellIndex);
-            
-            // Store image data for email
-            currentCell.dataset.imageData = imageDataURL;
-            currentCell.dataset.cellNumber = currentCell.querySelector('.cell-number').textContent;
-            currentCell.dataset.cellText = currentCell.querySelector('.cell-text').textContent;
             
             // Close camera
             closeCamera();
@@ -918,59 +916,89 @@
                 currentCell.style.transform = '';
             }, 300);
             
-            // Check for bingo
+            // Reset currentCell after successful completion
+            currentCell = null;
+            
+            // Check for bingo after adding image
             checkForBingo();
         }
 
         function checkForBingo() {
-            for (let i = 0; i < bingoPatterns.length; i++) {
-                const pattern = bingoPatterns[i];
-                
-                // Check if this line is already completed
-                if (bingoLines.includes(i)) continue;
-                
-                // Check if all positions in this pattern are completed
-                if (pattern.every(pos => completedCells.has(pos))) {
-                    bingoLines.push(i);
-                    showBingoModal();
-                    sendEmailNotification(pattern);
-                    break; // Only show one bingo at a time
+            const cells = document.querySelectorAll('.bingo-cell');
+            const grid = [];
+            
+            // Convert to 5x5 grid
+            for (let i = 0; i < 5; i++) {
+                grid[i] = [];
+                for (let j = 0; j < 5; j++) {
+                    const index = i * 5 + j;
+                    grid[i][j] = cells[index].classList.contains('completed');
                 }
             }
+            
+            // Check all possible lines
+            const lines = [];
+            
+            // Check rows
+            for (let i = 0; i < 5; i++) {
+                if (grid[i].every(cell => cell)) {
+                    lines.push({type: 'row', index: i, cells: Array.from({length: 5}, (_, j) => i * 5 + j)});
+                }
+            }
+            
+            // Check columns
+            for (let j = 0; j < 5; j++) {
+                if (grid.every(row => row[j])) {
+                    lines.push({type: 'col', index: j, cells: Array.from({length: 5}, (_, i) => i * 5 + j)});
+                }
+            }
+            
+            // Check diagonals
+            if (grid.every((row, i) => row[i])) {
+                lines.push({type: 'diag1', index: 0, cells: [0, 6, 12, 18, 24]});
+            }
+            if (grid.every((row, i) => row[4-i])) {
+                lines.push({type: 'diag2', index: 0, cells: [4, 8, 12, 16, 20]});
+            }
+            
+            // Show bingo modal for new lines
+            const newLines = lines.filter(line => !submittedLines.has(`${line.type}-${line.index}`));
+            if (newLines.length > 0) {
+                // Highlight the bingo line
+                highlightBingoLine(newLines[0]);
+                showBingoModal();
+            }
+        }
+
+        function highlightBingoLine(line) {
+            const cells = document.querySelectorAll('.bingo-cell');
+            line.cells.forEach(index => {
+                cells[index].classList.add('bingo-line');
+            });
         }
 
         function showBingoModal() {
-            // Create sparkle effects
-            const sparklesContainer = document.getElementById('sparkles');
-            sparklesContainer.innerHTML = '';
-            
-            for (let i = 0; i < 20; i++) {
-                const sparkle = document.createElement('div');
-                sparkle.className = 'sparkle';
-                sparkle.innerHTML = '✨';
-                sparkle.style.left = Math.random() * 100 + '%';
-                sparkle.style.top = Math.random() * 100 + '%';
-                sparkle.style.animationDelay = Math.random() * 2 + 's';
-                sparklesContainer.appendChild(sparkle);
-            }
-            
             bingoModal.style.display = 'block';
         }
 
-        function closeBingoModal() {
+        function closeBingo() {
             bingoModal.style.display = 'none';
+            // Remove highlight
+            document.querySelectorAll('.bingo-line').forEach(cell => {
+                cell.classList.remove('bingo-line');
+            });
         }
 
-        async function resizeImage(dataURL, maxSizeKB = 1024) {
+        function resizeImage(dataURL, maxSize = 1024 * 1024) { // 1MB default
             return new Promise((resolve) => {
                 const img = new Image();
-                img.onload = function() {
+                img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // Calculate new dimensions (max 400px for thumbnails)
+                    // Calculate new dimensions maintaining aspect ratio
                     let { width, height } = img;
-                    const maxDimension = 400;
+                    const maxDimension = 1200; // Max width/height
                     
                     if (width > height && width > maxDimension) {
                         height = (height * maxDimension) / width;
@@ -983,14 +1011,14 @@
                     canvas.width = width;
                     canvas.height = height;
                     
+                    // Draw and compress
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // Start with high quality and reduce if needed
-                    let quality = 0.9;
+                    // Try different quality levels to get under size limit
+                    let quality = 0.8;
                     let result = canvas.toDataURL('image/jpeg', quality);
                     
-                    // Reduce quality until under size limit
-                    while (result.length * 0.75 / 1024 > maxSizeKB && quality > 0.1) {
+                    while (result.length > maxSize * 1.33 && quality > 0.1) { // 1.33 accounts for base64 overhead
                         quality -= 0.1;
                         result = canvas.toDataURL('image/jpeg', quality);
                     }
@@ -1001,150 +1029,152 @@
             });
         }
 
-        async function sendEmailNotification(completedPattern) {
-            try {
-                // Collect completed cell data
-                const cells = document.querySelectorAll('.bingo-cell');
-                const completedData = [];
-                
-                for (let pos of completedPattern) {
-                    const cell = cells[pos];
-                    if (cell.dataset.imageData) {
-                        const resizedImage = await resizeImage(cell.dataset.imageData);
-                        completedData.push({
-                            cellNumber: cell.dataset.cellNumber,
-                            cellText: cell.dataset.cellText,
-                            imageData: resizedImage
-                        });
-                    }
-                }
-                
-                // Create email content
-                const timestamp = new Date().toLocaleString();
-                const teamName = prompt("Enter your team name:") || "Team";
-                
-                const emailSubject = `🎉 BINGO Alert - ${teamName} has completed a line!`;
-                const emailBody = `
-                    A bingo line has been completed!
-                    
-                    Team: ${teamName}
-                    Time: ${timestamp}
-                    Completed Line: ${getBingoLineDescription(completedPattern)}
-                    
-                    Completed Tasks:
-                    ${completedData.map(item => `- Task ${item.cellNumber}: ${item.cellText}`).join('\n')}
-                    
-                    Note: Images are attached as thumbnails (resized to <1MB each).
-                `;
-                
-                // For demonstration - in real implementation, you'd use a backend service
-                console.log('Email would be sent with:', {
-                    subject: emailSubject,
-                    body: emailBody,
-                    attachments: completedData.length + ' images',
-                    totalSize: completedData.reduce((size, item) => size + (item.imageData.length * 0.75 / 1024), 0).toFixed(2) + ' KB'
-                });
-                
-                // Simulate email sending - replace with actual email service
-                alert(`Bingo notification sent to gamemaster!\n\nTeam: ${teamName}\nCompleted: ${getBingoLineDescription(completedPattern)}\nImages: ${completedData.length} (${completedData.reduce((size, item) => size + (item.imageData.length * 0.75 / 1024), 0).toFixed(0)} KB total)`);
-                
-            } catch (error) {
-                console.error('Error sending email notification:', error);
-            }
-        }
-
-        function getBingoLineDescription(pattern) {
-            const patternIndex = bingoPatterns.indexOf(pattern);
-            if (patternIndex < 5) return `Row ${patternIndex + 1}`;
-            if (patternIndex < 10) return `Column ${patternIndex - 4}`;
-            if (patternIndex === 10) return "Diagonal (top-left to bottom-right)";
-            if (patternIndex === 11) return "Diagonal (top-right to bottom-left)";
-            return "Unknown pattern";
-        }
-
         async function submitBingo() {
-            if (bingoLines.length === 0) {
-                alert('Please complete at least one bingo line before submitting!');
+            const teamName = document.getElementById('teamName').value.trim();
+            const teamEmail = document.getElementById('teamEmail').value.trim();
+            const statusEl = document.getElementById('statusMessage');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (!teamName || !teamEmail) {
+                showStatus('Please fill in all fields', 'error');
                 return;
             }
-
-            // Disable submit button during processing
-            submitBtn.disabled = true;
-            submitStatus.textContent = 'Preparing submission...';
-
+            
+            if (!teamEmail.includes('@')) {
+                showStatus('Please enter a valid email address', 'error');
+                return;
+            }
+            
             try {
-                // Get team name
-                const teamName = prompt("Enter your team name:") || "Anonymous Team";
+                submitBtn.disabled = true;
+                submitBtn.textContent = '📧 Sending...';
+                showStatus('Preparing submission...', 'success');
                 
-                // Collect all completed cell data
-                const cells = document.querySelectorAll('.bingo-cell');
-                const allCompletedData = [];
+                // Collect completed cell images
+                const completedCells = document.querySelectorAll('.bingo-cell.completed');
+                const images = [];
                 
-                submitStatus.textContent = 'Processing images...';
-                
-                for (let cellIndex of completedCells) {
-                    const cell = cells[cellIndex];
-                    if (cell.dataset.imageData) {
-                        const resizedImage = await resizeImage(cell.dataset.imageData);
-                        allCompletedData.push({
-                            cellNumber: cell.dataset.cellNumber,
-                            cellText: cell.dataset.cellText,
-                            imageData: resizedImage
+                for (let cell of completedCells) {
+                    const bgImage = cell.style.backgroundImage;
+                    if (bgImage) {
+                        const imageUrl = bgImage.slice(5, -2);
+                        const resizedImage = await resizeImage(imageUrl);
+                        const cellNumber = cell.querySelector('.cell-number').textContent;
+                        const cellText = cell.querySelector('.cell-text').textContent;
+                        
+                        images.push({
+                            number: cellNumber,
+                            challenge: cellText,
+                            image: resizedImage
                         });
                     }
                 }
-
-                // Prepare data for Google Apps Script
-                const submissionData = {
-                    teamName: teamName,
-                    timestamp: new Date().toISOString(),
-                    completedLines: bingoLines.map(lineIndex => getBingoLineDescription(bingoPatterns[lineIndex])),
-                    totalCompleted: completedCells.size,
-                    images: allCompletedData
-                };
-
-                submitStatus.textContent = 'Sending to gamemaster...';
-
-                // Send to Google Apps Script
-                await sendToGoogleAppsScript(submissionData);
                 
-                submitStatus.textContent = '✅ Successfully submitted to gamemaster!';
-                alert(`Submission successful!\n\nTeam: ${teamName}\nCompleted Lines: ${submissionData.completedLines.join(', ')}\nTotal Images: ${allCompletedData.length}`);
-
+                showStatus('Sending email...', 'success');
+                
+                // Send email (this would need actual Gmail API setup)
+                await sendBingoEmail(teamName, teamEmail, images);
+                
+                // Mark as submitted
+                const currentLine = getCurrentBingoLine();
+                if (currentLine) {
+                    submittedLines.add(`${currentLine.type}-${currentLine.index}`);
+                }
+                
+                showStatus('🎉 Successfully submitted! Game master has been notified.', 'success');
+                submitBtn.textContent = '✅ Submitted!';
+                
+                // Auto-close after 3 seconds
+                setTimeout(() => {
+                    closeBingo();
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '📧 Submit to Game Master';
+                }, 3000);
+                
             } catch (error) {
                 console.error('Submission error:', error);
-                submitStatus.textContent = '❌ Submission failed. Please try again.';
-                alert('Failed to submit. Please check your internet connection and try again.');
-            } finally {
+                showStatus('❌ Submission failed. Please try again or contact the game master.', 'error');
                 submitBtn.disabled = false;
+                submitBtn.textContent = '📧 Submit to Game Master';
             }
         }
 
-        async function sendToGoogleAppsScript(data) {
-            // Google Apps Script web app URL
-            const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiTc5J4dkz1yocljRNR0clRu3uECbfEr5TLWyz024fd8ohgVwwmMluPOiFitREpy4xzA/exec';
+        function getCurrentBingoLine() {
+            const cells = document.querySelectorAll('.bingo-cell');
+            const grid = [];
             
-            const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Required for Google Apps Script
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            });
+            for (let i = 0; i < 5; i++) {
+                grid[i] = [];
+                for (let j = 0; j < 5; j++) {
+                    const index = i * 5 + j;
+                    grid[i][j] = cells[index].classList.contains('completed');
+                }
+            }
+            
+            // Check rows
+            for (let i = 0; i < 5; i++) {
+                if (grid[i].every(cell => cell)) {
+                    return {type: 'row', index: i};
+                }
+            }
+            
+            // Check columns
+            for (let j = 0; j < 5; j++) {
+                if (grid.every(row => row[j])) {
+                    return {type: 'col', index: j};
+                }
+            }
+            
+            // Check diagonals
+            if (grid.every((row, i) => row[i])) {
+                return {type: 'diag1', index: 0};
+            }
+            if (grid.every((row, i) => row[4-i])) {
+                return {type: 'diag2', index: 0};
+            }
+            
+            return null;
+        }
 
-            // Note: Due to no-cors mode, we can't read the response
-            // The script will assume success if no error is thrown
-            
-            // For testing purposes, log the data that would be sent
-            console.log('Data sent to Google Apps Script:', data);
-            
-            // Simulate network delay
-            await new Promise(resolve => setTimeout(resolve, 2000));
+        async function sendBingoEmail(teamName, teamEmail, images) {
+            try {
+                const emailData = {
+                    gamemaster: GAME_MASTER_EMAIL,
+                    teamName: teamName,
+                    teamEmail: teamEmail,
+                    submissionTime: new Date().toLocaleString(),
+                    images: images
+                };
+                
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Required for Google Apps Script
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(emailData)
+                });
+                
+                // Note: With no-cors mode, we can't check response status
+                // So we'll assume success if no error is thrown
+                console.log('Email sent successfully via Google Apps Script');
+                
+            } catch (error) {
+                console.error('Error sending email:', error);
+                throw new Error('Failed to send email via Google Apps Script');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message status-${type}`;
+            statusEl.style.display = 'block';
+        }
         }
 
         function closeCamera() {
-            modal.style.display = 'none';
+            cameraModal.style.display = 'none';
             
             // Stop camera stream
             if (stream) {
@@ -1152,51 +1182,65 @@
                 stream = null;
             }
             
-            currentCell = null;
+            // Only reset currentCell if we're not going to use it
+            // Don't reset here - let other functions handle it
         }
 
-        // Close modal when clicking outside
-        modal.addEventListener('click', function(event) {
-            if (event.target === modal) {
-                closeCamera();
+        // Close modals when clicking outside
+        optionsModal.addEventListener('click', function(event) {
+            if (event.target === optionsModal) {
+                closeOptions();
+                currentCell = null; // Reset when canceling
             }
         });
 
-        // Close bingo modal when clicking outside
+        cameraModal.addEventListener('click', function(event) {
+            if (event.target === cameraModal) {
+                closeCamera();
+                currentCell = null; // Reset when canceling
+            }
+        });
+
+        previewModal.addEventListener('click', function(event) {
+            if (event.target === previewModal) {
+                closePreview();
+            }
+        });
+
         bingoModal.addEventListener('click', function(event) {
             if (event.target === bingoModal) {
-                closeBingoModal();
-            }
-        });
-
-        // Close image modal when clicking outside
-        imageModal.addEventListener('click', function(event) {
-            if (event.target === imageModal) {
-                closeImageModal();
+                closeBingo();
             }
         });
 
         // Add keyboard support
         document.addEventListener('keydown', function(event) {
-            if (modal.style.display === 'block') {
+            if (optionsModal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    closeOptions();
+                    currentCell = null; // Reset when canceling
+                }
+            } else if (cameraModal.style.display === 'block') {
                 if (event.key === 'Escape') {
                     closeCamera();
+                    currentCell = null; // Reset when canceling
                 } else if (event.key === ' ' || event.key === 'Enter') {
                     event.preventDefault();
                     capturePhoto();
                 }
-            } else if (bingoModal.style.display === 'block') {
-                if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    closeBingoModal();
-                }
-            } else if (imageModal.style.display === 'block') {
+            } else if (previewModal.style.display === 'block') {
                 if (event.key === 'Escape') {
-                    event.preventDefault();
-                    closeImageModal();
+                    closePreview();
                 } else if (event.key === 'Delete' || event.key === 'Backspace') {
                     event.preventDefault();
                     deleteImage();
+                }
+            } else if (bingoModal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    closeBingo();
+                } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitBingo();
                 }
             }
         });
