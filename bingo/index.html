@@ -129,6 +129,64 @@
         .completed .cell-number {
             background: #4CAF50;
         }
+
+        /* Image Preview Modal */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+        
+        .preview-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            max-width: 90vw;
+            max-height: 90vh;
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .preview-controls {
+            margin-top: 20px;
+        }
+        
+        .preview-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .preview-btn:hover {
+            background: #da190b;
+        }
+        
+        .preview-btn.close {
+            background: #2196F3;
+        }
+        
+        .preview-btn.close:hover {
+            background: #1976D2;
+        }
         
         /* Image Options Modal */
         .options-modal {
@@ -302,31 +360,31 @@
     
     <div class="bingo-grid">
         <!-- Row 1 -->
-        <div class="bingo-cell" onclick="showImageOptions(this, 18)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 18)">
             <div class="cell-content">
                 <div class="cell-number">18</div>
                 <div class="cell-text">A photo with any of the CLs</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 7)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 7)">
             <div class="cell-content">
                 <div class="cell-number">7</div>
                 <div class="cell-text">Someone in the group can speak 3 different languages</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 14)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 14)">
             <div class="cell-content">
                 <div class="cell-number">14</div>
                 <div class="cell-text">1 pack of tissue paper</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 22)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 22)">
             <div class="cell-content">
                 <div class="cell-number">22</div>
                 <div class="cell-text">Someone who have started eating today's happy bites</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 11)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 11)">
             <div class="cell-content">
                 <div class="cell-number">11</div>
                 <div class="cell-text">At least one person works in MOE less than 5 years</div>
@@ -334,31 +392,31 @@
         </div>
         
         <!-- Row 2 -->
-        <div class="bingo-cell" onclick="showImageOptions(this, 5)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 5)">
             <div class="cell-content">
                 <div class="cell-number">5</div>
                 <div class="cell-text">At least 3 members wear Green today</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 21)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 21)">
             <div class="cell-content">
                 <div class="cell-number">21</div>
                 <div class="cell-text">More than 7 different colours on clothings for a person</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 16)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 16)">
             <div class="cell-content">
                 <div class="cell-number">16</div>
                 <div class="cell-text">Someone who has taught at this school for more than 10 years</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 8)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 8)">
             <div class="cell-content">
                 <div class="cell-number">8</div>
                 <div class="cell-text">Someone has a gym membership (upload gym membership photo)</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 25)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 25)">
             <div class="cell-content">
                 <div class="cell-number">25</div>
                 <div class="cell-text">An item with school logo (except school T-shirts)</div>
@@ -366,31 +424,31 @@
         </div>
         
         <!-- Row 3 -->
-        <div class="bingo-cell" onclick="showImageOptions(this, 12)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 12)">
             <div class="cell-content">
                 <div class="cell-number">12</div>
                 <div class="cell-text">Have 4 glasses</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 3)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 3)">
             <div class="cell-content">
                 <div class="cell-number">3</div>
                 <div class="cell-text">At least from 3 different departments</div>
             </div>
         </div>
-        <div class="bingo-cell center-cell" onclick="showImageOptions(this, 1)">
+        <div class="bingo-cell center-cell" onclick="handleCellClick(this, 1)">
             <div class="cell-content">
                 <div class="cell-number">1</div>
                 <div class="cell-text">Take a group photo with the coins</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 19)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 19)">
             <div class="cell-content">
                 <div class="cell-number">19</div>
                 <div class="cell-text">An item with Singapore flag</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 6)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 6)">
             <div class="cell-content">
                 <div class="cell-number">6</div>
                 <div class="cell-text">Have 3 watches</div>
@@ -398,31 +456,31 @@
         </div>
         
         <!-- Row 4 -->
-        <div class="bingo-cell" onclick="showImageOptions(this, 17)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 17)">
             <div class="cell-content">
                 <div class="cell-number">17</div>
                 <div class="cell-text">Someone who used to be a student from TJC</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 24)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 24)">
             <div class="cell-content">
                 <div class="cell-number">24</div>
                 <div class="cell-text">Have 4 markers</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 2)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 2)">
             <div class="cell-content">
                 <div class="cell-number">2</div>
                 <div class="cell-text">At least 2 persons with the same Birth month</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 15)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 15)">
             <div class="cell-content">
                 <div class="cell-number">15</div>
                 <div class="cell-text">A group member with visible grey hair</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 9)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 9)">
             <div class="cell-content">
                 <div class="cell-number">9</div>
                 <div class="cell-text">Have 4 key chains</div>
@@ -430,34 +488,45 @@
         </div>
         
         <!-- Row 5 -->
-        <div class="bingo-cell" onclick="showImageOptions(this, 13)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 13)">
             <div class="cell-content">
                 <div class="cell-number">13</div>
                 <div class="cell-text">Spelling out "TJC" using arms and/or limbs</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 20)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 20)">
             <div class="cell-content">
                 <div class="cell-number">20</div>
                 <div class="cell-text">Someone who walked 12,000 steps in one of the days this week</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 4)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 4)">
             <div class="cell-content">
                 <div class="cell-number">4</div>
                 <div class="cell-text">Have 5 red pens now</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 23)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 23)">
             <div class="cell-content">
                 <div class="cell-number">23</div>
                 <div class="cell-text">A red rubber band</div>
             </div>
         </div>
-        <div class="bingo-cell" onclick="showImageOptions(this, 10)">
+        <div class="bingo-cell" onclick="handleCellClick(this, 10)">
             <div class="cell-content">
                 <div class="cell-number">10</div>
                 <div class="cell-text">At least one person works in MOE for at least 15 years</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-content">
+            <img id="previewImage" class="preview-image" src="" alt="Bingo Evidence">
+            <div class="preview-controls">
+                <button class="preview-btn" onclick="deleteImage()">🗑️ Delete & Retake</button>
+                <button class="preview-btn close" onclick="closePreview()">✅ Keep Photo</button>
             </div>
         </div>
     </div>
@@ -495,7 +564,48 @@
         const canvas = document.getElementById('canvas');
         const cameraModal = document.getElementById('cameraModal');
         const optionsModal = document.getElementById('optionsModal');
+        const previewModal = document.getElementById('previewModal');
+        const previewImage = document.getElementById('previewImage');
         const fileInput = document.getElementById('fileInput');
+
+        function handleCellClick(cell, cellNumber) {
+            currentCell = cell;
+            
+            // Check if cell already has an image
+            if (cell.classList.contains('completed')) {
+                showImagePreview(cell);
+            } else {
+                showImageOptions(cell, cellNumber);
+            }
+        }
+
+        function showImagePreview(cell) {
+            // Extract the background image URL
+            const backgroundImage = cell.style.backgroundImage;
+            if (backgroundImage) {
+                const imageUrl = backgroundImage.slice(5, -2); // Remove 'url("' and '")'
+                previewImage.src = imageUrl;
+                previewModal.style.display = 'block';
+            }
+        }
+
+        function closePreview() {
+            previewModal.style.display = 'none';
+            currentCell = null;
+        }
+
+        function deleteImage() {
+            if (currentCell) {
+                // Remove image and completed status
+                currentCell.style.backgroundImage = '';
+                currentCell.classList.remove('has-image');
+                currentCell.classList.remove('completed');
+                
+                // Close preview and show options
+                closePreview();
+                showImageOptions(currentCell, null);
+            }
+        }
 
         function showImageOptions(cell, cellNumber) {
             currentCell = cell;
@@ -639,6 +749,12 @@
             }
         });
 
+        previewModal.addEventListener('click', function(event) {
+            if (event.target === previewModal) {
+                closePreview();
+            }
+        });
+
         // Add keyboard support
         document.addEventListener('keydown', function(event) {
             if (optionsModal.style.display === 'block') {
@@ -651,6 +767,13 @@
                 } else if (event.key === ' ' || event.key === 'Enter') {
                     event.preventDefault();
                     capturePhoto();
+                }
+            } else if (previewModal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    closePreview();
+                } else if (event.key === 'Delete' || event.key === 'Backspace') {
+                    event.preventDefault();
+                    deleteImage();
                 }
             }
         });
