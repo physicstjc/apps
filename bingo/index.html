@@ -59,7 +59,21 @@
             border-radius: 15px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.2);
             max-width: 600px;
+            width: 100%;
             margin: 0 auto;
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+        
+        .grid-container {
+            width: 100%;
+            overflow: hidden;
+            touch-action: pan-x pan-y;
+            position: relative;
+            margin: 0 auto;
+            max-width: 100vw;
+            padding: 0 10px;
+            box-sizing: border-box;
         }
         
         .bingo-cell {
@@ -488,25 +502,72 @@
         }
         
         @media (max-width: 600px) {
-            .bingo-cell {
-                min-height: 70px;
+            body {
+                padding: 10px;
+            }
+            
+            .bingo-grid {
+                max-width: calc(100vw - 40px);
+                gap: 2px;
                 padding: 8px;
             }
             
+            .bingo-cell {
+                min-height: 60px;
+                padding: 4px;
+            }
+            
             .cell-text {
-                font-size: 10px;
+                font-size: 9px;
+                line-height: 1.1;
             }
             
             .cell-number {
-                width: 20px;
-                height: 20px;
-                font-size: 10px;
-                margin-bottom: 5px;
+                width: 18px;
+                height: 18px;
+                font-size: 9px;
+                margin-bottom: 4px;
+            }
+            
+            .cell-content {
+                padding: 4px;
             }
             
             .options-content {
                 min-width: 280px;
                 margin: 20px;
+            }
+            
+            .grid-container {
+                padding: 0 5px;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .bingo-grid {
+                max-width: calc(100vw - 30px);
+                gap: 1px;
+                padding: 6px;
+            }
+            
+            .bingo-cell {
+                min-height: 50px;
+                padding: 3px;
+            }
+            
+            .cell-text {
+                font-size: 8px;
+            }
+            
+            .cell-number {
+                width: 16px;
+                height: 16px;
+                font-size: 8px;
+                margin-bottom: 3px;
+            }
+            
+            .cell-content {
+                padding: 3px;
             }
         }
     </style>
@@ -514,6 +575,7 @@
 <body>
     <div class="header">
         <h1>🎯 TJC STAFF BONDING BINGO 🎯</h1>
+        <h2>5×5 Challenge Grid</h2>
     </div>
     
     <div class="instructions">
@@ -534,8 +596,10 @@
         <br>...etc
     </div>
     
-    <div class="bingo-grid" id="bingoGrid" style="display: none;">
-        <!-- Grid will be populated by JavaScript -->
+    <div class="grid-container">
+        <div class="bingo-grid" id="bingoGrid" style="display: none;">
+            <!-- Grid will be populated by JavaScript -->
+        </div>
     </div>
 
     <!-- Bingo Success Modal -->
@@ -621,6 +685,79 @@
         let submittedLines = new Set();
         let challenges = [];
 
+        // Pinch-to-zoom functionality
+        let scale = 1;
+        let initialDistance = 0;
+        let isZooming = false;
+        const minScale = 0.5;
+        const maxScale = 2.5;
+
+        function getDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function setupPinchZoom() {
+            const gridContainer = document.querySelector('.grid-container');
+            const bingoGrid = document.getElementById('bingoGrid');
+            
+            gridContainer.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 2) {
+                    isZooming = true;
+                    initialDistance = getDistance(e.touches);
+                    e.preventDefault();
+                }
+            });
+
+            gridContainer.addEventListener('touchmove', function(e) {
+                if (isZooming && e.touches.length === 2) {
+                    e.preventDefault();
+                    const currentDistance = getDistance(e.touches);
+                    const scaleChange = currentDistance / initialDistance;
+                    const newScale = Math.min(Math.max(scale * scaleChange, minScale), maxScale);
+                    
+                    bingoGrid.style.transform = `scale(${newScale})`;
+                }
+            });
+
+            gridContainer.addEventListener('touchend', function(e) {
+                if (isZooming) {
+                    const currentTransform = bingoGrid.style.transform;
+                    const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
+                    if (scaleMatch) {
+                        scale = parseFloat(scaleMatch[1]);
+                    }
+                    isZooming = false;
+                }
+            });
+
+            // Prevent default zoom behavior
+            document.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            // Add reset zoom on double tap
+            gridContainer.addEventListener('touchend', function(e) {
+                if (e.changedTouches.length === 1 && !isZooming) {
+                    // Simple double tap detection
+                    const now = new Date().getTime();
+                    const timeSince = now - (gridContainer.lastTap || 0);
+                    
+                    if (timeSince < 300 && timeSince > 0) {
+                        // Double tap detected - reset zoom
+                        scale = 1;
+                        bingoGrid.style.transform = 'scale(1)';
+                        e.preventDefault();
+                    }
+                    
+                    gridContainer.lastTap = now;
+                }
+            });
+        }
+
         // Load challenges from CSV file
         async function loadChallenges() {
             try {
@@ -688,9 +825,17 @@
             // Hide loading message and show grid
             document.getElementById('loadingMessage').style.display = 'none';
             document.getElementById('bingoGrid').style.display = 'grid';
+            
+            // Setup pinch-to-zoom after grid is created
+            setupPinchZoom();
         }
 
         function handleCellClick(cell, cellNumber) {
+            // Prevent cell clicks during zooming
+            if (isZooming) {
+                return;
+            }
+            
             currentCell = cell;
             
             // Check if cell already has an image
