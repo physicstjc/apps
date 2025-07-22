@@ -680,6 +680,12 @@
         ];
 
         function handleCellClick(cell, cellNumber) {
+            // Add click animation
+            cell.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                cell.style.transform = '';
+            }, 150);
+            
             // If cell has image, show image viewer
             if (cell.classList.contains('has-image')) {
                 showImageModal(cell);
