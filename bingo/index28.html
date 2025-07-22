@@ -772,11 +772,7 @@
 
         function closePreview() {
             previewModal.style.display = 'none';
-            // Reset currentCell after successful completion
             currentCell = null;
-            
-            // Check for bingo after adding image
-            checkForBingo();
         }
 
         function deleteImage() {
@@ -825,6 +821,9 @@
                     
                     // Reset currentCell after successful completion
                     currentCell = null;
+                    
+                    // Check for bingo after adding image
+                    checkForBingo();
                 };
                 reader.readAsDataURL(file);
             }
@@ -921,6 +920,19 @@
             
             // Check for bingo after adding image
             checkForBingo();
+        }
+
+        function closeCamera() {
+            cameraModal.style.display = 'none';
+            
+            // Stop camera stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Only reset currentCell if we're not going to use it
+            // Don't reset here - let other functions handle it
         }
 
         function checkForBingo() {
@@ -1072,7 +1084,7 @@
                 
                 showStatus('Sending email...', 'success');
                 
-                // Send email (this would need actual Gmail API setup)
+                // Send email via Google Apps Script
                 await sendBingoEmail(teamName, teamEmail, images);
                 
                 // Mark as submitted
@@ -1170,20 +1182,6 @@
             statusEl.textContent = message;
             statusEl.className = `status-message status-${type}`;
             statusEl.style.display = 'block';
-        }
-        }
-
-        function closeCamera() {
-            cameraModal.style.display = 'none';
-            
-            // Stop camera stream
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            
-            // Only reset currentCell if we're not going to use it
-            // Don't reset here - let other functions handle it
         }
 
         // Close modals when clicking outside
