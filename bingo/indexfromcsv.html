@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Staff Bonding Bingo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .instructions {
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin: 40px 0;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .bingo-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 3px;
+            background: #333;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .bingo-cell {
+            background: white;
+            padding: 12px;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .bingo-cell:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .bingo-cell.has-image {
+            background-color: rgba(255,255,255,0.9);
+        }
+        
+        .bingo-cell.has-image:hover {
+            background-color: rgba(232,244,253,0.9);
+        }
+        
+        .cell-content {
+            background: rgba(255,255,255,0.95);
+            border-radius: 6px;
+            padding: 8px;
+            backdrop-filter: blur(5px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .bingo-cell.has-image .cell-content {
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .cell-number {
+            background: #4a90e2;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            margin: 0 auto 8px;
+        }
+        
+        .center-cell {
+            background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .center-cell .cell-number {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+        
+        .center-cell .cell-content {
+            background: rgba(255,255,255,0.95);
+            color: #333;
+        }
+        
+        .center-cell .cell-text {
+            color: #333;
+        }
+        
+        .cell-text {
+            font-size: 11px;
+            line-height: 1.2;
+            text-align: center;
+        }
+        
+        .completed {
+            border: 3px solid #4CAF50;
+        }
+        
+        .completed .cell-number {
+            background: #4CAF50;
+        }
+
+        /* Image Preview Modal */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+        
+        .preview-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            max-width: 90vw;
+            max-height: 90vh;
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .preview-controls {
+            margin-top: 20px;
+        }
+        
+        .preview-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .preview-btn:hover {
+            background: #da190b;
+        }
+        
+        .preview-btn.close {
+            background: #2196F3;
+        }
+        
+        .preview-btn.close:hover {
+            background: #1976D2;
+        }
+        
+        /* Bingo Success Modal */
+        .bingo-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            animation: bingoAppear 0.5s ease-out;
+        }
+        
+        @keyframes bingoAppear {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .bingo-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            min-width: 350px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .bingo-title {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: bingoGlow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes bingoGlow {
+            from { text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+            to { text-shadow: 2px 2px 20px rgba(255,255,255,0.8); }
+        }
+        
+        .bingo-subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .submit-form {
+            margin: 20px 0;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+            text-align: left;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .submit-btn {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .submit-btn:hover {
+            background: #FF5252;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .submit-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .cancel-btn {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+        
+        .cancel-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .status-message {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .status-success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #2E7D32;
+        }
+        
+        .status-error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #C62828;
+        }
+        
+        .bingo-line {
+            background: rgba(255, 215, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: bingoHighlight 1s ease-in-out infinite alternate;
+        }
+        
+        @keyframes bingoHighlight {
+            from { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+            to { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
+        }
+        
+        /* Image Options Modal */
+        .options-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+        
+        .options-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .options-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .option-btn {
+            display: block;
+            width: 100%;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .option-btn:hover {
+            background: #45a049;
+        }
+        
+        .option-btn.upload {
+            background: #2196F3;
+        }
+        
+        .option-btn.upload:hover {
+            background: #1976D2;
+        }
+        
+        .option-btn.cancel {
+            background: #f44336;
+        }
+        
+        .option-btn.cancel:hover {
+            background: #da190b;
+        }
+        
+        /* Camera Modal Styles */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+        
+        .camera-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+        }
+        
+        #videoElement {
+            max-width: 90vw;
+            max-height: 60vh;
+            border-radius: 10px;
+        }
+        
+        .camera-controls {
+            margin-top: 20px;
+        }
+        
+        .camera-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .camera-btn:hover {
+            background: #45a049;
+        }
+        
+        .camera-btn.cancel {
+            background: #f44336;
+        }
+        
+        .camera-btn.cancel:hover {
+            background: #da190b;
+        }
+        
+        .camera-btn.switch {
+            background: #2196F3;
+        }
+        
+        .camera-btn.switch:hover {
+            background: #1976D2;
+        }
+        
+        #canvas {
+            display: none;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        @media (max-width: 600px) {
+            .bingo-cell {
+                min-height: 70px;
+                padding: 8px;
+            }
+            
+            .cell-text {
+                font-size: 10px;
+            }
+            
+            .cell-number {
+                width: 20px;
+                height: 20px;
+                font-size: 10px;
+                margin-bottom: 5px;
+            }
+            
+            .options-content {
+                min-width: 280px;
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 TJC STAFF BONDING BINGO 🎯</h1>
+        <h2>5×5 Challenge Grid</h2>
+    </div>
+    
+    <div class="instructions">
+        <strong>Instructions:</strong> Work together to find the items, meet the criteria, and engage with each other to mark off your bingo squares! Click on a square to take a photo or upload an image as proof of completion. <strong>The first 2 groups to complete a straight line bingo (5 tasks) will win the prize!</strong>
+    </div>
+    
+    <div id="loadingMessage" class="loading">
+        🔄 Loading bingo challenges...
+    </div>
+    
+    <div id="errorMessage" class="error" style="display: none;">
+        ❌ Error loading challenges. Please ensure 'challenges.csv' is in the same directory as this HTML file.
+        <br><br>
+        Expected CSV format:
+        <br>number,challenge
+        <br>1,A photo with any of the CLs
+        <br>2,Someone in the group can speak 3 different languages
+        <br>...etc
+    </div>
+    
+    <div class="bingo-grid" id="bingoGrid" style="display: none;">
+        <!-- Grid will be populated by JavaScript -->
+    </div>
+
+    <!-- Bingo Success Modal -->
+    <div id="bingoModal" class="bingo-modal">
+        <div class="bingo-content">
+            <div class="bingo-title">🎉 BINGO! 🎉</div>
+            <div class="bingo-subtitle">Congratulations! You've completed a line!</div>
+            
+            <div class="submit-form">
+                <div class="form-group">
+                    <label class="form-label">Team Name:</label>
+                    <input type="text" id="teamName" class="form-input" placeholder="Enter your team name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Team Leader Email:</label>
+                    <input type="email" id="teamEmail" class="form-input" placeholder="Enter team leader's email" required>
+                </div>
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+                <button class="submit-btn" onclick="submitBingo()" id="submitBtn">
+                    📧 Submit to Game Master
+                </button>
+                <button class="submit-btn cancel-btn" onclick="closeBingo()">
+                    Continue Playing
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-content">
+            <img id="previewImage" class="preview-image" src="" alt="Bingo Evidence">
+            <div class="preview-controls">
+                <button class="preview-btn" onclick="deleteImage()">🗑️ Delete & Retake</button>
+                <button class="preview-btn close" onclick="closePreview()">✅ Keep Photo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Options Modal -->
+    <div id="optionsModal" class="options-modal">
+        <div class="options-content">
+            <div class="options-title">Add Photo Evidence</div>
+            <button class="option-btn" onclick="openCamera()">📷 Take Photo with Camera</button>
+            <button class="option-btn upload" onclick="openFileUpload()">📁 Upload from Gallery</button>
+            <button class="option-btn cancel" onclick="closeOptions()">❌ Cancel</button>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="camera-modal">
+        <div class="camera-content">
+            <video id="videoElement" autoplay playsinline></video>
+            <div class="camera-controls">
+                <button class="camera-btn" onclick="capturePhoto()">📷 Take Photo</button>
+                <button class="camera-btn switch" onclick="switchCamera()">🔄 Switch Camera</button>
+                <button class="camera-btn cancel" onclick="closeCamera()">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(event)">
+
+    <script>
+        let currentCell = null;
+        let stream = null;
+        let currentFacingMode = 'environment'; // Start with back camera
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const cameraModal = document.getElementById('cameraModal');
+        const optionsModal = document.getElementById('optionsModal');
+        const previewModal = document.getElementById('previewModal');
+        const previewImage = document.getElementById('previewImage');
+        const bingoModal = document.getElementById('bingoModal');
+        const fileInput = document.getElementById('fileInput');
+
+        // Google Apps Script Web App URL
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiTc5J4dkz1yocljRNR0clRu3uECbfEr5TLWyz024fd8ohgVwwmMluPOiFitREpy4xzA/exec';
+        const GAME_MASTER_EMAIL = 'kok_hui_ching@moe.edu.sg';
+        
+        // Track completed lines to prevent duplicate submissions
+        let submittedLines = new Set();
+        let challenges = [];
+
+        // Load challenges from CSV file
+        async function loadChallenges() {
+            try {
+                const response = await fetch('challenges.csv');
+                if (!response.ok) {
+                    throw new Error('Could not load challenges.csv');
+                }
+                
+                const csvText = await response.text();
+                const lines = csvText.trim().split('\n');
+                
+                // Skip header row and parse data
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                        // Split by comma, but handle commas inside quotes
+                        const match = line.match(/^(\d+),(.*)$/);
+                        if (match) {
+                            const number = parseInt(match[1]);
+                            const challenge = match[2].replace(/^"(.*)"$/, '$1'); // Remove quotes if present
+                            challenges.push({ number, challenge });
+                        }
+                    }
+                }
+                
+                if (challenges.length !== 25) {
+                    throw new Error(`Expected 25 challenges, found ${challenges.length}`);
+                }
+                
+                // Sort by number to ensure correct order
+                challenges.sort((a, b) => a.number - b.number);
+                
+                createBingoGrid();
+                
+            } catch (error) {
+                console.error('Error loading challenges:', error);
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        }
+
+        function createBingoGrid() {
+            const grid = document.getElementById('bingoGrid');
+            grid.innerHTML = ''; // Clear existing content
+            
+            challenges.forEach((challenge, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'bingo-cell';
+                if (index === 12) { // Center cell (0-based index)
+                    cell.className += ' center-cell';
+                }
+                
+                cell.onclick = () => handleCellClick(cell, challenge.number);
+                
+                cell.innerHTML = `
+                    <div class="cell-content">
+                        <div class="cell-number">${challenge.number}</div>
+                        <div class="cell-text">${challenge.challenge}</div>
+                    </div>
+                `;
+                
+                grid.appendChild(cell);
+            });
+            
+            // Hide loading message and show grid
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('bingoGrid').style.display = 'grid';
+        }
+
+        function handleCellClick(cell, cellNumber) {
+            currentCell = cell;
+            
+            // Check if cell already has an image
+            if (cell.classList.contains('completed')) {
+                showImagePreview(cell);
+            } else {
+                showImageOptions(cell, cellNumber);
+            }
+        }
+
+        function showImagePreview(cell) {
+            // Extract the background image URL
+            const backgroundImage = cell.style.backgroundImage;
+            if (backgroundImage) {
+                const imageUrl = backgroundImage.slice(5, -2); // Remove 'url("' and '")'
+                previewImage.src = imageUrl;
+                previewModal.style.display = 'block';
+            }
+        }
+
+        function closePreview() {
+            previewModal.style.display = 'none';
+            currentCell = null;
+        }
+
+        function deleteImage() {
+            if (currentCell) {
+                // Remove image and completed status
+                currentCell.style.backgroundImage = '';
+                currentCell.classList.remove('has-image');
+                currentCell.classList.remove('completed');
+                
+                // Close preview and show options
+                closePreview();
+                showImageOptions(currentCell, null);
+            }
+        }
+
+        function showImageOptions(cell, cellNumber) {
+            currentCell = cell;
+            optionsModal.style.display = 'block';
+        }
+
+        function closeOptions() {
+            optionsModal.style.display = 'none';
+            // Don't reset currentCell here - it might be needed for camera
+        }
+
+        function openFileUpload() {
+            closeOptions();
+            fileInput.click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file && currentCell) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Set as background image
+                    currentCell.style.backgroundImage = `url(${e.target.result})`;
+                    currentCell.classList.add('has-image');
+                    currentCell.classList.add('completed');
+                    
+                    // Add celebration effect
+                    currentCell.style.transform = 'scale(1.1)';
+                    setTimeout(() => {
+                        currentCell.style.transform = '';
+                    }, 300);
+                    
+                    // Reset currentCell after successful completion
+                    currentCell = null;
+                    
+                    // Check for bingo after adding image
+                    checkForBingo();
+                };
+                reader.readAsDataURL(file);
+            }
+            // Reset file input
+            fileInput.value = '';
+        }
+
+        async function openCamera() {
+            closeOptions();
+            cameraModal.style.display = 'block';
+            
+            try {
+                // Request camera access
+                await startCamera();
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                alert('Could not access camera. Please ensure you have given permission to use the camera.');
+                closeCamera();
+            }
+        }
+
+        async function startCamera() {
+            // Stop existing stream if any
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: currentFacingMode
+                    } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error('Error starting camera:', err);
+                throw err;
+            }
+        }
+
+        async function switchCamera() {
+            // Toggle between front and back camera
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            
+            try {
+                await startCamera();
+            } catch (err) {
+                console.error('Error switching camera:', err);
+                // If switching fails, revert to previous mode
+                currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                try {
+                    await startCamera();
+                } catch (revertErr) {
+                    console.error('Error reverting camera:', revertErr);
+                    alert('Could not switch camera. Using current camera.');
+                }
+            }
+        }
+
+        function capturePhoto() {
+            if (!currentCell) {
+                console.error('No current cell selected');
+                return;
+            }
+            
+            const context = canvas.getContext('2d');
+            
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw the video frame to canvas
+            context.drawImage(video, 0, 0);
+            
+            // Convert to data URL
+            const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Set as background image
+            currentCell.style.backgroundImage = `url(${imageDataURL})`;
+            currentCell.classList.add('has-image');
+            currentCell.classList.add('completed');
+            
+            // Close camera
+            closeCamera();
+            
+            // Add celebration effect
+            currentCell.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                currentCell.style.transform = '';
+            }, 300);
+            
+            // Reset currentCell after successful completion
+            currentCell = null;
+            
+            // Check for bingo after adding image
+            checkForBingo();
+        }
+
+        function closeCamera() {
+            cameraModal.style.display = 'none';
+            
+            // Stop camera stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Only reset currentCell if we're not going to use it
+            // Don't reset here - let other functions handle it
+        }
+
+        function checkForBingo() {
+            const cells = document.querySelectorAll('.bingo-cell');
+            const grid = [];
+            
+            // Convert to 5x5 grid
+            for (let i = 0; i < 5; i++) {
+                grid[i] = [];
+                for (let j = 0; j < 5; j++) {
+                    const index = i * 5 + j;
+                    grid[i][j] = cells[index].classList.contains('completed');
+                }
+            }
+            
+            // Check all possible lines
+            const lines = [];
+            
+            // Check rows
+            for (let i = 0; i < 5; i++) {
+                if (grid[i].every(cell => cell)) {
+                    lines.push({type: 'row', index: i, cells: Array.from({length: 5}, (_, j) => i * 5 + j)});
+                }
+            }
+            
+            // Check columns
+            for (let j = 0; j < 5; j++) {
+                if (grid.every(row => row[j])) {
+                    lines.push({type: 'col', index: j, cells: Array.from({length: 5}, (_, i) => i * 5 + j)});
+                }
+            }
+            
+            // Check diagonals
+            if (grid.every((row, i) => row[i])) {
+                lines.push({type: 'diag1', index: 0, cells: [0, 6, 12, 18, 24]});
+            }
+            if (grid.every((row, i) => row[4-i])) {
+                lines.push({type: 'diag2', index: 0, cells: [4, 8, 12, 16, 20]});
+            }
+            
+            // Show bingo modal for new lines
+            const newLines = lines.filter(line => !submittedLines.has(`${line.type}-${line.index}`));
+            if (newLines.length > 0) {
+                // Highlight the bingo line
+                highlightBingoLine(newLines[0]);
+                showBingoModal();
+            }
+        }
+
+        function highlightBingoLine(line) {
+            const cells = document.querySelectorAll('.bingo-cell');
+            line.cells.forEach(index => {
+                cells[index].classList.add('bingo-line');
