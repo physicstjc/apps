@@ -614,7 +614,7 @@
 
         function closeOptions() {
             optionsModal.style.display = 'none';
-            currentCell = null;
+            // Don't reset currentCell here - it might be needed for camera
         }
 
         function openFileUpload() {
@@ -638,6 +638,7 @@
                         currentCell.style.transform = '';
                     }, 300);
                     
+                    // Reset currentCell after successful completion
                     currentCell = null;
                 };
                 reader.readAsDataURL(file);
@@ -699,6 +700,11 @@
         }
 
         function capturePhoto() {
+            if (!currentCell) {
+                console.error('No current cell selected');
+                return;
+            }
+            
             const context = canvas.getContext('2d');
             
             // Set canvas dimensions to match video
@@ -724,6 +730,9 @@
             setTimeout(() => {
                 currentCell.style.transform = '';
             }, 300);
+            
+            // Reset currentCell after successful completion
+            currentCell = null;
         }
 
         function closeCamera() {
@@ -734,18 +743,23 @@
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
             }
+            
+            // Only reset currentCell if we're not going to use it
+            // Don't reset here - let other functions handle it
         }
 
         // Close modals when clicking outside
         optionsModal.addEventListener('click', function(event) {
             if (event.target === optionsModal) {
                 closeOptions();
+                currentCell = null; // Reset when canceling
             }
         });
 
         cameraModal.addEventListener('click', function(event) {
             if (event.target === cameraModal) {
                 closeCamera();
+                currentCell = null; // Reset when canceling
             }
         });
 
@@ -760,10 +774,12 @@
             if (optionsModal.style.display === 'block') {
                 if (event.key === 'Escape') {
                     closeOptions();
+                    currentCell = null; // Reset when canceling
                 }
             } else if (cameraModal.style.display === 'block') {
                 if (event.key === 'Escape') {
                     closeCamera();
+                    currentCell = null; // Reset when canceling
                 } else if (event.key === ' ' || event.key === 'Enter') {
                     event.preventDefault();
                     capturePhoto();
