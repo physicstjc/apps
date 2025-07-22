@@ -680,19 +680,33 @@
         ];
 
         // Add event listeners after page loads
-        document.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('load', function() {
+            console.log('Page loaded, setting up event listeners...');
+            
             // Add click handlers to all bingo cells
             const cells = document.querySelectorAll('.bingo-cell');
+            console.log('Found', cells.length, 'bingo cells');
+            
             cells.forEach((cell, index) => {
-                const cellNumber = cell.querySelector('.cell-number').textContent;
-                cell.addEventListener('click', function() {
-                    handleCellClick(cell, parseInt(cellNumber));
-                });
+                const cellNumberElement = cell.querySelector('.cell-number');
+                if (cellNumberElement) {
+                    const cellNumber = parseInt(cellNumberElement.textContent);
+                    console.log('Adding event listener to cell', cellNumber);
+                    
+                    cell.addEventListener('click', function() {
+                        console.log('Cell clicked:', cellNumber);
+                        handleCellClick(cell, cellNumber);
+                    });
+                } else {
+                    console.error('No cell number found for cell', index);
+                }
             });
+            
+            console.log('All event listeners added');
         });
 
         function handleCellClick(cell, cellNumber) {
-            console.log('Cell clicked:', cellNumber); // Debug log
+            console.log('handleCellClick called for cell:', cellNumber);
             
             // Add click animation
             cell.style.transform = 'scale(0.95)';
@@ -702,10 +716,10 @@
             
             // If cell has image, show image viewer
             if (cell.classList.contains('has-image')) {
-                console.log('Showing image modal'); // Debug log
+                console.log('Cell has image, showing image modal');
                 showImageModal(cell);
             } else {
-                console.log('Opening camera'); // Debug log
+                console.log('Cell is empty, opening camera');
                 // Open camera modal for new photo
                 openCamera(cell, cellNumber);
             }
@@ -791,12 +805,31 @@
             }
 
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
+                // Try to get camera with current facing mode first
+                let constraints = { 
                     video: { 
-                        facingMode: currentFacingMode
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     } 
-                });
+                };
+
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (err) {
+                    console.log('Specific camera constraints failed, trying basic video...');
+                    // Fallback for devices that don't support facingMode (like laptops)
+                    constraints = { 
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                }
+                
                 video.srcObject = stream;
+                console.log('Camera started successfully');
             } catch (err) {
                 console.error('Error starting camera:', err);
                 throw err;
@@ -804,21 +837,37 @@
         }
 
         async function switchCamera() {
-            // Toggle between front and back camera
-            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-            
+            // Check if device has multiple cameras
             try {
-                await startCamera();
-            } catch (err) {
-                console.error('Error switching camera:', err);
-                // If switching fails, revert to previous mode
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                console.log('Available video devices:', videoDevices.length);
+                
+                if (videoDevices.length <= 1) {
+                    alert('Only one camera detected. Camera switching is not available on this device.');
+                    return;
+                }
+                
+                // Toggle between front and back camera
                 currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                
                 try {
                     await startCamera();
-                } catch (revertErr) {
-                    console.error('Error reverting camera:', revertErr);
-                    alert('Could not switch camera. Using current camera.');
+                } catch (err) {
+                    console.error('Error switching camera:', err);
+                    // If switching fails, revert to previous mode
+                    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                    try {
+                        await startCamera();
+                    } catch (revertErr) {
+                        console.error('Error reverting camera:', revertErr);
+                        alert('Could not switch camera. Using current camera.');
+                    }
                 }
+            } catch (err) {
+                console.error('Error enumerating devices:', err);
+                alert('Could not access camera information.');
             }
         }
 
