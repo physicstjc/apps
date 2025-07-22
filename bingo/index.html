@@ -21,7 +21,7 @@
         }
         
         .header h1 {
-            font-size: 2.5em;
+            font-size: 2em;
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
@@ -684,12 +684,21 @@
         let submittedLines = new Set();
         let challenges = [];
 
-        // Pinch-to-zoom functionality
+        // Pinch-to-zoom and pan functionality
         let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
         let initialDistance = 0;
+        let initialScale = 1;
+        let initialTranslateX = 0;
+        let initialTranslateY = 0;
         let isZooming = false;
+        let isPanning = false;
+        let initialTouchX = 0;
+        let initialTouchY = 0;
+        let lastTouchTime = 0;
         const minScale = 0.5;
-        const maxScale = 2.5;
+        const maxScale = 3;
 
         function getDistance(touches) {
             const dx = touches[0].clientX - touches[1].clientX;
@@ -697,63 +706,172 @@
             return Math.sqrt(dx * dx + dy * dy);
         }
 
+        function getCenter(touches) {
+            return {
+                x: (touches[0].clientX + touches[1].clientX) / 2,
+                y: (touches[0].clientY + touches[1].clientY) / 2
+            };
+        }
+
+        function updateTransform() {
+            const bingoGrid = document.getElementById('bingoGrid');
+            bingoGrid.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        function constrainTranslation() {
+            const gridContainer = document.querySelector('.grid-container');
+            const bingoGrid = document.getElementById('bingoGrid');
+            
+            if (!gridContainer || !bingoGrid) return;
+
+            const containerRect = gridContainer.getBoundingClientRect();
+            const gridRect = bingoGrid.getBoundingClientRect();
+            
+            // Calculate max translation bounds
+            const maxTranslateX = Math.max(0, (gridRect.width * scale - containerRect.width) / 2);
+            const maxTranslateY = Math.max(0, (gridRect.height * scale - containerRect.height) / 2);
+            
+            // Constrain translation within bounds
+            translateX = Math.max(-maxTranslateX, Math.min(maxTranslateX, translateX));
+            translateY = Math.max(-maxTranslateY, Math.min(maxTranslateY, translateY));
+        }
+
         function setupPinchZoom() {
             const gridContainer = document.querySelector('.grid-container');
             const bingoGrid = document.getElementById('bingoGrid');
             
             gridContainer.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 2) {
+                const now = Date.now();
+                
+                if (e.touches.length === 1) {
+                    // Single touch - potential pan or double tap
+                    const touch = e.touches[0];
+                    
+                    // Check for double tap
+                    if (now - lastTouchTime < 300) {
+                        // Double tap detected - reset zoom and pan
+                        scale = 1;
+                        translateX = 0;
+                        translateY = 0;
+                        updateTransform();
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    lastTouchTime = now;
+                    
+                    // Start potential pan
+                    if (scale > 1) {
+                        isPanning = true;
+                        initialTouchX = touch.clientX;
+                        initialTouchY = touch.clientY;
+                        initialTranslateX = translateX;
+                        initialTranslateY = translateY;
+                        e.preventDefault();
+                    }
+                } else if (e.touches.length === 2) {
+                    // Two touches - start zoom
                     isZooming = true;
+                    isPanning = false;
+                    
                     initialDistance = getDistance(e.touches);
+                    initialScale = scale;
+                    
+                    // Store initial translation
+                    initialTranslateX = translateX;
+                    initialTranslateY = translateY;
+                    
                     e.preventDefault();
                 }
             });
 
             gridContainer.addEventListener('touchmove', function(e) {
-                if (isZooming && e.touches.length === 2) {
+                if (e.touches.length === 1 && isPanning && scale > 1) {
+                    // Single touch pan
                     e.preventDefault();
+                    
+                    const touch = e.touches[0];
+                    const deltaX = touch.clientX - initialTouchX;
+                    const deltaY = touch.clientY - initialTouchY;
+                    
+                    translateX = initialTranslateX + deltaX;
+                    translateY = initialTranslateY + deltaY;
+                    
+                    constrainTranslation();
+                    updateTransform();
+                    
+                } else if (e.touches.length === 2 && isZooming) {
+                    // Two touch zoom
+                    e.preventDefault();
+                    
                     const currentDistance = getDistance(e.touches);
                     const scaleChange = currentDistance / initialDistance;
-                    const newScale = Math.min(Math.max(scale * scaleChange, minScale), maxScale);
+                    const newScale = Math.min(Math.max(initialScale * scaleChange, minScale), maxScale);
                     
-                    bingoGrid.style.transform = `scale(${newScale})`;
+                    // Calculate zoom center relative to container
+                    const center = getCenter(e.touches);
+                    const containerRect = gridContainer.getBoundingClientRect();
+                    const centerX = center.x - containerRect.left - containerRect.width / 2;
+                    const centerY = center.y - containerRect.top - containerRect.height / 2;
+                    
+                    // Apply zoom with focal point
+                    const scaleRatio = newScale / scale;
+                    translateX = centerX - (centerX - translateX) * scaleRatio;
+                    translateY = centerY - (centerY - translateY) * scaleRatio;
+                    
+                    scale = newScale;
+                    
+                    constrainTranslation();
+                    updateTransform();
                 }
             });
 
             gridContainer.addEventListener('touchend', function(e) {
-                if (isZooming) {
-                    const currentTransform = bingoGrid.style.transform;
-                    const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
-                    if (scaleMatch) {
-                        scale = parseFloat(scaleMatch[1]);
-                    }
+                if (e.touches.length === 0) {
+                    // All touches ended
                     isZooming = false;
+                    isPanning = false;
+                } else if (e.touches.length === 1 && isZooming) {
+                    // Went from two touches to one - start potential pan
+                    isZooming = false;
+                    if (scale > 1) {
+                        isPanning = true;
+                        const touch = e.touches[0];
+                        initialTouchX = touch.clientX;
+                        initialTouchY = touch.clientY;
+                        initialTranslateX = translateX;
+                        initialTranslateY = translateY;
+                    }
+                }
+                
+                // If zoomed out too much, reset to minimum scale
+                if (scale < 1) {
+                    scale = 1;
+                    translateX = 0;
+                    translateY = 0;
+                    updateTransform();
                 }
             });
 
-            // Prevent default zoom behavior
-            document.addEventListener('touchmove', function(e) {
-                if (e.touches.length > 1) {
+            // Prevent default zoom behavior and scrolling when interacting with grid
+            gridContainer.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1 || (e.touches.length === 1 && scale > 1)) {
                     e.preventDefault();
                 }
             }, { passive: false });
 
-            // Add reset zoom on double tap
-            gridContainer.addEventListener('touchend', function(e) {
-                if (e.changedTouches.length === 1 && !isZooming) {
-                    // Simple double tap detection
-                    const now = new Date().getTime();
-                    const timeSince = now - (gridContainer.lastTap || 0);
-                    
-                    if (timeSince < 300 && timeSince > 0) {
-                        // Double tap detected - reset zoom
-                        scale = 1;
-                        bingoGrid.style.transform = 'scale(1)';
-                        e.preventDefault();
-                    }
-                    
-                    gridContainer.lastTap = now;
-                }
+            // Handle orientation change
+            window.addEventListener('orientationchange', function() {
+                setTimeout(() => {
+                    constrainTranslation();
+                    updateTransform();
+                }, 100);
+            });
+
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                constrainTranslation();
+                updateTransform();
             });
         }
 
@@ -830,8 +948,8 @@
         }
 
         function handleCellClick(cell, cellNumber) {
-            // Prevent cell clicks during zooming
-            if (isZooming) {
+            // Prevent cell clicks during zooming or panning
+            if (isZooming || isPanning) {
                 return;
             }
             
