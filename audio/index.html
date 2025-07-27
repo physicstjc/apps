@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Passthrough & Recorder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+        }
+
+        .status.disconnected {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+        }
+
+        .status.connected {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid rgba(0, 255, 0, 0.5);
+        }
+
+        .status.recording {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid rgba(255, 165, 0, 0.5);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .controls.single-column {
+            grid-template-columns: 1fr;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            border: none;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 50px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: rgba(255, 255, 255, 0.2);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.recording {
+            background: linear-gradient(45deg, #ff4757, #ff3838);
+            animation: pulse 1s infinite;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+            grid-column: 1 / -1;
+        }
+
+        .volume-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            cursor: pointer;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            cursor: pointer;
+            border: none;
+        }
+
+        .audio-visualizer {
+            margin: 20px 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .visualizer-bar {
+            width: 4px;
+            background: linear-gradient(to top, #ff6b6b, #ffa726);
+            margin: 0 1px;
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+
+        .recordings {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .recording-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .recording-item audio {
+            flex: 1;
+            height: 30px;
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .method-selector {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .method-btn {
+            padding: 8px 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .method-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Audio Passthrough & Recorder</h1>
+        
+        <div id="status" class="status disconnected">
+            Select a method and click "Start Audio"
+        </div>
+
+        <div class="method-selector">
+            <div class="method-btn active" data-method="worklet">Ultra Low Latency</div>
+            <div class="method-btn" data-method="scriptprocessor">Script Processor (256)</div>
+            <div class="method-btn" data-method="direct">Direct Connect</div>
+        </div>
+
+        <div class="audio-visualizer" id="visualizer">
+            <!-- Visualizer bars will be generated by JavaScript -->
+        </div>
+
+        <div class="controls" id="controls">
+            <button id="startBtn">Start Audio</button>
+            <button id="stopBtn" disabled>Stop Audio</button>
+            <button id="recordBtn" disabled>🎙️ Start Recording</button>
+            <button id="testBtn">🔊 Test Speakers</button>
+            
+            <div class="volume-control">
+                <span>🔊 Output</span>
+                <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="30">
+                <span id="volumeValue">30%</span>
+            </div>
+            
+            <div class="volume-control">
+                <span>🎤 Input Gain</span>
+                <input type="range" id="gainSlider" class="volume-slider" min="1" max="50" value="10">
+                <span id="gainValue">10x</span>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div>Method: <span id="currentMethod">Audio Worklet</span></div>
+            <div>Sample Rate: <span id="sampleRate">-</span></div>
+            <div>Input Level: <span id="inputLevel">-</span></div>
+            <div>Latency: <span id="latency">-</span></div>
+        </div>
+
+        <div class="recordings" id="recordingsSection" style="display: none;">
+            <h3>📁 Recordings</h3>
+            <div id="recordingsList"></div>
+        </div>
+    </div>
+
+    <script>
+        class AudioSystem {
+            constructor() {
+                this.audioContext = null;
+                this.microphone = null;
+                this.inputGainNode = null;
+                this.outputGainNode = null;
+                this.analyser = null;
+                this.isActive = false;
+                this.visualizerBars = [];
+                this.currentMethod = 'worklet';
+                this.workletNode = null;
+                this.scriptProcessor = null;
+                
+                // Recording
+                this.isRecording = false;
+                this.mediaRecorder = null;
+                this.recordedChunks = [];
+                this.recordings = [];
+                
+                this.initializeElements();
+                this.createVisualizer();
+                this.setupMethodSelector();
+            }
+
+            initializeElements() {
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.recordBtn = document.getElementById('recordBtn');
+                this.testBtn = document.getElementById('testBtn');
+                this.status = document.getElementById('status');
+                this.volumeSlider = document.getElementById('volumeSlider');
+                this.volumeValue = document.getElementById('volumeValue');
+                this.gainSlider = document.getElementById('gainSlider');
+                this.gainValue = document.getElementById('gainValue');
+                this.sampleRateEl = document.getElementById('sampleRate');
+                this.inputLevelEl = document.getElementById('inputLevel');
+                this.latencyEl = document.getElementById('latency');
+                this.currentMethodEl = document.getElementById('currentMethod');
+                this.recordingsSection = document.getElementById('recordingsSection');
+                this.recordingsList = document.getElementById('recordingsList');
+                
+                this.startBtn.addEventListener('click', () => this.start());
+                this.stopBtn.addEventListener('click', () => this.stop());
+                this.recordBtn.addEventListener('click', () => this.toggleRecording());
+                this.testBtn.addEventListener('click', () => this.testSpeakers());
+                this.volumeSlider.addEventListener('input', (e) => this.setVolume(e.target.value));
+                this.gainSlider.addEventListener('input', (e) => this.setGain(e.target.value));
+            }
+
+            setupMethodSelector() {
+                document.querySelectorAll('.method-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        if (this.isActive) return;
+                        
+                        document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.currentMethod = btn.dataset.method;
+                        this.currentMethodEl.textContent = btn.textContent;
+                    });
+                });
+            }
+
+            createVisualizer() {
+                const visualizer = document.getElementById('visualizer');
+                for (let i = 0; i < 32; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'visualizer-bar';
+                    bar.style.height = '2px';
+                    visualizer.appendChild(bar);
+                    this.visualizerBars.push(bar);
+                }
+            }
+
+            async start() {
+                try {
+                    this.updateStatus('Requesting microphone access...', 'disconnected');
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false,
+                            latency: 0.01, // Request 10ms latency
+                            channelCount: 1,
+                            sampleRate: 48000,
+                            sampleSize: 16
+                        }
+                    });
+
+                    this.updateStatus('Creating audio context...', 'disconnected');
+                    // Create audio context with absolute minimum latency settings
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        latencyHint: 'interactive',
+                        sampleRate: 48000, // Higher sample rate can reduce latency
+                    });
+
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
+
+                    this.updateStatus(`Setting up ${this.currentMethod}...`, 'disconnected');
+
+                    // Create audio nodes
+                    this.microphone = this.audioContext.createMediaStreamSource(stream);
+                    this.inputGainNode = this.audioContext.createGain();
+                    this.outputGainNode = this.audioContext.createGain();
+                    this.analyser = this.audioContext.createAnalyser();
+                    
+                    this.analyser.fftSize = 64;
+                    this.analyser.smoothingTimeConstant = 0.3;
+
+                    // Setup different audio routing methods
+                    await this.setupAudioMethod();
+
+                    // Set initial levels
+                    this.setVolume(this.volumeSlider.value);
+                    this.setGain(this.gainSlider.value);
+
+                    // Setup recording
+                    this.setupRecording(stream);
+
+                    this.isActive = true;
+                    this.updateStatus(`🎤 ${this.currentMethod} active - Speak into microphone`, 'connected');
+                    this.updateInfo();
+                    this.startVisualization();
+
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.recordBtn.disabled = false;
+
+                } catch (error) {
+                    console.error('Error starting audio:', error);
+                    this.updateStatus(`Error: ${error.message}`, 'disconnected');
+                }
+            }
+
+            async setupAudioMethod() {
+                switch (this.currentMethod) {
+                    case 'worklet':
+                        await this.setupAudioWorklet();
+                        break;
+                    case 'scriptprocessor':
+                        this.setupScriptProcessor();
+                        break;
+                    case 'direct':
+                        this.setupDirectConnect();
+                        break;
+                }
+            }
+
+            async setupAudioWorklet() {
+                try {
+                    // Ultra-minimal worklet for lowest latency
+                    const workletCode = `
+                        class UltraLowLatencyProcessor extends AudioWorkletProcessor {
+                            constructor() {
+                                super();
+                                this.port.onmessage = (event) => {
+                                    // Handle messages if needed
+                                };
+                            }
+                            
+                            process(inputs, outputs, parameters) {
+                                const input = inputs[0];
+                                const output = outputs[0];
+                                
+                                // Direct sample copy with minimal processing
+                                if (input.length > 0 && output.length > 0) {
+                                    const inputChannel = input[0];
+                                    const outputChannel = output[0];
+                                    const length = Math.min(inputChannel.length, outputChannel.length);
+                                    
+                                    // Ultra-fast direct memory copy
+                                    outputChannel.set(inputChannel.subarray(0, length));
+                                }
+                                return true;
+                            }
+                        }
+                        registerProcessor('ultra-low-latency-processor', UltraLowLatencyProcessor);
+                    `;
+
+                    const blob = new Blob([workletCode], { type: 'application/javascript' });
+                    const workletUrl = URL.createObjectURL(blob);
+                    
+                    await this.audioContext.audioWorklet.addModule(workletUrl);
+                    this.workletNode = new AudioWorkletNode(this.audioContext, 'ultra-low-latency-processor', {
+                        numberOfInputs: 1,
+                        numberOfOutputs: 1,
+                        channelCount: 1,
+                        channelCountMode: 'explicit',
+                        channelInterpretation: 'speakers'
+                    });
+                    
+                    // Most direct connection possible
+                    this.microphone.connect(this.inputGainNode);
+                    this.inputGainNode.connect(this.workletNode);
+                    this.workletNode.connect(this.outputGainNode);
+                    this.outputGainNode.connect(this.audioContext.destination);
+                    
+                    // Analyser on separate path to avoid affecting main audio
+                    this.inputGainNode.connect(this.analyser);
+                    
+                    URL.revokeObjectURL(workletUrl);
+                } catch (error) {
+                    console.error('Ultra-low latency AudioWorklet failed, falling back:', error);
+                    this.currentMethod = 'direct';
+                    this.setupDirectConnect();
+                }
+            }
+
+            setupScriptProcessor() {
+                // Use smallest possible buffer for minimum latency
+                const bufferSize = 256; // Smallest allowed buffer size
+                this.scriptProcessor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+                
+                this.scriptProcessor.onaudioprocess = (e) => {
+                    const inputBuffer = e.inputBuffer.getChannelData(0);
+                    const outputBuffer = e.outputBuffer.getChannelData(0);
+                    
+                    // Ultra-fast direct copy
+                    outputBuffer.set(inputBuffer);
+                };
+
+                this.microphone.connect(this.inputGainNode);
+                this.inputGainNode.connect(this.scriptProcessor);
+                this.scriptProcessor.connect(this.outputGainNode);
+                this.outputGainNode.connect(this.audioContext.destination);
+                this.inputGainNode.connect(this.analyser);
+            }
+
+            setupDirectConnect() {
+                // Direct connection (might not work in all browsers due to feedback prevention)
+                this.microphone.connect(this.inputGainNode);
+                this.inputGainNode.connect(this.outputGainNode);
+                this.outputGainNode.connect(this.audioContext.destination);
+                this.inputGainNode.connect(this.analyser);
+            }
+
+            setupRecording(stream) {
+                try {
+                    this.mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'audio/webm;codecs=opus'
+                    });
+
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.recordedChunks.push(event.data);
+                        }
+                    };
+
+                    this.mediaRecorder.onstop = () => {
+                        this.saveRecording();
+                    };
+                } catch (error) {
+                    console.error('Recording setup failed:', error);
+                }
+            }
+
+            toggleRecording() {
+                if (!this.isRecording) {
+                    this.startRecording();
+                } else {
+                    this.stopRecording();
+                }
+            }
+
+            startRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+                    this.recordedChunks = [];
+                    this.mediaRecorder.start();
+                    this.isRecording = true;
+                    this.recordBtn.textContent = '⏹️ Stop Recording';
+                    this.recordBtn.classList.add('recording');
+                    this.updateStatus('🎤 Recording... (Audio passthrough active)', 'recording');
+                }
+            }
+
+            stopRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    this.recordBtn.textContent = '🎙️ Start Recording';
+                    this.recordBtn.classList.remove('recording');
+                    this.updateStatus('🎤 Audio passthrough active', 'connected');
+                }
+            }
+
+            saveRecording() {
+                if (this.recordedChunks.length > 0) {
+                    const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const timestamp = new Date().toLocaleString();
+                    
+                    this.recordings.push({
+                        url: url,
+                        blob: blob,
+                        timestamp: timestamp
+                    });
+
+                    this.updateRecordingsList();
+                    this.recordedChunks = [];
+                }
+            }
+
+            updateRecordingsList() {
+                this.recordingsSection.style.display = 'block';
+                this.recordingsList.innerHTML = '';
+
+                this.recordings.forEach((recording, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'recording-item';
+                    item.innerHTML = `
+                        <audio controls src="${recording.url}"></audio>
+                        <a href="${recording.url}" download="recording-${index + 1}.webm" class="download-btn">Download</a>
+                    `;
+                    this.recordingsList.appendChild(item);
+                });
+            }
+
+            stop() {
+                if (this.isRecording) {
+                    this.stopRecording();
+                }
+
+                if (this.audioContext) {
+                    this.audioContext.close();
+                    this.audioContext = null;
+                }
+                
+                this.microphone = null;
+                this.inputGainNode = null;
+                this.outputGainNode = null;
+                this.analyser = null;
+                this.workletNode = null;
+                this.scriptProcessor = null;
+                this.isActive = false;
+
+                this.updateStatus('Audio stopped', 'disconnected');
+                this.stopVisualization();
+
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.recordBtn.disabled = true;
+                this.recordBtn.textContent = '🎙️ Start Recording';
+                this.recordBtn.classList.remove('recording');
+            }
+
+            setVolume(value) {
+                this.volumeValue.textContent = `${value}%`;
+                if (this.outputGainNode) {
+                    const volume = Math.pow(value / 100, 2);
+                    this.outputGainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+                }
+            }
+
+            setGain(value) {
+                this.gainValue.textContent = `${value}x`;
+                if (this.inputGainNode) {
+                    this.inputGainNode.gain.setValueAtTime(parseFloat(value), this.audioContext.currentTime);
+                }
+            }
+
+            async testSpeakers() {
+                try {
+                    const testContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    if (testContext.state === 'suspended') {
+                        await testContext.resume();
+                    }
+                    
+                    const oscillator = testContext.createOscillator();
+                    const gainNode = testContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(testContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(440, testContext.currentTime);
+                    gainNode.gain.setValueAtTime(0.1, testContext.currentTime);
+                    
+                    oscillator.start();
+                    oscillator.stop(testContext.currentTime + 1);
+                    
+                    this.updateStatus('🔊 Playing test tone...', 'connected');
+                    
+                    setTimeout(() => {
+                        testContext.close();
+                        if (!this.isActive) {
+                            this.updateStatus('Speaker test complete', 'disconnected');
+                        }
+                    }, 1100);
+                    
+                } catch (error) {
+                    console.error('Speaker test failed:', error);
+                    this.updateStatus(`Speaker test failed: ${error.message}`, 'disconnected');
+                }
+            }
+
+            updateStatus(message, type) {
+                this.status.textContent = message;
+                this.status.className = `status ${type}`;
+            }
+
+            updateInfo() {
+                if (this.audioContext) {
+                    const sampleRate = this.audioContext.sampleRate;
+                    const baseLatency = this.audioContext.baseLatency || 0;
+                    const outputLatency = this.audioContext.outputLatency || 0;
+                    const totalLatency = baseLatency + outputLatency;
+                    const estimatedLatency = Math.round(totalLatency * 1000);
+
+                    this.sampleRateEl.textContent = `${sampleRate}Hz`;
+                    
+                    // More detailed latency info
+                    let latencyText = 'Unknown';
+                    if (estimatedLatency > 0) {
+                        latencyText = `~${estimatedLatency}ms`;
+                        if (this.currentMethod === 'scriptprocessor') {
+                            const bufferLatency = (256 / sampleRate) * 1000;
+                            latencyText += ` (+${Math.round(bufferLatency)}ms buffer)`;
+                        }
+                    }
+                    this.latencyEl.textContent = latencyText;
+                }
+            }
+
+            startVisualization() {
+                if (!this.isActive || !this.analyser) return;
+
+                const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                
+                const animate = () => {
+                    if (!this.isActive) return;
+
+                    this.analyser.getByteFrequencyData(dataArray);
+                    
+                    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+                    const inputLevel = Math.round((average / 255) * 100);
+                    this.inputLevelEl.textContent = `${inputLevel}%`;
+                    
+                    const step = Math.floor(dataArray.length / this.visualizerBars.length);
+                    this.visualizerBars.forEach((bar, index) => {
+                        const value = dataArray[index * step] || 0;
+                        const height = Math.max(2, (value / 255) * 50);
+                        bar.style.height = `${height}px`;
+                    });
+
+                    requestAnimationFrame(animate);
+                };
+                
+                animate();
+            }
+
+            stopVisualization() {
+                this.visualizerBars.forEach(bar => {
+                    bar.style.height = '2px';
+                });
+                
+                this.sampleRateEl.textContent = '-';
+                this.latencyEl.textContent = '-';
+                this.inputLevelEl.textContent = '-';
+            }
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            new AudioSystem();
+        });
+    </script>
+</body>
+</html>
