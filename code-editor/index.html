@@ -155,22 +155,7 @@
             background: #F57C00;
         }
 
-        .status-indicator {
-            position: absolute;
-            top: 8px;
-            right: 240px;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #4CAF50;
-            animation: pulse 2s infinite;
-        }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
 
         /* Syntax highlighting-like colors */
         .code-editor::placeholder {
@@ -219,7 +204,6 @@ Example:
         <div class="preview-panel">
             <div class="panel-header">
                 Live Preview
-                <div class="status-indicator"></div>
                 <div class="toolbar">
                     <button class="toolbar-button" onclick="updatePreview()">▶ Run</button>
                     <button class="toolbar-button download" onclick="downloadHTML()">⬇ Download</button>
