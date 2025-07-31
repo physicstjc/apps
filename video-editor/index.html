@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Editor - Trim & Cut</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-section.dragover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .video-editor {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .video-container {
+            position: relative;
+            margin-bottom: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .main-video {
+            width: 100%;
+            max-height: 500px;
+            display: block;
+        }
+
+        .timeline-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .timeline-header h3 {
+            color: #333;
+            font-size: 1.3rem;
+        }
+
+        .time-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .timeline-wrapper {
+            position: relative;
+            height: 60px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .timeline-track {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            opacity: 0.3;
+        }
+
+        .timeline-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            opacity: 0.8;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .range-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .trim-handles {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .trim-handle {
+            position: absolute;
+            width: 4px;
+            background: #ff6b6b;
+            cursor: ew-resize;
+            pointer-events: all;
+            top: 0;
+            bottom: 0;
+        }
+
+        .trim-handle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 12px;
+            height: 20px;
+            background: #ff6b6b;
+            border-radius: 2px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .trim-start {
+            left: 0%;
+        }
+
+        .trim-end {
+            right: 0%;
+        }
+
+        .trim-selection {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: rgba(255, 107, 107, 0.2);
+            border: 2px solid #ff6b6b;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .segments-list {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .segments-list h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .segment-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .segment-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .segment-info {
+            font-family: 'Courier New', monospace;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .segment-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .file-info h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .file-info p {
+            color: #666;
+            margin: 2px 0;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Video Editor</h1>
+            <p>Trim and cut your videos with precision</p>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Drop your video here or click to browse</div>
+            <div class="upload-subtext">Supports MP4, AVI, MOV, MKV, WebM and more</div>
+            <input type="file" id="videoInput" class="file-input" accept="video/*">
+        </div>
+
+        <div class="video-editor" id="videoEditor">
+            <div class="file-info" id="fileInfo"></div>
+
+            <div class="video-container">
+                <video id="mainVideo" class="main-video" controls></video>
+            </div>
+
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <h3>Timeline</h3>
+                    <div class="time-display" id="timeDisplay">00:00 / 00:00</div>
+                </div>
+                
+                <div class="timeline-wrapper">
+                    <div class="timeline-track"></div>
+                    <div class="timeline-progress" id="timelineProgress"></div>
+                    <input type="range" class="range-slider" id="timelineSlider" min="0" max="100" value="0">
+                    
+                    <div class="trim-handles">
+                        <div class="trim-handle trim-start" id="trimStart"></div>
+                        <div class="trim-handle trim-end" id="trimEnd"></div>
+                        <div class="trim-selection" id="trimSelection"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" id="playPauseBtn">▶️ Play</button>
+                <button class="btn btn-secondary" id="setStartBtn">📍 Set Start</button>
+                <button class="btn btn-secondary" id="setEndBtn">📍 Set End</button>
+                <button class="btn btn-success" id="addSegmentBtn">➕ Add Segment</button>
+                <button class="btn btn-danger" id="resetBtn">🔄 Reset</button>
+            </div>
+
+            <div class="segments-list" id="segmentsList">
+                <h3>Video Segments</h3>
+                <div id="segmentsContainer">
+                    <p style="color: #666; text-align: center;">No segments added yet. Set start/end points and click "Add Segment".</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-success" id="exportBtn" disabled>🎬 Export Final Video</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Processing your video...</p>
+        </div>
+    </div>
+
+    <script>
+        class VideoEditor {
+            constructor() {
+                this.video = null;
+                this.currentFile = null;
+                this.segments = [];
+                this.trimStart = 0;
+                this.trimEnd = 100;
+                this.isDragging = false;
+                this.dragTarget = null;
+                
+                this.initializeElements();
+                this.bindEvents();
+            }
+
+            initializeElements() {
+                this.uploadSection = document.getElementById('uploadSection');
+                this.videoInput = document.getElementById('videoInput');
+                this.videoEditor = document.getElementById('videoEditor');
+                this.mainVideo = document.getElementById('mainVideo');
+                this.fileInfo = document.getElementById('fileInfo');
+                this.timeDisplay = document.getElementById('timeDisplay');
+                this.timelineProgress = document.getElementById('timelineProgress');
+                this.timelineSlider = document.getElementById('timelineSlider');
+                this.trimStartHandle = document.getElementById('trimStart');
+                this.trimEndHandle = document.getElementById('trimEnd');
+                this.trimSelection = document.getElementById('trimSelection');
+                this.playPauseBtn = document.getElementById('playPauseBtn');
+                this.setStartBtn = document.getElementById('setStartBtn');
+                this.setEndBtn = document.getElementById('setEndBtn');
+                this.addSegmentBtn = document.getElementById('addSegmentBtn');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.segmentsContainer = document.getElementById('segmentsContainer');
+                this.exportBtn = document.getElementById('exportBtn');
+                this.loading = document.getElementById('loading');
+            }
+
+            bindEvents() {
+                // Upload events
+                this.uploadSection.addEventListener('click', () => this.videoInput.click());
+                this.videoInput.addEventListener('change', (e) => this.handleFileSelect(e));
+                
+                // Drag and drop
+                this.uploadSection.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.uploadSection.classList.add('dragover');
+                });
+                
+                this.uploadSection.addEventListener('dragleave', () => {
+                    this.uploadSection.classList.remove('dragover');
+                });
+                
+                this.uploadSection.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.uploadSection.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleFile(files[0]);
+                    }
+                });
+
+                // Video events
+                this.mainVideo.addEventListener('loadedmetadata', () => this.onVideoLoaded());
+                this.mainVideo.addEventListener('timeupdate', () => this.updateTimeline());
+                this.mainVideo.addEventListener('ended', () => this.onVideoEnded());
+
+                // Timeline events
+                this.timelineSlider.addEventListener('input', (e) => this.seekVideo(e));
+                
+                // Trim handle events
+                this.trimStartHandle.addEventListener('mousedown', (e) => this.startDrag(e, 'start'));
+                this.trimEndHandle.addEventListener('mousedown', (e) => this.startDrag(e, 'end'));
+                
+                document.addEventListener('mousemove', (e) => this.onDrag(e));
+                document.addEventListener('mouseup', () => this.endDrag());
+
+                // Control buttons
+                this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+                this.setStartBtn.addEventListener('click', () => this.setTrimStart());
+                this.setEndBtn.addEventListener('click', () => this.setTrimEnd());
+                this.addSegmentBtn.addEventListener('click', () => this.addSegment());
+                this.resetBtn.addEventListener('click', () => this.resetTrim());
+                this.exportBtn.addEventListener('click', () => this.exportVideo());
+            }
+
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.handleFile(file);
+                }
+            }
+
+            handleFile(file) {
+                if (!file.type.startsWith('video/')) {
+                    alert('Please select a valid video file.');
+                    return;
+                }
+
+                this.currentFile = file;
+                const url = URL.createObjectURL(file);
+                this.mainVideo.src = url;
+                
+                this.showFileInfo(file);
+                this.uploadSection.style.display = 'none';
+                this.videoEditor.style.display = 'block';
+            }
+
+            showFileInfo(file) {
+                const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                this.fileInfo.innerHTML = `
+                    <h4>📄 ${file.name}</h4>
+                    <p><strong>Size:</strong> ${sizeInMB} MB</p>
+                    <p><strong>Type:</strong> ${file.type}</p>
+                    <p><strong>Last Modified:</strong> ${new Date(file.lastModified).toLocaleString()}</p>
+                `;
+            }
+
+            onVideoLoaded() {
+                this.timelineSlider.max = this.mainVideo.duration;
+                this.updateTrimHandles();
+                this.updateTimeDisplay();
+            }
+
+            updateTimeline() {
+                if (this.mainVideo.duration) {
+                    const progress = (this.mainVideo.currentTime / this.mainVideo.duration) * 100;
+                    this.timelineProgress.style.width = progress + '%';
+                    this.timelineSlider.value = this.mainVideo.currentTime;
+                    this.updateTimeDisplay();
+                }
+            }
+
+            updateTimeDisplay() {
+                const current = this.formatTime(this.mainVideo.currentTime || 0);
+                const duration = this.formatTime(this.mainVideo.duration || 0);
+                this.timeDisplay.textContent = `${current} / ${duration}`;
+            }
+
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            seekVideo(event) {
+                this.mainVideo.currentTime = parseFloat(event.target.value);
+            }
+
+            togglePlayPause() {
+                if (this.mainVideo.paused) {
+                    this.mainVideo.play();
+                    this.playPauseBtn.innerHTML = '⏸️ Pause';
+                } else {
+                    this.mainVideo.pause();
+                    this.playPauseBtn.innerHTML = '▶️ Play';
+                }
+            }
+
+            onVideoEnded() {
+                this.playPauseBtn.innerHTML = '▶️ Play';
+            }
+
+            startDrag(event, target) {
+                event.preventDefault();
+                this.isDragging = true;
+                this.dragTarget = target;
+                document.body.style.cursor = 'ew-resize';
+            }
+
+            onDrag(event) {
+                if (!this.isDragging || !this.mainVideo.duration) return;
+
+                const timeline = this.timelineSlider.getBoundingClientRect();
+                const position = ((event.clientX - timeline.left) / timeline.width) * 100;
+                const clampedPosition = Math.max(0, Math.min(100, position));
+
+                if (this.dragTarget === 'start') {
+                    this.trimStart = Math.min(clampedPosition, this.trimEnd - 1);
+                } else if (this.dragTarget === 'end') {
+                    this.trimEnd = Math.max(clampedPosition, this.trimStart + 1);
+                }
+
+                this.updateTrimHandles();
+            }
+
+            endDrag() {
+                this.isDragging = false;
+                this.dragTarget = null;
+                document.body.style.cursor = 'default';
+            }
+
+            setTrimStart() {
+                if (!this.mainVideo.duration) return;
+                this.trimStart = (this.mainVideo.currentTime / this.mainVideo.duration) * 100;
+                this.updateTrimHandles();
+            }
+
+            setTrimEnd() {
+                if (!this.mainVideo.duration) return;
+                this.trimEnd = (this.mainVideo.currentTime / this.mainVideo.duration) * 100;
+                this.updateTrimHandles();
+            }
+
+            updateTrimHandles() {
+                this.trimStartHandle.style.left = this.trimStart + '%';
+                this.trimEndHandle.style.left = this.trimEnd + '%';
+                
+                this.trimSelection.style.left = this.trimStart + '%';
+                this.trimSelection.style.width = (this.trimEnd - this.trimStart) + '%';
+            }
+
+            addSegment() {
+                if (!this.mainVideo.duration) return;
+
+                const startTime = (this.trimStart / 100) * this.mainVideo.duration;
+                const endTime = (this.trimEnd / 100) * this.mainVideo.duration;
+
+                const segment = {
+                    id: Date.now(),
+                    start: startTime,
+                    end: endTime,
+                    duration: endTime - startTime
+                };
+
+                this.segments.push(segment);
+                this.renderSegments();
+                this.exportBtn.disabled = this.segments.length === 0;
+            }
+
+            renderSegments() {
+                if (this.segments.length === 0) {
+                    this.segmentsContainer.innerHTML = '<p style="color: #666; text-align: center;">No segments added yet. Set start/end points and click "Add Segment".</p>';
+                    return;
+                }
+
+                this.segmentsContainer.innerHTML = this.segments.map((segment, index) => `
+                    <div class="segment-item">
+                        <div>
+                            <strong>Segment ${index + 1}</strong>
+                            <div class="segment-info">
+                                ${this.formatTime(segment.start)} - ${this.formatTime(segment.end)} 
+                                (${this.formatTime(segment.duration)})
+                            </div>
+                        </div>
+                        <div class="segment-controls">
+                            <button class="btn btn-secondary btn-small" onclick="videoEditor.previewSegment(${segment.id})">👁️ Preview</button>
+                            <button class="btn btn-danger btn-small" onclick="videoEditor.removeSegment(${segment.id})">🗑️ Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            previewSegment(segmentId) {
+                const segment = this.segments.find(s => s.id === segmentId);
+                if (segment) {
+                    this.mainVideo.currentTime = segment.start;
+                    this.mainVideo.play();
+                    
+                    // Stop at end time
+                    const checkTime = () => {
+                        if (this.mainVideo.currentTime >= segment.end) {
+                            this.mainVideo.pause();
+                        } else {
+                            requestAnimationFrame(checkTime);
+                        }
+                    };
+                    checkTime();
+                }
+            }
+
+            removeSegment(segmentId) {
+                this.segments = this.segments.filter(s => s.id !== segmentId);
+                this.renderSegments();
+                this.exportBtn.disabled = this.segments.length === 0;
+            }
+
+            resetTrim() {
+                this.trimStart = 0;
+                this.trimEnd = 100;
+                this.updateTrimHandles();
+            }
+
+            async exportVideo() {
+                if (this.segments.length === 0) {
+                    alert('Please add at least one segment to export.');
+                    return;
+                }
+
+                this.loading.style.display = 'block';
+                this.exportBtn.disabled = true;
+
+                try {
+                    // Create canvas for video processing
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set canvas dimensions to match video
+                    canvas.width = this.mainVideo.videoWidth;
+                    canvas.height = this.mainVideo.videoHeight;
+
+                    // Create MediaRecorder for output
+                    const stream = canvas.captureStream(30); // 30 FPS
+                    const mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'video/webm;codecs=vp9'
+                    });
+
+                    const chunks = [];
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            chunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        this.downloadVideo(blob, 'edited-video.webm');
+                        this.loading.style.display = 'none';
+                        this.exportBtn.disabled = false;
+                    };
+
+                    mediaRecorder.start();
+
+                    // Process each segment
+                    for (let i = 0; i < this.segments.length; i++) {
+                        const segment = this.segments[i];
+                        await this.renderSegment(segment, canvas, ctx);
+                    }
+
+                    mediaRecorder.stop();
+
+                } catch (error) {
+                    console.error('Export error:', error);
+                    alert('Error exporting video. Please try again.');
+                    this.loading.style.display = 'none';
+                    this.exportBtn.disabled = false;
+                }
+            }
+
+            async renderSegment(segment, canvas, ctx) {
+                return new Promise((resolve) => {
+                    this.mainVideo.currentTime = segment.start;
+                    
+                    const renderFrame = () => {
+                        if (this.mainVideo.currentTime >= segment.end) {
+                            resolve();
+                            return;
+                        }
+
+                        ctx.drawImage(this.mainVideo, 0, 0, canvas.width, canvas.height);
+                        
+                        // Advance by one frame (assuming 30fps)
+                        this.mainVideo.currentTime += 1/30;
+                        
+                        setTimeout(renderFrame, 1000/30); // 30 FPS
+                    };
+
+                    this.mainVideo.addEventListener('seeked', renderFrame, { once: true });
+                });
+            }
+
+            downloadVideo(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert('Video exported successfully! Note: The output is in WebM format. You can convert it to MP4 using online converters if needed.');
+            }
+        }
+
+        // Initialize the video editor
+        const videoEditor = new VideoEditor();
+    </script>
+</body>
+</html>
