@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SG Heartland Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            background-size: 400% 400%;
+            animation: gradientShift 8s ease infinite;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .app-container {
+            max-width: 375px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page {
+            display: none;
+            padding: 20px;
+            min-height: 100vh;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .header {
+            background: linear-gradient(45deg, #e74c3c, #f39c12);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .header h1:hover {
+            transform: scale(1.05);
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+
+
+        .map-container {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+            height: 400px;
+            overflow: hidden;
+        }
+
+        .map-title {
+            color: white;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .pin {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #e74c3c;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .pin:hover {
+            transform: rotate(-45deg) scale(1.2);
+            background: #c0392b;
+        }
+
+        .pin::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+
+        .pin-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .pin:hover .pin-label {
+            opacity: 1;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 5px solid #e74c3c;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .card p {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .image-placeholder {
+            background: #ecf0f1;
+            border: 2px dashed #bdc3c7;
+            border-radius: 10px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7f8c8d;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .rating {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .stars {
+            color: #f39c12;
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .rating-text {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .guide-card {
+            border-left-color: #27ae60;
+        }
+
+        .food-card {
+            border-left-color: #f39c12;
+        }
+
+        .landmark-card {
+            border-left-color: #9b59b6;
+        }
+
+        .section-title {
+            color: #2c3e50;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 25px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 3px solid #e74c3c;
+            display: inline-block;
+        }
+
+        .detail-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .detail-header h2 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .detail-content {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .contact-btn {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .contact-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+
+        .fun-fact {
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .review {
+            background: #e8f5e8;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .review-author {
+            font-weight: bold;
+            color: #27ae60;
+            margin-bottom: 5px;
+        }
+
+        .price {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Page 1: Map -->
+        <div class="page active" id="page1">
+            <div class="header">
+                <h1>🇸🇬 Heartland Explorer</h1>
+            </div>
+            
+            <div class="map-container">
+                <div class="map-title">Discover Singapore's Heartlands</div>
+                
+                <div class="pin" style="top: 50px; left: 200px;" onclick="showNeighborhood('Tampines')">
+                    <div class="pin-label">Tampines</div>
+                </div>
+                
+                <div class="pin" style="top: 80px; left: 50px;" onclick="showNeighborhood('Ang Mo Kio')">
+                    <div class="pin-label">Ang Mo Kio</div>
+                </div>
+                
+                <div class="pin" style="top: 280px; left: 120px;" onclick="showNeighborhood('Tanjong Pagar')">
+                    <div class="pin-label">Tanjong Pagar</div>
+                </div>
+                
+                <div class="pin" style="top: 200px; left: 30px;" onclick="showNeighborhood('Clementi')">
+                    <div class="pin-label">Clementi</div>
+                </div>
+                
+                <div class="pin" style="top: 120px; left: 250px;" onclick="showNeighborhood('Bedok')">
+                    <div class="pin-label">Bedok</div>
+                </div>
+            </div>
+            
+            <div class="fun-fact">
+                🌟 Tap on any neighborhood pin to discover local guides, hidden gems, and authentic experiences!
+            </div>
+        </div>
+
+        <!-- Page 2: Neighborhood Details -->
+        <div class="page" id="page2">
+            <div class="header">
+                <button class="back-btn" onclick="showPage('page1')">←</button>
+                <h1 id="neighborhoodTitle" onclick="showPage('page1')">Tampines</h1>
+            </div>
+
+            <div class="section-title">👥 Local Guides</div>
+            <div class="card guide-card" onclick="showGuide('guide1')">
+                <h3 id="guide1Name">Sarah Lim</h3>
+                <p id="guide1Desc">Born and raised in Tampines! I love sharing the best local spots and hidden food gems.</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                    <span class="rating-text" id="guide1Rating">4.9 (127 reviews)</span>
+                </div>
+            </div>
+
+            <div class="card guide-card" onclick="showGuide('guide2')">
+                <h3 id="guide2Name">Ahmad Rahman</h3>
+                <p id="guide2Desc">Local historian and food enthusiast. Let me show you the real Tampines!</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                    <span class="rating-text" id="guide2Rating">4.8 (89 reviews)</span>
+                </div>
+            </div>
+
+            <div class="section-title">🏛️ Landmarks & Places</div>
+            <div class="card landmark-card" onclick="showLandmark('landmark1')">
+                <h3 id="landmark1Name">Tampines Hub</h3>
+                <p id="landmark1Desc">Singapore's largest integrated community and lifestyle hub with sports facilities, library, and more.</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐</span>
+                    <span class="rating-text" id="landmark1Rating">4.2 (234 reviews)</span>
+                </div>
+            </div>
+
+            <div class="card landmark-card" onclick="showLandmark('landmark2')">
+                <h3 id="landmark2Name">Tampines Eco Green</h3>
+                <p id="landmark2Desc">A beautiful park with cycling paths, perfect for nature lovers and families.</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                    <span class="rating-text" id="landmark2Rating">4.6 (156 reviews)</span>
+                </div>
+            </div>
+
+            <div class="section-title">🍜 Popular Food</div>
+            <div class="card food-card" onclick="showFood('food1')">
+                <h3 id="food1Name">Tampines Round Market</h3>
+                <p id="food1Desc">Famous for its unique round architecture and amazing local hawker food!</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐</span>
+                    <span class="rating-text" id="food1Rating">4.3 (312 reviews)</span>
+                </div>
+            </div>
+
+            <div class="fun-fact">
+                💡 Fun Fact: Tampines was named after the Tampines tree, which was abundant in the area!
+            </div>
+        </div>
+
+        <!-- Page 3: Landmark Details -->
+        <div class="page" id="page3">
+            <div class="header">
+                <button class="back-btn" onclick="showPage('page2')">←</button>
+                <h1 id="landmarkTitle" onclick="showPage('page1')">Tampines Hub</h1>
+            </div>
+
+            <div class="detail-header">
+                <div class="image-placeholder">
+                    📸 Landmark Photo<br>
+                    <small>Tampines Hub Exterior</small>
+                </div>
+                <h2 id="landmarkName">Tampines Hub</h2>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐</span>
+                    <span class="rating-text">4.2 (234 reviews)</span>
+                </div>
+            </div>
+
+            <div class="detail-content">
+                <h3 style="color: #2c3e50; margin-bottom: 15px;">About This Place</h3>
+                <p style="line-height: 1.6; color: #34495e;">
+                    Tampines Hub is Singapore's largest integrated community and lifestyle hub. This impressive facility houses a public library, swimming complex, sports hall, and various community spaces all under one roof. It's a perfect example of Singapore's innovative approach to community building.
+                </p>
+                
+                <h3 style="color: #2c3e50; margin: 20px 0 15px 0;">Facilities</h3>
+                <ul style="color: #34495e; line-height: 1.8;">
+                    <li>🏊‍♀️ Swimming Complex</li>
+                    <li>📚 Public Library</li>
+                    <li>🏀 Sports Hall</li>
+                    <li>🎭 Performance Spaces</li>
+                    <li>🍽️ Food Court</li>
+                </ul>
+
+                <div class="price">
+                    💰 Entry: Free (charges apply for specific facilities)
+                </div>
+            </div>
+
+            <div class="section-title">💬 Recent Reviews</div>
+            <div class="review">
+                <div class="review-author">Jennifer T.</div>
+                <p>"Amazing facilities! The library is huge and the swimming pool is well-maintained. Great place for families."</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                </div>
+            </div>
+
+            <div class="review">
+                <div class="review-author">Marcus L.</div>
+                <p>"Love the modern architecture and how everything is connected. The food court has great variety too!"</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 4: Guide Profile -->
+        <div class="page" id="page4">
+            <div class="header">
+                <button class="back-btn" onclick="showPage('page2')">←</button>
+                <h1 id="guideTitle" onclick="showPage('page1')">Guide Profile</h1>
+            </div>
+
+            <div class="detail-header">
+                <div class="image-placeholder">
+                    👤 Profile Photo<br>
+                    <small id="guideName">Sarah Lim</small>
+                </div>
+                <h2 id="guideNameLarge">Sarah Lim</h2>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                    <span class="rating-text">4.9 (127 reviews)</span>
+                </div>
+            </div>
+
+            <div class="detail-content">
+                <h3 style="color: #2c3e50; margin-bottom: 15px;">About Your Guide</h3>
+                <p style="line-height: 1.6; color: #34495e;" id="guideDescription">
+                    Hi there! I'm Sarah, a Tampines local for over 25 years. I'm passionate about sharing the authentic side of my neighborhood - from the best zi char stalls to hidden parks that only locals know about. I speak English, Mandarin, and Hokkien, and I love meeting people from all over the world!
+                </p>
+                
+                <h3 style="color: #2c3e50; margin: 20px 0 15px 0;">Specialties</h3>
+                <ul style="color: #34495e; line-height: 1.8;">
+                    <li>🍜 Local Food Tours</li>
+                    <li>🏛️ Historical Sites</li>
+                    <li>🌳 Nature Walks</li>
+                    <li>🛍️ Shopping Tips</li>
+                    <li>📸 Instagram-worthy Spots</li>
+                </ul>
+
+                <div class="price">
+                    💰 Starting from $45/hour
+                </div>
+            </div>
+
+            <div class="section-title">💬 Recent Reviews</div>
+            <div class="review">
+                <div class="review-author">David K. (USA)</div>
+                <p>"Sarah was incredible! She took us to places we never would have found on our own. The food recommendations were spot on!"</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                </div>
+            </div>
+
+            <div class="review">
+                <div class="review-author">Emma S. (UK)</div>
+                <p>"Very knowledgeable about the area's history. Sarah made our Tampines experience truly memorable!"</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                </div>
+            </div>
+
+            <button class="contact-btn" onclick="alert('Demo: Contact feature would connect you with Sarah!')">
+                📱 Contact Sarah
+            </button>
+        </div>
+
+        <!-- Page 5: Food Details -->
+        <div class="page" id="page5">
+            <div class="header">
+                <button class="back-btn" onclick="showPage('page2')">←</button>
+                <h1 id="foodTitle" onclick="showPage('page1')">Food Spot</h1>
+            </div>
+
+            <div class="detail-header">
+                <div class="image-placeholder">
+                    🍜 Food Photo<br>
+                    <small id="foodName">Tampines Round Market</small>
+                </div>
+                <h2 id="foodNameLarge">Tampines Round Market</h2>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐</span>
+                    <span class="rating-text">4.3 (312 reviews)</span>
+                </div>
+            </div>
+
+            <div class="detail-content">
+                <h3 style="color: #2c3e50; margin-bottom: 15px;">About This Food Spot</h3>
+                <p style="line-height: 1.6; color: #34495e;">
+                    The iconic Tampines Round Market is famous for its unique circular architecture and incredible variety of local hawker food. Built in the 1980s, this market has become a beloved gathering place for residents and a must-visit destination for food lovers exploring authentic Singaporean cuisine.
+                </p>
+                
+                <h3 style="color: #2c3e50; margin: 20px 0 15px 0;">Must-Try Dishes</h3>
+                <ul style="color: #34495e; line-height: 1.8;">
+                    <li>🍲 Bak Chor Mee (Minced Pork Noodles)</li>
+                    <li>🐔 Hainanese Chicken Rice</li>
+                    <li>🍜 Laksa</li>
+                    <li>🥟 Wanton Mee</li>
+                    <li>🧊 Ice Kachang</li>
+                </ul>
+
+                <div class="price">
+                    💰 Average meal: $3-8 SGD
+                </div>
+            </div>
+
+            <div class="section-title">💬 Foodie Reviews</div>
+            <div class="review">
+                <div class="review-author">Food Blogger Mike</div>
+                <p>"The laksa here is phenomenal! Rich, spicy, and authentic. The round architecture makes it a unique dining experience too."</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐⭐</span>
+                </div>
+            </div>
+
+            <div class="review">
+                <div class="review-author">Local Foodie Amy</div>
+                <p>"Been coming here since I was a kid. The chicken rice uncle has been here for 20+ years - that's quality you can trust!"</p>
+                <div class="rating">
+                    <span class="stars">⭐⭐⭐⭐</span>
+                </div>
+            </div>
+
+            <div class="fun-fact">
+                🏛️ Architecture Fact: The round design was inspired by traditional Chinese architecture and promotes better air circulation!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Navigation functions
+        function showPage(pageId) {
+            // Hide all pages
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.remove('active'));
+            
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function showNeighborhood(neighborhood) {
+            // Update neighborhood title
+            document.getElementById('neighborhoodTitle').textContent = neighborhood;
+            
+            // Update content based on neighborhood
+            const neighborhoods = {
+                'Tampines': {
+                    guides: [
+                        {name: 'Sarah Lim', desc: 'Born and raised in Tampines! I love sharing the best local spots and hidden food gems.', rating: '4.9 (127 reviews)'},
+                        {name: 'Ahmad Rahman', desc: 'Local historian and food enthusiast. Let me show you the real Tampines!', rating: '4.8 (89 reviews)'}
+                    ],
+                    landmarks: [
+                        {name: 'Tampines Hub', desc: 'Singapore\'s largest integrated community and lifestyle hub with sports facilities, library, and more.', rating: '4.2 (234 reviews)'},
+                        {name: 'Tampines Eco Green', desc: 'A beautiful park with cycling paths, perfect for nature lovers and families.', rating: '4.6 (156 reviews)'}
+                    ],
+                    food: [
+                        {name: 'Tampines Round Market', desc: 'Famous for its unique round architecture and amazing local hawker food!', rating: '4.3 (312 reviews)'}
+                    ],
+                    funFact: 'Tampines was named after the Tampines tree, which was abundant in the area!'
+                },
+                'Ang Mo Kio': {
+                    guides: [
+                        {name: 'Linda Tan', desc: 'AMK resident for 30 years! Expert in local heritage and traditional crafts.', rating: '4.7 (98 reviews)'},
+                        {name: 'Raj Kumar', desc: 'Passionate about AMK\'s multicultural food scene and community stories.', rating: '4.8 (156 reviews)'}
+                    ],
+                    landmarks: [
+                        {name: 'AMK Hub', desc: 'Popular shopping and dining destination in the heart of Ang Mo Kio.', rating: '4.1 (189 reviews)'},
+                        {name: 'Bishan-AMK Park', desc: 'Award-winning park with beautiful river and recreational facilities.', rating: '4.5 (267 reviews)'}
+                    ],
+                    food: [
+                        {name: 'AMK 628 Market', desc: 'Local favorite with authentic zi char and traditional breakfast options.', rating: '4.4 (201 reviews)'}
+                    ],
+                    funFact: 'Ang Mo Kio means "red-haired man\'s bridge" in Hokkien!'
+                },
+                'Tanjong Pagar': {
+                    guides: [
+                        {name: 'Marcus Chen', desc: 'Heritage enthusiast who knows every story behind Tanjong Pagar\'s historic shophouses and modern skyscrapers.', rating: '4.8 (143 reviews)'},
+                        {name: 'Priya Nair', desc: 'Food and culture guide specializing in the fusion of old and new in this vibrant district.', rating: '4.7 (92 reviews)'}
+                    ],
+                    landmarks: [
+                        {name: 'Tanjong Pagar Railway Station', desc: 'Historic railway station turned heritage site, showcasing Singapore\'s colonial past.', rating: '4.4 (178 reviews)'},
+                        {name: 'Pinnacle@Duxton', desc: 'Iconic public housing with sky gardens offering panoramic city views.', rating: '4.3 (256 reviews)'}
+                    ],
+                    food: [
+                        {name: 'Maxwell Food Centre', desc: 'Famous hawker center home to Tian Tian Hainanese Chicken Rice and other local favorites.', rating: '4.5 (428 reviews)'}
+                    ],
+                    funFact: 'Tanjong Pagar was Singapore\'s first conservation district, preserving beautiful shophouse architecture!'
+                },
+                'Clementi': {
+                    guides: [
+                        {name: 'David Wong', desc: 'Nature lover and Clementi local who knows all the best parks, trails, and family spots.', rating: '4.6 (87 reviews)'},
+                        {name: 'Siti Rahman', desc: 'Community guide passionate about Clementi\'s multicultural heritage and hidden gems.', rating: '4.8 (134 reviews)'}
+                    ],
+                    landmarks: [
+                        {name: 'Clementi Woods Park', desc: 'Lush forest park with canopy walks and nature trails, perfect for hiking enthusiasts.', rating: '4.5 (203 reviews)'},
+                        {name: 'The Clementi Mall', desc: 'Popular shopping destination with diverse dining options and community spaces.', rating: '4.1 (167 reviews)'}
+                    ],
+                    food: [
+                        {name: 'Clementi 448 Market', desc: 'Beloved neighborhood market known for traditional breakfast and authentic local dishes.', rating: '4.3 (189 reviews)'}
+                    ],
+                    funFact: 'Clementi is named after Sir Cecil Clementi, a former Governor of Hong Kong who also served in Singapore!'
+                },
+                'Bedok': {
+                    guides: [
+                        {name: 'Jenny Loh', desc: 'Bedok born and bred! Expert in seaside spots, local markets, and the best laksa in the east.', rating: '4.9 (156 reviews)'},
+                        {name: 'Ravi Krishnan', desc: 'Cycling enthusiast and food hunter who knows every corner of Bedok\'s diverse neighborhoods.', rating: '4.7 (112 reviews)'}
+                    ],
+                    landmarks: [
+                        {name: 'Bedok Reservoir Park', desc: 'Scenic park around Singapore\'s largest reservoir, popular for water sports and cycling.', rating: '4.6 (234 reviews)'},
+                        {name: 'Bedok Jetty', desc: 'Historic fishing jetty offering beautiful sunrise views and a glimpse of local fishing culture.', rating: '4.2 (145 reviews)'}
+                    ],
+                    food: [
+                        {name: 'Bedok 85 Market', desc: 'Legendary hawker center famous for its frog porridge, BBQ seafood, and late-night supper culture.', rating: '4.4 (367 reviews)'}
+                    ],
+                    funFact: 'Bedok means "drum" in Malay, named after the Bedok River that once flowed through the area!'
+                }
+            };
+
+            // Use Tampines as default if neighborhood not found
+            const data = neighborhoods[neighborhood] || neighborhoods['Tampines'];
+            
+            // Update the cards with the correct data
+            document.getElementById('guide1Name').textContent = data.guides[0].name;
+            document.getElementById('guide1Desc').textContent = data.guides[0].desc;
+            document.getElementById('guide1Rating').textContent = data.guides[0].rating;
+            
+            document.getElementById('guide2Name').textContent = data.guides[1].name;
+            document.getElementById('guide2Desc').textContent = data.guides[1].desc;
+            document.getElementById('guide2Rating').textContent = data.guides[1].rating;
+            
+            document.getElementById('landmark1Name').textContent = data.landmarks[0].name;
+            document.getElementById('landmark1Desc').textContent = data.landmarks[0].desc;
+            document.getElementById('landmark1Rating').textContent = data.landmarks[0].rating;
+            
+            document.getElementById('landmark2Name').textContent = data.landmarks[1].name;
+            document.getElementById('landmark2Desc').textContent = data.landmarks[1].desc;
+            document.getElementById('landmark2Rating').textContent = data.landmarks[1].rating;
+            
+            document.getElementById('food1Name').textContent = data.food[0].name;
+            document.getElementById('food1Desc').textContent = data.food[0].desc;
+            document.getElementById('food1Rating').textContent = data.food[0].rating;
+            
+            // Update fun fact
+            document.querySelector('.fun-fact').innerHTML = `💡 Fun Fact: ${data.funFact}`;
+            
+            showPage('page2');
+        }
+
+        function showLandmark(landmarkName) {
+            document.getElementById('landmarkTitle').textContent = landmarkName;
+            document.getElementById('landmarkName').textContent = landmarkName;
+            
+            // Update landmark details based on name
+            const landmarks = {
+                'Tampines Hub': {
+                    description: 'Tampines Hub is Singapore\'s largest integrated community and lifestyle hub. This impressive facility houses a public library, swimming complex, sports hall, and various community spaces all under one roof. It\'s a perfect example of Singapore\'s innovative approach to community building.',
+                    rating: '4.2 (234 reviews)'
+                },
+                'Tampines Eco Green': {
+                    description: 'Tampines Eco Green is a beautiful park featuring cycling paths, jogging tracks, and lush greenery. Perfect for nature lovers and families, this park offers a peaceful escape from urban life while remaining easily accessible.',
+                    rating: '4.6 (156 reviews)'
+                },
+                'AMK Hub': {
+                    description: 'AMK Hub is a popular shopping and dining destination located in the heart of Ang Mo Kio. With multiple levels of shops, restaurants, and entertainment options, it serves as a central gathering place for the community.',
+                    rating: '4.1 (189 reviews)'
+                },
+                'Bishan-AMK Park': {
+                    description: 'Bishan-AMK Park is an award-winning park that seamlessly blends nature with urban living. Featuring a meandering river, lush greenery, and recreational facilities, it\'s a perfect spot for families, joggers, and nature enthusiasts.',
+                    rating: '4.5 (267 reviews)'
+                },
+                'Tanjong Pagar Railway Station': {
+                    description: 'The historic Tanjong Pagar Railway Station is a beautifully preserved heritage site that tells the story of Singapore\'s railway connection to Malaysia. This Art Deco building now serves as a cultural landmark and event space.',
+                    rating: '4.4 (178 reviews)'
+                },
+                'Pinnacle@Duxton': {
+                    description: 'Pinnacle@Duxton is an iconic public housing development featuring the world\'s longest sky gardens. The 50th-floor sky bridge offers breathtaking panoramic views of Singapore\'s skyline and Marina Bay.',
+                    rating: '4.3 (256 reviews)'
+                },
+                'Maxwell Food Centre': {
+                    description: 'Maxwell Food Centre is a legendary hawker center in the heart of Tanjong Pagar, famous for housing Tian Tian Hainanese Chicken Rice and numerous other award-winning local food stalls.',
+                    rating: '4.5 (428 reviews)'
+                },
+                'Clementi Woods Park': {
+                    description: 'Clementi Woods Park is a lush forest park offering canopy walks, nature trails, and a peaceful retreat from city life. It\'s perfect for hiking enthusiasts and families looking to explore Singapore\'s natural heritage.',
+                    rating: '4.5 (203 reviews)'
+                },
+                'The Clementi Mall': {
+                    description: 'The Clementi Mall is a popular neighborhood shopping destination featuring diverse dining options, retail stores, and community spaces that serve as a central hub for Clementi residents.',
+                    rating: '4.1 (167 reviews)'
+                },
+                'Bedok Reservoir Park': {
+                    description: 'Bedok Reservoir Park surrounds Singapore\'s largest reservoir and offers scenic walking paths, water sports facilities, and cycling trails. It\'s a favorite spot for outdoor enthusiasts and weekend family outings.',
+                    rating: '4.6 (234 reviews)'
+                },
+                'Bedok Jetty': {
+                    description: 'Bedok Jetty is a historic fishing jetty that offers stunning sunrise views and a glimpse into Singapore\'s traditional fishing culture. It\'s a peaceful spot popular with photographers and early morning joggers.',
+                    rating: '4.2 (145 reviews)'
+                }
+            };
+
+            showPage('page3');
+        }
+
+        function showGuide(guideName) {
+            document.getElementById('guideTitle').textContent = 'Guide Profile';
+            document.getElementById('guideName').textContent = guideName;
+            document.getElementById('guideNameLarge').textContent = guideName;
+            
+            // Update guide details based on name
+            const guides = {
+                'Sarah Lim': {
+                    description: 'Hi there! I\'m Sarah, a Tampines local for over 25 years. I\'m passionate about sharing the authentic side of my neighborhood - from the best zi char stalls to hidden parks that only locals know about. I speak English, Mandarin, and Hokkien, and I love meeting people from all over the world!',
+                    rating: '4.9 (127 reviews)'
+                },
+                'Ahmad Rahman': {
+                    description: 'Hello! I\'m Ahmad, born and raised in Tampines. As a local historian and food enthusiast, I love sharing stories about how our neighborhood has evolved over the decades. Let me take you on a journey through time and taste!',
+                    rating: '4.8 (89 reviews)'
+                },
+                'Linda Tan': {
+                    description: 'Greetings! I\'m Linda, an Ang Mo Kio resident for over 30 years. I\'m passionate about preserving our local heritage and sharing the multicultural stories that make our neighborhood special. I also know all the best traditional craft shops!',
+                    rating: '4.7 (98 reviews)'
+                },
+                'Raj Kumar': {
+                    description: 'Namaste! I\'m Raj, passionate about Ang Mo Kio\'s incredible multicultural food scene and community stories. Having lived here for 15 years, I love showing visitors how different cultures blend beautifully in our hawker centers and community spaces.',
+                    rating: '4.8 (156 reviews)'
+                },
+                'Marcus Chen': {
+                    description: 'Hello! I\'m Marcus, a heritage enthusiast who knows every story behind Tanjong Pagar\'s historic shophouses and modern skyscrapers. I love sharing how this district transformed from a bustling port area to today\'s vibrant business and cultural hub.',
+                    rating: '4.8 (143 reviews)'
+                },
+                'Priya Nair': {
+                    description: 'Hi! I\'m Priya, your food and culture guide specializing in the fascinating fusion of old and new in Tanjong Pagar. From traditional coffee shops to modern roofteries, I\'ll show you how this district perfectly balances heritage with innovation.',
+                    rating: '4.7 (92 reviews)'
+                },
+                'David Wong': {
+                    description: 'Hey there! I\'m David, a nature lover and Clementi local who knows all the best parks, trails, and family-friendly spots. Whether you want to explore our forest parks or discover the best playground for kids, I\'ve got you covered!',
+                    rating: '4.6 (87 reviews)'
+                },
+                'Siti Rahman': {
+                    description: 'Selamat datang! I\'m Siti, a community guide passionate about Clementi\'s multicultural heritage and hidden gems. I love sharing stories about our diverse community and taking visitors to spots that showcase the real kampong spirit of our neighborhood.',
+                    rating: '4.8 (134 reviews)'
+                },
+                'Jenny Loh': {
+                    description: 'Hi! I\'m Jenny, Bedok born and bred! I\'m your expert for seaside spots, local markets, and finding the best laksa in the east. From sunrise at the jetty to late-night supper at our famous hawker centers, I know all the best times and places!',
+                    rating: '4.9 (156 reviews)'
+                },
+                'Ravi Krishnan': {
+                    description: 'Hello! I\'m Ravi, a cycling enthusiast and food hunter who knows every corner of Bedok\'s diverse neighborhoods. I love combining outdoor adventures with food discoveries - let me show you the best cycling routes and where to refuel afterwards!',
+                    rating: '4.7 (112 reviews)'
+                }
+            };
+
+            const guide = guides[guideName] || guides['Sarah Lim'];
+            document.getElementById('guideDescription').textContent = guide.description;
+            
+            showPage('page4');
+        }
+
+        function showFood(foodSpotName) {
+            document.getElementById('foodTitle').textContent = 'Food Spot';
+            document.getElementById('foodName').textContent = foodSpotName;
+            document.getElementById('foodNameLarge').textContent = foodSpotName;
+            
+            showPage('page5');
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            showPage('page1');
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9836aac1d6835f47',t:'MTc1ODU5NTExOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
