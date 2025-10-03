@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OMS Reader — v7 (MCQ bottom-half only)</title>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- OpenCV.js -->
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+<style>
+  :root{--muted:#94a3b8}
+  body{margin:0;padding:16px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b0f1e;color:#e5e7eb}
+  h1{margin:0 0 10px;font-size:20px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .card{background:#0e152b;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+  .drop{display:grid;place-items:center;min-height:120px;border:2px dashed rgba(255,255,255,.25);border-radius:12px;cursor:pointer}
+  .drop.dragover{border-color:#22d3ee;background:rgba(34,211,238,.06)}
+  .small{font-size:12px;color:var(--muted)}
+  button{border:1px solid rgba(255,255,255,.2);background:#111827;color:#e5e7eb;border-radius:8px;padding:7px 12px;cursor:pointer}
+  button.primary{background:linear-gradient(180deg,#1f2937,#0e152b)}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  .viewer{margin-top:10px;display:flex;flex-direction:column;align-items:center}
+  #preview{max-width:95%;height:auto;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:#050814}
+  .nav{margin-top:6px;display:flex;gap:10px;align-items:center}
+  pre.log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;margin:0;max-height:380px;overflow:auto}
+  label{user-select:none}
+  .pill{padding:3px 8px;border:1px solid rgba(255,255,255,.15);border-radius:999px}
+  code{color:#cbd5e1}
+</style>
+</head>
+<body>
+<h1>Optical Mark Sheet Scanner</h1>
+
+<div class="row">
+  <div class="card" style="flex:1 1 360px;min-width:320px">
+    <div id="drop" class="drop">
+      <div style="text-align:center">
+        <div>📄 Drag & drop a PDF here</div>
+        <div style="margin:6px 0">or</div>
+        <input id="file" type="file" accept="application/pdf" />
+        <div class="small" style="margin-top:6px">All processing stays in your browser.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <button id="btnProcess" class="primary" disabled>Process PDF</button>
+      <button id="btnCSV" disabled>Download CSV</button>
+      <label class="small pill">Thr factor <input id="thrMul" type="number" value="1.0" step="0.05" min="0.2" max="3.0" style="width:64px;margin-left:6px"></label>
+      <label class="small pill">MCQs to record <input id="mcqCount" type="number" value="30" min="1" max="45" style="width:64px;margin-left:6px"></label>
+      <label class="small pill"><input type="checkbox" id="dbg" checked> Overlays</label>
+      <span class="small" id="status" style="margin-left:auto">PDF not loaded</span>
+    </div>
+
+    <div class="viewer">
+      <canvas id="preview"></canvas>
+      <div class="nav">
+        <button id="prevBtn">⬅ Prev</button>
+        <span class="small">Page <span id="pageNum">0</span> / <span id="pageCount">0</span></span>
+        <button id="nextBtn">Next ➡</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="flex:2 1 540px;min-width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <strong>Results</strong>
+      <span class="small">format: <code>filename;X;X;X;X;A;A;... (N answers; multi like A+B)</code></span>
+    </div>
+    <pre id="out" class="log" style="margin-top:8px"></pre>
+  </div>
+</div>
+
+<script>
+/* ===== PDF.js worker ===== */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* ===== Canonical frame ===== */
+const FID_W = 2100, FID_H = 2970;
+
+/* ===== DEFAULT TEMPLATE ===== */
+const TEMPLATE = {
+  "fiducial_frame": { "width": 2100, "height": 2970 },
+  "index": {
+    "top": 0.268, "left": 0.3671, "width": 0.6295, "height": 0.1502,
+    "rows": 4, "cols": 16, "innerR": 0.3,
+    "corners": [
+      {"x":0.3671,"y":0.268},
+      {"x":0.9967,"y":0.268},
+      {"x":0.998891339983259,"y":0.42255891742128315},
+      {"x":0.3688913399832589,"y":0.42356901843138417}
+    ]
+  },
+  "mcq": [
+    {
+      "top":0.4508,"left":0.0514,"width":0.2229,"height":0.503,
+      "rows":15,"cols":4,"innerR":0.32,
+      "corners":[{"x":0.0567,"y":0.4522},{"x":0.2743,"y":0.4508},{"x":0.2729,"y":0.9539},{"x":0.0514,"y":0.9539}]
+    },
+    {
+      "top":0.4522,"left":0.3943,"width":0.2181,"height":0.5054,
+      "rows":15,"cols":4,"innerR":0.32,
+      "corners":[{"x":0.3962,"y":0.4545},{"x":0.6105,"y":0.4522},{"x":0.6124,"y":0.9576},{"x":0.3943,"y":0.9576}]
+    },
+    {
+      "top":0.4522,"left":0.7305,"width":0.22,"height":0.504,
+      "rows":15,"cols":4,"innerR":0.32,
+      "corners":[{"x":0.7305,"y":0.4559},{"x":0.9505,"y":0.4522},{"x":0.9486,"y":0.9539},{"x":0.7305,"y":0.9562}]
+    }
+  ],
+  "ringWeight": 0.72,
+  "ringFactor": 1.7,
+  "outIndexW": 1600,
+  "outIndexH": 260,
+  "outMCQW": 520,
+  "outMCQH": 900,
+  "crop": { "left": 0, "right": 0, "top": 0, "bottom": 0 },
+
+  /* New scanning tweaks */
+  "mcqBottomHalfOnly": true,      // limit counting to lower 50% of each row band
+  "mcqBubbleCenterFrac": 0.75     // place the sampling centre at 75% of the row band height (toward bottom)
+};
+// Removed: document.getElementById("cfg").textContent = JSON.stringify(TEMPLATE, null, 2);
+
+// ===== Constants & UI =====
+const DIGITS16 = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"];
+const ABCD = ["A","B","C","D"];
+const $ = s => document.querySelector(s);
+const statusEl = $("#status"), outEl = $("#out"), preview = $("#preview");
+const dbg = $("#dbg");
+let PDF = null, results = [], currentPage = 1, cvReady = false, loadedFileName = "pages";
+
+/* ===== UI wiring ===== */
+function setStatus(s){ statusEl.textContent = s; }
+$("#file").addEventListener("change", e => { const f=e.target.files?.[0]; if(f){ loadedFileName=f.name; loadPDF(f);} });
+["dragenter","dragover"].forEach(evt => $("#drop").addEventListener(evt, e=>{ e.preventDefault(); $("#drop").classList.add("dragover"); }));
+["dragleave","drop"].forEach(evt => $("#drop").addEventListener(evt, e=>{ e.preventDefault(); $("#drop").classList.remove("dragover"); }));
+$("#drop").addEventListener("drop", e=>{
+  const f=e.dataTransfer?.files?.[0]; if(f){ loadedFileName=f.name; loadPDF(f); }
+});
+$("#prevBtn").onclick=()=>{ if(PDF && currentPage>1){ currentPage--; renderPreview(); } };
+$("#nextBtn").onclick=()=>{ if(PDF && currentPage<PDF.numPages){ currentPage++; renderPreview(); } };
+$("#btnProcess").onclick=()=>processPDF();
+$("#btnCSV").onclick=()=>downloadCSV();
+
+/* ===== PDF helpers ===== */
+async function loadPDF(file){
+  try{
+    setStatus("Loading PDF…");
+    const buf=await file.arrayBuffer();
+    PDF=await pdfjsLib.getDocument({data:buf}).promise;
+    $("#btnProcess").disabled=false;
+    $("#pageCount").textContent=PDF.numPages;
+    currentPage=1; await renderPreview();
+    setStatus("Loaded. Ready.");
+  }catch(e){ console.error(e); setStatus("Failed to load PDF."); }
+}
+async function renderPreview(){
+  if(!PDF) return;
+  const page=await PDF.getPage(currentPage);
+  const vp=page.getViewport({scale:1.6});
+  preview.width=vp.width; preview.height=vp.height;
+  await page.render({canvasContext:preview.getContext("2d"),viewport:vp}).promise;
+  $("#pageNum").textContent=currentPage;
+}
+async function renderPageCanvas(n, scale=Math.max(2.8, 2.0*devicePixelRatio)){
+  const page=await PDF.getPage(n);
+  const vp=page.getViewport({scale});
+  const c=document.createElement("canvas"); c.width=vp.width; c.height=vp.height;
+  await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+  return c;
+}
+
+/* ===== OpenCV ready gate ===== */
+(function waitCV(){ if(typeof cv==="undefined"||!cv.imread){ setTimeout(waitCV,150); return; } cvReady=true; setStatus("Ready. Load a PDF."); })();
+
+/* ===== Helpers ===== */
+function canvasToMat(c){ return cv.imread(c); }
+function fracPtsToPx(c){ return c.map(p=>({x:Math.round(p.x*FID_W), y:Math.round(p.y*FID_H)})); }
+
+/* ===== Edge-fit warp via fiducials ===== */
+function detectCornerSquares(srcMat){
+  const iw=srcMat.cols, ih=srcMat.rows;
+  let gray=new cv.Mat(), bin=new cv.Mat();
+  cv.cvtColor(srcMat, gray, cv.COLOR_RGBA2GRAY, 0);
+  cv.GaussianBlur(gray, gray, new cv.Size(5,5), 0);
+  cv.threshold(gray, bin, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+  let contours=new cv.MatVector(), hier=new cv.Mat();
+  cv.findContours(bin, contours, hier, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+  const cand=[];
+  for(let i=0;i<contours.size();i++){
+    const r=cv.boundingRect(contours.get(i));
+    const area=r.width*r.height;
+    if(area<(iw*ih)*0.00002 || area>(iw*ih)*0.01) continue;
+    const ratio=r.width/r.height; if(ratio<0.8||ratio>1.25) continue;
+    const roi=bin.roi(r); const fill=cv.mean(roi)[0]/255; roi.delete();
+    if(fill<0.6) continue;
+    cand.push({ cx:r.x+r.width/2, cy:r.y+r.height/2, rect:r });
+  }
+  contours.delete(); hier.delete(); gray.delete(); bin.delete();
+
+  function pick(tx,ty){
+    let best=null, bestD=1e18, bestIdx=-1;
+    cand.forEach((p,i)=>{ const d=(p.cx-tx)**2+(p.cy-ty)**2; if(d<bestD){ bestD=d; best=p; bestIdx=i; }});
+    if(bestIdx>=0) cand.splice(bestIdx,1);
+    return best;
+  }
+
+  const TL=pick(0,0), TR=pick(iw,0), BR=pick(iw,ih), BL=pick(0,ih);
+  if(!TL||!TR||!BR||!BL) return null;
+
+  return {
+    pTL:{x:TL.rect.x, y:TL.rect.y},
+    pTR:{x:TR.rect.x+TR.rect.width, y:TR.rect.y},
+    pBR:{x:BR.rect.x+BR.rect.width, y:BR.rect.y+BR.rect.height},
+    pBL:{x:BL.rect.x, y:BL.rect.y+BL.rect.height}
+  };
+}
+function edgeFitWarp(src){
+  const c=detectCornerSquares(src);
+  if(!c){
+    let warped=new cv.Mat();
+    cv.resize(src, warped, new cv.Size(FID_W, FID_H));
+    return { warped, invH: null, srcW: src.cols, srcH: src.rows };
+  }
+  const srcPts=cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([
+    c.pTL.x,c.pTL.y, c.pTR.x,c.pTR.y, c.pBR.x,c.pBR.y, c.pBL.x,c.pBL.y
+  ]));
+  const dstPts=cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([0,0, FID_W,0, FID_W,FID_H, 0,FID_H]));
+  const H=cv.getPerspectiveTransform(srcPts,dstPts);
+  let warped=new cv.Mat();
+  cv.warpPerspective(src, warped, H, new cv.Size(FID_W,FID_H));
+  const Hinv=cv.getPerspectiveTransform(dstPts, srcPts);
+  srcPts.delete(); dstPts.delete(); H.delete();
+  return { warped, invH: Hinv, srcW: src.cols, srcH: src.rows };
+}
+
+/* ===== Per-table warp & crop ===== */
+function warpRegion(warpedFull, cornersFrac, outW, outH){
+  const pts = fracPtsToPx(cornersFrac);
+  const srcPts = cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([
+    pts[0].x,pts[0].y, pts[1].x,pts[1].y, pts[2].x,pts[2].y, pts[3].x,pts[3].y
+  ]));
+  const dstPts = cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([0,0, outW,0, outW,outH, 0,outH]));
+  const H = cv.getPerspectiveTransform(srcPts, dstPts);
+  let out = new cv.Mat();
+  cv.warpPerspective(warpedFull, out, H, new cv.Size(outW, outH));
+  srcPts.delete(); dstPts.delete(); H.delete();
+  return out;
+}
+function cropInside(mat){
+  const {left,right,top,bottom}=TEMPLATE.crop;
+  const x = Math.round(mat.cols*left);
+  const y = Math.round(mat.rows*top);
+  const w = Math.round(mat.cols*(1-left-right));
+  const h = Math.round(mat.rows*(1-top-bottom));
+  return mat.roi(new cv.Rect(x,y,w,h));
+}
+
+/* ===== Binarize & morphology ===== */
+function binarize(img){
+  let gray=new cv.Mat(); cv.cvtColor(img, gray, cv.COLOR_RGBA2GRAY, 0);
+  cv.GaussianBlur(gray, gray, new cv.Size(3,3), 0);
+  let bin=new cv.Mat();
+  cv.threshold(gray, bin, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+  gray.delete();
+  return bin; // ink=255
+}
+function refineBinary(bin) {
+  const kOpen  = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(2,2));
+  const kClose = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(3,3));
+  let tmp = new cv.Mat(), out = new cv.Mat();
+  cv.morphologyEx(bin, tmp,  cv.MORPH_OPEN,  kOpen);
+  cv.morphologyEx(tmp, out,  cv.MORPH_CLOSE, kClose);
+  kOpen.delete(); kClose.delete(); tmp.delete();
+  return out;
+}
+
+/* ===== Donut (index helper) ===== */
+function buildDonutKernel(rIn, rOut, ringWeight){
+  const k = 2*rOut+1, mat = new cv.Mat.zeros(k,k,cv.CV_32F);
+  const c=rOut;
+  for(let y=0;y<k;y++){
+    for(let x=0;x<k;x++){
+      const dx=x-c, dy=y-c; const d=dx*dx+dy*dy;
+      let v=0;
+      if(d<=rIn*rIn) v=1.0;
+      else if(d<=rOut*rOut) v=-ringWeight;
+      mat.floatPtr(y,x)[0]=v;
+    }
+  }
+  const mean=cv.mean(mat)[0];
+  for(let y=0;y<k;y++) for(let x=0;x<k;x++) mat.floatPtr(y,x)[0]-=mean;
+  return mat;
+}
+
+/* ===== Row band helpers (for bottom-half constraint) ===== */
+// For a block with N rows and crop height H, compute [yTop,yBottom] per row.
+function computeRowBands(rows, cropRows) {
+  const bands = [];
+  for (let i = 0; i < rows; i++) {
+    const yTop = Math.round((i / rows) * cropRows);
+    const yBottom = Math.round(((i + 1) / rows) * cropRows) - 1;
+    bands.push([yTop, Math.max(yTop, yBottom)]);
+  }
+  return bands;
+}
+
+/* ===== MCQ decision (multi-select, bottom-half only) ===== */
+function decideMCQMultiInkBottom(bin, rowBands, colCenters, rCount, thrMul = 1.0, centerFrac = 0.75, bottomHalfOnly = true) {
+  // rowBands: [[yTop,yBottom], ...]
+  // centerFrac: 0..1 where 0.75 places centre near bottom of the band
+  const rowsOut = [];
+  for (let r = 0; r < rowBands.length; r++) {
+    const [yTop, yBottom] = rowBands[r];
+    const bandH = Math.max(1, yBottom - yTop + 1);
+    const yCenter = Math.round(yTop + centerFrac * bandH);
+
+    const clipLow = bottomHalfOnly ? Math.round(yTop + 0.5 * bandH) : Math.max(0, yCenter - rCount);
+    const clipHigh = bottomHalfOnly ? yBottom : Math.min(bin.rows - 1, yCenter + rCount);
+
+    const counts = [];
+    for (const x0 of colCenters) {
+      let count = 0;
+      const xLow = Math.max(0, Math.floor(x0 - rCount));
+      const xHigh = Math.min(bin.cols - 1, Math.ceil(x0 + rCount));
+      for (let yy = clipLow; yy <= clipHigh; yy++) {
+        const dy = yy - yCenter;
+        const ptr = bin.ucharPtr(yy);
+        for (let xx = xLow; xx <= xHigh; xx++) {
+          const dx = xx - x0;
+          if (dx*dx + dy*dy <= rCount*rCount) {
+            if (ptr[xx] > 0) count++;
+          }
+        }
+      }
+      counts.push(count);
+    }
+
+    // Compute thresholds and noise floor
+    const area = Math.PI * rCount * rCount * (bottomHalfOnly ? 0.6 : 1.0);
+    const minInkSoft = Math.max(5, Math.round(area * 0.20 * thrMul));            // stricter permissive gate
+    const minInkHard = Math.max(minInkSoft + Math.round(area * 0.08),             // stricter hard gate
+                                Math.round(area * 0.28 * thrMul));
+    const countsSorted = [...counts].sort((a,b)=>a-b);
+    const median = countsSorted[Math.floor(countsSorted.length/2)];
+    const noiseMargin = Math.round(area * (bottomHalfOnly ? 0.12 : 0.10) * thrMul); // higher noise margin
+
+    const best = Math.max(...counts);
+    const bestIdx = counts.indexOf(best);
+    const second = Math.max(...counts.filter((v,i)=>i!==bestIdx));
+
+    // Early "no-mark" guard: best is too small or not above noise floor
+    if (best < minInkHard || best < (median + noiseMargin)) {
+      rowsOut.push("");
+      continue;
+    }
+
+    // Candidate picks: near-best and above soft+noise threshold
+    const nearBestRatio = 0.85 / Math.max(1.0, Math.pow(thrMul, 0.6));           // tighter
+    let picksIdxs = [];
+    for (let i = 0; i < counts.length; i++) {
+      const v = counts[i];
+      if (v >= Math.max(minInkSoft, median + noiseMargin) && v >= best * nearBestRatio) {
+        picksIdxs.push(i);
+      }
+    }
+
+    // Allow multi only if choices are truly strong (>= hard threshold and within ~5% of best)
+    const strongRatio = 0.95; // stricter multi-mark requirement
+    const strongIdxs = picksIdxs.filter(i => counts[i] >= Math.max(minInkHard, Math.round(best * strongRatio)));
+
+    let finalIdxs;
+    if (strongIdxs.length >= 2) {
+      finalIdxs = strongIdxs;                          // genuine multi-mark
+    } else if (picksIdxs.length >= 1) {
+      finalIdxs = [bestIdx];                           // fall back to single best
+    } else {
+      finalIdxs = [];                                  // nothing passes
+    }
+
+    rowsOut.push(finalIdxs.length ? finalIdxs.map(i => ABCD[i]).join("+") : "");
+  }
+  return rowsOut;
+}
+
+/* ===== Index (single best per row) ===== */
+function decideByInk(bin, rowCenters, colCenters, rIn, thrMul = 1.0) {
+  const picks = [];
+  const area = Math.PI * rIn * rIn;
+  const minInk = Math.max(6, Math.round(area * 0.24 * thrMul)); // stricter absolute requirement
+  const ratioThr = 1.35 * Math.max(1.0, thrMul);                // tighter best/second ratio
+
+  for (const y0 of rowCenters) {
+    const counts = [];
+    for (const x0 of colCenters) {
+      let count = 0;
+      const xLow = Math.max(0, Math.floor(x0 - rIn));
+      const xHigh = Math.min(bin.cols - 1, Math.ceil(x0 + rIn));
+      const yLow = Math.max(0, Math.floor(y0 - rIn));
+      const yHigh = Math.min(bin.rows - 1, Math.ceil(y0 + rIn));
+      for (let yy = yLow; yy <= yHigh; yy++) {
+        const dy = yy - y0;
+        const ptr = bin.ucharPtr(yy);
+        for (let xx = xLow; xx <= xHigh; xx++) {
+          const dx = xx - x0;
+          if (dx*dx + dy*dy <= rIn*rIn) {
+            if (ptr[xx] > 0) count++;
+          }
+        }
+      }
+      counts.push(count);
+    }
+
+    let bestIdx = 0, best = counts[0], second = -1;
+    for (let i = 1; i < counts.length; i++) {
+      const v = counts[i];
+      if (v > best) { second = best; best = v; bestIdx = i; }
+      else if (v > second) { second = v; }
+    }
+    const passAbs = best >= minInk;
+    const passRatio = second > 0 ? (best / Math.max(second, 1)) >= ratioThr : true;
+    picks.push((passAbs && passRatio) ? bestIdx : -1);
+  }
+  return picks;
+}
+
+/* ===== Overlay (ghost + grid) ===== */
+function overlayGhost(previewCanvas, warped, packs, invH, srcW, srcH){
+  if(!dbg.checked) return;
+  const ctx=previewCanvas.getContext("2d");
+  const ghostOn=true, outlinesOn=true, gridOn=true;
+
+  if (ghostOn) {
+    ctx.save();
+    ctx.globalAlpha=0.27;
+    const ghost=document.createElement("canvas");
+    ghost.width=FID_W; ghost.height=FID_H;
+    cv.imshow(ghost, warped);
+    const gw=Math.min(previewCanvas.width*0.36, 420), gh=gw*(FID_H/FID_W);
+    ctx.drawImage(ghost, previewCanvas.width-gw-8, 8, gw, gh);
+    ctx.restore();
+
+    const ox=previewCanvas.width-gw-8, oy=8, sx=gw/FID_W, sy=gh/FID_H;
+
+    ctx.save();
+    packs.forEach(pk=>{
+      const pts=pk.corners;
+
+      if (outlinesOn) {
+        ctx.strokeStyle="rgba(0,255,255,.9)";
+        ctx.globalAlpha=.9;
+        ctx.lineWidth=1.0;
+        ctx.beginPath();
+        ctx.moveTo(ox+pts[0].x*sx, oy+pts[0].y*sy);
+        for(let i=1;i<4;i++) ctx.lineTo(ox+pts[i].x*sx, oy+pts[i].y*sy);
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      if (gridOn && pk.rowFracs && pk.rowFracs.length){
+        ctx.strokeStyle="rgba(0,255,255,.45)";
+        ctx.globalAlpha=.9;
+        ctx.lineWidth=0.8;
+        for(const fRaw of pk.rowFracs){
+          const f = Math.max(0, Math.min(1, fRaw));
+          const lx = pts[0].x + f*(pts[3].x - pts[0].x);
+          const ly = pts[0].y + f*(pts[3].y - pts[0].y);
+          const rx = pts[1].x + f*(pts[2].x - pts[1].x);
+          const ry = pts[1].y + f*(pts[2].y - pts[1].y);
+          ctx.beginPath();
+          ctx.moveTo(ox+lx*sx, oy+ly*sy);
+          ctx.lineTo(ox+rx*sx, oy+ry*sy);
+          ctx.stroke();
+        }
+      }
+
+      if (gridOn && pk.colFracs && pk.colFracs.length){
+        ctx.strokeStyle="rgba(0,255,255,.45)";
+        ctx.globalAlpha=.9;
+        ctx.lineWidth=0.8;
+        for(const gRaw of pk.colFracs){
+          const g = Math.max(0, Math.min(1, gRaw));
+          const tx = pts[0].x + g*(pts[1].x - pts[0].x);
+          const ty = pts[0].y + g*(pts[1].y - pts[0].y);
+          const bx = pts[3].x + g*(pts[2].x - pts[3].x);
+          const by = pts[3].y + g*(pts[2].y - pts[3].y);
+          ctx.beginPath();
+          ctx.moveTo(ox+tx*sx, oy+ty*sy);
+          ctx.lineTo(ox+bx*sx, oy+by*sy);
+          ctx.stroke();
+        }
+      }
+    });
+    ctx.restore();
+  }
+
+  if(invH){
+    const sX = previewCanvas.width / srcW;
+    const sY = previewCanvas.height / srcH;
+
+    const drawTransformedLine = (x0,y0,x1,y1) => {
+      const srcPts = cv.matFromArray(2,1,cv.CV_32FC2, new Float32Array([x0,y0, x1,y1]));
+      const dstPts = new cv.Mat();
+      cv.perspectiveTransform(srcPts, dstPts, invH);
+      const d = dstPts.data32F;
+      ctx.beginPath();
+      ctx.moveTo(d[0]*sX, d[1]*sY);
+      ctx.lineTo(d[2]*sX, d[3]*sY);
+      ctx.stroke();
+      srcPts.delete(); dstPts.delete();
+    };
+
+    ctx.save();
+    ctx.strokeStyle="rgba(0,255,255,.9)";
+    ctx.globalAlpha=.9;
+    ctx.lineWidth=1.2;
+    packs.forEach(pk=>{
+      const pts=pk.corners;
+      for(let i=0;i<4;i++){
+        const j=(i+1)%4;
+        drawTransformedLine(pts[i].x, pts[i].y, pts[j].x, pts[j].y);
+      }
+    });
+    ctx.restore();
+  }
+}
+
+/* ===== Pipeline ===== */
+async function processPDF(){
+  if(!PDF){ setStatus("Load a PDF first"); return; }
+  if(!cvReady){ setStatus("Loading OpenCV…"); return; }
+
+  $("#btnProcess").disabled=true; $("#btnCSV").disabled=true;
+  results=[]; outEl.textContent="";
+  const thrMul = 1.0; // fixed multiplier since the UI input is removed
+  const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+
+  for(let p=1;p<=PDF.numPages;p++){
+    setStatus(`Processing page ${p}/${PDF.numPages}…`);
+    const pageCanvas=await renderPageCanvas(p);
+    let src=canvasToMat(pageCanvas);
+    const { warped, invH, srcW, srcH } = edgeFitWarp(src);
+    src.delete();
+
+    const overlayPacks=[];
+
+    // ---------- INDEX ----------
+    const idxImg = warpRegion(warped, TEMPLATE.index.corners, TEMPLATE.outIndexW, TEMPLATE.outIndexH);
+    const idxCrop = cropInside(idxImg);
+    const idxBin  = binarize(idxCrop);
+
+    const rInIdx  = Math.max(2, Math.round((idxCrop.rows/(TEMPLATE.index.rows*2))*TEMPLATE.index.innerR));
+    const rOutIdx = Math.max(rInIdx+1, Math.round(rInIdx*TEMPLATE.ringFactor));
+    const kIdx    = buildDonutKernel(rInIdx, rOutIdx, TEMPLATE.ringWeight);
+    let respIdx   = new cv.Mat();
+    cv.filter2D(idxBin, respIdx, cv.CV_32F, kIdx);
+    kIdx.delete();
+
+    // Uniform centers for index
+    const cIdx = TEMPLATE.crop;
+    const idxRowCentersPx = Array.from({length: TEMPLATE.index.rows}, (_, i) =>
+      Math.round((cIdx.top + ((i + 0.5) / TEMPLATE.index.rows) * (1 - cIdx.top - cIdx.bottom)) * idxCrop.rows)
+    );
+    const idxColCentersPx = Array.from({length: TEMPLATE.index.cols}, (_, i) =>
+      Math.round((cIdx.left + ((i + 0.5) / TEMPLATE.index.cols) * (1 - cIdx.left - cIdx.right)) * idxCrop.cols)
+    );
+
+    const picksIdx = decideByInk(idxBin, idxRowCentersPx, idxColCentersPx, rInIdx, thrMul);
+    const indexChars = picksIdx.map(i => i<0 ? "" : DIGITS16[i]);
+
+    // Overlay pack (index grid)
+    {
+      const c = TEMPLATE.crop;
+      const idxRowFracs = Array.from({length: TEMPLATE.index.rows - 1}, (_,i)=>
+        c.top + ((i+1)/TEMPLATE.index.rows) * (1 - c.top - c.bottom)
+      );
+      const idxColFracs = Array.from({length: TEMPLATE.index.cols - 1}, (_,i)=>
+        c.left + ((i+1)/TEMPLATE.index.cols) * (1 - c.left - c.right)
+      );
+      overlayPacks.push({
+        corners: fracPtsToPx(TEMPLATE.index.corners),
+        rowFracs: idxRowFracs,
+        colFracs: idxColFracs
+      });
+    }
+
+    idxImg.delete(); idxCrop.delete(); idxBin.delete(); respIdx.delete();
+
+    // ---------- MCQs ----------
+    const answers=[];
+    let remaining = mcqCount;
+    for(const block of TEMPLATE.mcq){
+      if (remaining <= 0) break;
+
+      const roi  = warpRegion(warped, block.corners, TEMPLATE.outMCQW, TEMPLATE.outMCQH);
+      const crop = cropInside(roi);
+      const bin0 = binarize(crop);
+      const bin  = refineBinary(bin0);
+
+      // uniform horizontal centers
+      const c = TEMPLATE.crop;
+      const mcqColCentersPx = Array.from({length: block.cols}, (_, i) =>
+        Math.round((c.left + ((i + 0.5) / block.cols) * (1 - c.left - c.right)) * crop.cols)
+      );
+
+      // row bands limited to remaining questions
+      const allBands = computeRowBands(block.rows, crop.rows);
+      const rowsNeeded = Math.min(block.rows, remaining);
+      const rowBands = allBands.slice(0, rowsNeeded);
+
+      const rIn     = Math.max(2, Math.round((crop.rows/(block.rows*2))*block.innerR));
+      const rCount  = Math.max(2, Math.round(rIn * 0.95));
+
+      const rowStrings = decideMCQMultiInkBottom(
+        bin,
+        rowBands,
+        mcqColCentersPx,
+        rCount,
+        thrMul,
+        TEMPLATE.mcqBubbleCenterFrac,
+        TEMPLATE.mcqBottomHalfOnly
+      );
+      answers.push(...rowStrings);
+      remaining -= rowStrings.length;
+
+      // Optional overlay pack (kept for visual grid, not required)
+      {
+        const rowFracs = Array.from({length: block.rows - 1}, (_,i)=> (i+1)/block.rows);
+        const colFracs = Array.from({length: block.cols - 1}, (_,i)=> (i+1)/block.cols);
+        overlayPacks.push({
+          corners: fracPtsToPx(block.corners),
+          rowFracs, colFracs
+        });
+      }
+
+      roi.delete(); crop.delete(); bin0.delete(); bin.delete();
+    }
+
+    // Output exactly mcqCount answers
+    while (answers.length < mcqCount) answers.push("");
+    const finalAnswers=answers.slice(0, mcqCount);
+    const base = (loadedFileName||"pages").replace(/\.[^.]+$/,"");
+    const indexOut = indexChars.slice(0, TEMPLATE.index.rows);
+    const line=[`${base}_p${String(p).padStart(2,"0")}`, ...indexOut, ...finalAnswers].join(";");
+    results.push(line);
+
+    // Removed overlay checkbox gate and call
+    // if(dbg.checked && p===currentPage) { overlayGhost(...); }
+
+    if(invH) invH.delete();
+    warped.delete();
+  }
+
+  outEl.textContent=results.join("\n");
+  $("#btnCSV").disabled = results.length===0;
+  $("#btnProcess").disabled=false;
+  setStatus(`Done. Parsed ${results.length} page(s).`);
+}
+
+/* ===== CSV ===== */
+function downloadCSV(){
+  if(!results.length) return;
+  const blob=new Blob([results.join("\n")],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="oms_results.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
