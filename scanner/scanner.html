@@ -29,10 +29,13 @@
   label{user-select:none}
   .pill{padding:3px 8px;border:1px solid rgba(255,255,255,.15);border-radius:999px}
   code{color:#cbd5e1}
+  /* nicer download link */
+  .link-pill{display:inline-block;padding:6px 10px;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:#111827;color:#22d3ee;text-decoration:none}
+  .link-pill:hover{border-color:#22d3ee;color:#67e8f9}
 </style>
 </head>
 <body>
-<h1>Optical Mark Sheet Scanner</h1>
+<h1>Optical Mark Sheet Scanner</h1> <a href="scanner.html" download class="link-pill" title="Save this page to run offline">⬇ Download local copy</a> <span class="small">(offline use avoids upload restrictions)</span>
 
 <div class="row">
   <div class="card" style="flex:1 1 360px;min-width:320px">
@@ -130,7 +133,7 @@ const ABCD = ["A","B","C","D"];
 const $ = s => document.querySelector(s);
 const statusEl = $("#status"), outEl = $("#out"), preview = $("#preview");
 const dbg = $("#dbg");
-let PDF = null, results = [], currentPage = 1, cvReady = false, loadedFileName = "pages";
+let PDF = null, results = [], currentPage = 1, cvReady = false, loadedFileName = "pages", lastCSVUrl = null;
 
 /* ===== UI wiring ===== */
 function setStatus(s){ statusEl.textContent = s; }
@@ -665,9 +668,49 @@ async function processPDF(){
 function downloadCSV(){
   if(!results.length) return;
   const blob=new Blob([results.join("\n")],{type:"text/csv;charset=utf-8"});
+
+  // Build a descriptive filename: oms_<pdfbase>_YYYYMMDD_HHMMSS.csv
+  const base = (loadedFileName||"pages").replace(/\.[^.]+$/,"");
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}${String(d.getSeconds()).padStart(2,"0")}`;
+  const filename = `oms_${base}_${stamp}.csv`;
+
+  // Revoke previous URL if any
+  if (lastCSVUrl) {
+    try { URL.revokeObjectURL(lastCSVUrl); } catch {}
+    lastCSVUrl = null;
+  }
+
   const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url; a.download="oms_results.csv"; a.click();
-  URL.revokeObjectURL(url);
+  lastCSVUrl = url;
+
+  // Show a visible download link with size
+  const sizeKB = Math.max(1, Math.round(blob.size / 1024));
+  const dlRow = document.getElementById("dlRow");
+  if (dlRow) {
+    dlRow.innerHTML = "";
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.textContent = `Download ${filename} (${sizeKB} KB)`;
+    a.style.color = "#22d3ee";
+    a.style.textDecoration = "none";
+    a.className = "pill";
+    dlRow.appendChild(a);
+
+    // Optional: trigger immediate download, keep link for re-download
+    a.click();
+
+    // Clean up URL a bit later after click; regenerate if user presses Download again
+    setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch {}
+      if (lastCSVUrl === url) lastCSVUrl = null;
+    }, 120000); // 2 minutes
+  } else {
+    // Fallback: direct download if dlRow is not present
+    const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 30000);
+  }
 }
 </script>
 </body>
