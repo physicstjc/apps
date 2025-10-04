@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OMS Reader — v7 (MCQ bottom-half only)</title>
+<title>OMS Reader</title>
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -93,8 +93,12 @@
       <div style="text-align:center">
         <div>📄 Drag &amp; drop a PDF here</div>
         <div style="margin:6px 0">or</div>
-        <input id="file" type="file" accept="application/pdf">
+        <!-- Hide the native file input to avoid duplicate UI -->
+        <input id="file" type="file" accept="application/pdf" style="display:none">
         <div class="small" style="margin-top:6px">All processing stays in your browser.</div>
+        <div style="margin-top:8px">
+          <button id="btnPickPDF" class="small">Choose PDF…</button>
+        </div>
       </div>
     </div>
 
@@ -310,12 +314,67 @@ function saveStoredResults() {
 
 /* ===== UI wiring ===== */
 function setStatus(s){ statusEl.textContent = s; }
-$("#file").addEventListener("change", e => { const f=e.target.files?.[0]; if(f){ loadedFileName=f.name; loadPDF(f);} });
 ["dragenter","dragover"].forEach(evt => $("#drop").addEventListener(evt, e=>{ e.preventDefault(); $("#drop").classList.add("dragover"); }));
 ["dragleave","drop"].forEach(evt => $("#drop").addEventListener(evt, e=>{ e.preventDefault(); $("#drop").classList.remove("dragover"); }));
 $("#drop").addEventListener("drop", e=>{
   const f=e.dataTransfer?.files?.[0]; if(f){ loadedFileName=f.name; loadPDF(f); }
 });
+
+// Add: resilient file chooser handlers
+function onFileChosen(e) {
+  try {
+    const input = e.target;
+    const f = input && input.files && input.files[0];
+    if (!f) {
+      setStatus("No file selected.");
+      return;
+    }
+    loadedFileName = f.name;
+    setStatus(`Loading ${loadedFileName}…`);
+    loadPDF(f);
+  } catch (err) {
+    console.error("Error handling file selection:", err);
+    setStatus("Failed to read selected file.");
+  }
+}
+
+// Direct binding if the input exists
+const fileInputEl = document.getElementById("file");
+if (fileInputEl) {
+  fileInputEl.addEventListener("change", onFileChosen);
+} else {
+  // Delegated binding as a fallback (handles re-rendered inputs)
+  document.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t && t.id === "file" && t.type === "file") {
+      onFileChosen(e);
+    }
+  });
+}
+
+// Button to programmatically open the file picker
+const btnPickPDF = document.getElementById("btnPickPDF");
+if (btnPickPDF) {
+  btnPickPDF.onclick = () => {
+    const el = document.getElementById("file");
+    if (!el) {
+      setStatus("File input not found.");
+      return;
+    }
+    el.click();
+  };
+}
+
+// Make the entire drop area clickable (opens file chooser)
+const dropEl = document.getElementById("drop");
+if (dropEl) {
+  dropEl.addEventListener("click", (e) => {
+    // Avoid double-trigger when clicking the explicit button
+    if (e.target && e.target.id === "btnPickPDF") return;
+    const el = document.getElementById("file");
+    if (el) el.click();
+  });
+}
 const prevBtnEl = document.getElementById("prevBtn");
 if (prevBtnEl) prevBtnEl.onclick = ()=>{ if(PDF && currentPage>1){ currentPage--; renderPreview(); } };
 const nextBtnEl = document.getElementById("nextBtn");
@@ -943,6 +1002,8 @@ async function processPDF(){
 
     // ===== Build issues for this page =====
     (function buildIssuesForPage(){
+      // Compute pageTag first to avoid TDZ (temporal dead zone) errors
+      const pageTag = `${base}_p${String(p).padStart(2,"0")}`;
       const messages = [];
 
       // Missing and multiple answers
@@ -960,8 +1021,8 @@ async function processPDF(){
         messages.push(`Multiple answers: ${multipleQs.join(", ")}`);
       }
 
-      // Resolve student ID: prefer override for this local page number 'p'
-      const override = idOverrides.get(p);
+      // Resolve student ID: prefer override keyed by pageTag
+      const override = idOverrides.get(pageTag);
       const studentIdCandidate = (override && override.length > 0)
         ? override.trim().toUpperCase()
         : (idFromSheet || "").toUpperCase();
@@ -981,7 +1042,6 @@ async function processPDF(){
 
       // Append issues line for this page if any
       if (messages.length) {
-        const pageTag = `${base}_p${String(p).padStart(2,"0")}`;
         issues.push(`${pageTag}: ${messages.join("; ")}`);
       }
     })();
@@ -1039,25 +1099,48 @@ async function processPDF(){
 
 /* ===== CSV ===== */
 function downloadCSV(){
+  // ... existing code ...
   if(!results.length) return;
   const indexCols = TEMPLATE.index.rows || 4;
   const exportLines = results.map(line => {
     const cells = line.split(";");
-    const m = cells[0].match(/_p(\d+)/);
-    const p = m ? parseInt(m[1], 10) : 0;
+    const pageTag = cells[0];
 
-    const override = idOverrides.get(p);
+    // Apply override to the 4 index characters (if any)
+    const override = idOverrides.get(pageTag);
     if (override && override.length > 0) {
       const chars = override.toUpperCase().split("");
       for (let i = 0; i < indexCols; i++) {
         cells[1 + i] = chars[i] || "";
       }
     }
+
+    // Derive class (1st+2nd) and index (3rd+4th) from the index characters
+    const idxChars = [];
+    for (let i = 0; i < Math.min(indexCols, 4); i++) {
+      idxChars.push(cells[1 + i] || "");
+    }
+    const idxCode = idxChars.join("").toUpperCase();
+    const cls = idxCode.slice(0, 2) || "";
+    const idx = idxCode.slice(2, 4) || "";
+
+    // Lookup student name using the 4-char code (after override application)
+    const stuName = (studentMap.get(idxCode)?.name) || "";
+
+    // Lookup score: number of correct answers (marks) from pageSummaries via pageTag
+    let score = "";
+    const meta = pageSummaries.find(m => m && m.pageTag === pageTag);
+    if (meta && typeof meta.marks === "number") {
+      score = String(meta.marks);
+    }
+
+    // Insert derived columns immediately after pageTag: class, index, name, score
+    cells.splice(1, 0, cls, idx, stuName, score);
+
     return cells.join(";");
   });
 
   const blob=new Blob([exportLines.join("\n")],{type:"text/csv;charset=utf-8"});
-
   const base = (loadedFileName||"pages").replace(/\.[^.]+$/,"");
   const d = new Date();
   const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}${String(d.getSeconds()).padStart(2,"0")}`;
@@ -1219,7 +1302,7 @@ function renderSummaryForPage(p){
     return;
   }
 
-  const override = idOverrides.get(p) || "";
+  const override = (meta && idOverrides.get(meta.pageTag)) || "";
   if (idInput) idInput.value = override || meta.idFromSheet || "";
 
   const useId = (override || meta.idFromSheet || "").toUpperCase();
@@ -1243,7 +1326,8 @@ function buildReportHTMLForPage(p, mode){
   const meta = pageSummaries[p];
   if (!meta) return `<div class="${mode === 'preview' ? 'report-page' : ''}"><div>No data for page ${p}.</div></div>`;
 
-  const override = idOverrides.get(p) || "";
+  // FIX: use pageTag-keyed override (previously used idOverrides.get(p))
+  const override = idOverrides.get(meta.pageTag) || "";
   const useId = (override || meta.idFromSheet || "").toUpperCase();
   const stu = useId ? (studentMap.get(useId) || null) : null;
   const answerKey = getAnswerKey();
@@ -1317,20 +1401,31 @@ function renderAllReportsPreview(){
   const preview = document.getElementById("reportPreview");
   if (!preview) return;
   const pages = [];
-  if (!PDF) {
+
+  // Use combined total pages across all uploaded PDFs
+  if (totalPages === 0) {
     preview.innerHTML = "<div class='small'>No PDF loaded.</div>";
     return;
   }
-  for (let p = 1; p <= PDF.numPages; p++) {
+
+  for (let p = 1; p <= totalPages; p++) {
     if (pageSummaries[p]) {
       pages.push(buildReportHTMLForPage(p, 'preview'));
     }
   }
+
+  if (pages.length === 0) {
+    preview.innerHTML = "<div class='small'>No processed pages yet.</div>";
+    return;
+  }
+
   preview.innerHTML = pages.join("\n");
 }
 function buildAllReportsHTMLDoc(){
   const pages = [];
-  const count = PDF ? PDF.numPages : 0;
+
+  // Include all processed pages across all uploaded PDFs
+  const count = totalPages;
   for (let p = 1; p <= count; p++) {
     if (pageSummaries[p]) {
       pages.push(buildReportHTMLForPage(p, 'print'));
@@ -1562,10 +1657,26 @@ document.addEventListener("DOMContentLoaded", () => {
     btnApplyId.addEventListener("click", () => {
       const p = currentPage;
       const val = (document.getElementById("idOverride")?.value || "").trim();
-      if (val) idOverrides.set(p, val);
-      else idOverrides.delete(p);
+      const meta = pageSummaries[p];
+      if (!meta) {
+        setStatus("No processed data for this page yet.");
+        return;
+      }
+      const pageTag = meta.pageTag;
+      if (val) idOverrides.set(pageTag, val);
+      else idOverrides.delete(pageTag);
+
+      // Update the specific line in All results with the override index chars
+      applyOverrideToResults(pageTag, val);
+
+      // Recompute issues across all pages and refresh the Issues panel
+      recomputeIssues();
+
+      // Refresh summary and report preview
       renderSummaryForPage(p);
       renderCurrentReportPreview(p);
+
+      setStatus("Student ID override applied.");
     });
   }
   const btnSave = document.getElementById("btnSaveKey");
@@ -1578,6 +1689,99 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+function applyOverrideToResults(pageTag, overrideStr){
+  try {
+    if (!pageTag) return;
+    const indexCols = TEMPLATE.index.rows || 4;
+    const chars = (overrideStr || "").toUpperCase().split("");
+
+    results = results.map(line => {
+      const cells = line.split(";");
+      if (cells[0] === pageTag) {
+        for (let i = 0; i < indexCols; i++) {
+          cells[1 + i] = chars[i] || "";
+        }
+        return cells.join(";");
+      }
+      return line;
+    });
+
+    outEl.textContent = results.join("\n");
+    saveStoredResults();
+  } catch (e) {
+    console.warn("Failed to apply override to results:", e);
+  }
+}
+
+function recomputeIssues(){
+  try {
+    issues = [];
+    seenStudentIds.clear();
+
+    const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+
+    // Re-evaluate per-page issues with current overrides
+    for (let p = 1; p <= totalPages; p++) {
+      const meta = pageSummaries[p];
+      if (!meta) continue;
+
+      const messages = [];
+
+      // Missing/multiple answers from stored finalAnswers
+      const finalAnswers = meta.finalAnswers || [];
+      const missingQs = [];
+      const multipleQs = [];
+      for (let i = 0; i < mcqCount; i++) {
+        const ans = (finalAnswers[i] || "").trim();
+        if (!ans) missingQs.push(i + 1);
+        else if (ans.includes("+")) multipleQs.push(`Q${i + 1}(${ans})`);
+      }
+      if (missingQs.length) messages.push(`Missing answers: ${missingQs.map(q => `Q${q}`).join(", ")}`);
+      if (multipleQs.length) messages.push(`Multiple answers: ${multipleQs.join(", ")}`);
+
+      // ID resolution (prefer override)
+      const pageTag = meta.pageTag;
+      const override = idOverrides.get(pageTag);
+      const candidate = (override && override.length > 0
+        ? override.trim().toUpperCase()
+        : (meta.idFromSheet || "").toUpperCase());
+
+      const idProblems = [];
+      let idOk = true;
+      if (!candidate) {
+        idProblems.push("Student ID not found (empty index)");
+        idOk = false;
+      } else {
+        if (!studentMap.has(candidate)) {
+          idProblems.push(`Student ID not found in list: ${candidate}`);
+          idOk = false;
+        }
+        if (seenStudentIds.has(candidate)) {
+          idProblems.push(`Duplicated student ID: ${candidate}`);
+          idOk = false;
+        } else {
+          seenStudentIds.add(candidate);
+        }
+      }
+
+      if (idProblems.length) {
+        messages.push(...idProblems);
+      } else if (override && override.length > 0) {
+        // If override exists and resolved ID issues, mark as rectified
+        messages.push(`Student ID override applied: ${candidate} — rectified`);
+      }
+
+      if (messages.length) {
+        issues.push(`${pageTag}: ${messages.join("; ")}`);
+      }
+    }
+
+    const issuesEl = document.getElementById("issues");
+    if (issuesEl) issuesEl.textContent = issues.join("\n");
+  } catch (e) {
+    console.warn("Failed to recompute issues:", e);
+  }
+}
 /* ===== SAFETY: only bind if present (prevents load-time crash) ===== */
 const btnPrint = document.getElementById("btnPrint");
 if (btnPrint) btnPrint.onclick = () => {
