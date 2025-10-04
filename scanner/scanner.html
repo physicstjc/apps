@@ -1,14 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OMS Reader — v7 (MCQ bottom-half only)</title>
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- OpenCV.js -->
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+<script async="" src="https://docs.opencv.org/4.x/opencv.js"></script>
 <!-- Add: JSZip for ZIP creation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
@@ -81,33 +80,37 @@
     </div>
     <textarea id="ansPaste" placeholder="e.g. A B C D ... or ABCD..."></textarea>
     <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-      <button id="btnSaveKey">Save answer key</button>
-      <button id="btnClearKey">Clear</button>
+            <!-- MCQs to record moved up -->
+      <label class="small pill">MCQs to record
+        <input id="mcqCount" type="number" value="30" min="1" max="45" style="width:64px;margin-left:6px" fdprocessedid="kq7i0b">
+      </label>
+      <button id="btnSaveKey" fdprocessedid="v3q6at">Save answer key</button>
+      <button id="btnClearKey" fdprocessedid="uw5uxk">Clear</button>
       <span id="keyStatus" class="small" style="margin-left:auto">Not saved</span>
     </div>
 
     <div id="drop" class="drop" style="margin-top:10px">
       <div style="text-align:center">
-        <div>📄 Drag & drop a PDF here</div>
+        <div>📄 Drag &amp; drop a PDF here</div>
         <div style="margin:6px 0">or</div>
-        <input id="file" type="file" accept="application/pdf" />
+        <input id="file" type="file" accept="application/pdf">
         <div class="small" style="margin-top:6px">All processing stays in your browser.</div>
       </div>
     </div>
 
     <!-- Moved controls: Process/CSV + Prev/Next + Page indicator -->
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-      <button id="btnProcess" class="primary" disabled>Process PDF</button>
-      <button id="btnCSV" disabled>Download CSV</button>
-      <button id="prevBtn">⬅ Prev</button>
+      <button id="btnProcess" class="primary" disabled="">Process PDF</button>
+      <button id="btnCSV" disabled="">Download CSV</button>
+      <div style="margin-top:10px; flex-basis:100%">
+      <button id="prevBtn" fdprocessedid="3r7lxq">⬅ Prev</button>
       <span class="small">Page <span id="pageNum">0</span> / <span id="pageCount">0</span></span>
-      <button id="nextBtn">Next ➡</button>
+      <button id="nextBtn" fdprocessedid="9nk2xp">Next ➡</button></div>
       <!-- Status moved here, near Process PDF -->
-      <span class="small" id="status" style="margin-left:8px">PDF not loaded</span>
-      <!-- MCQs to record moved up -->
-      <label class="small pill">MCQs to record
-        <input id="mcqCount" type="number" value="30" min="1" max="45" style="width:64px;margin-left:6px">
-      </label>
+      <span class="small" id="status" style="margin-left:8px">Preparing ZIP…</span>
+       <!-- Issues log -->
+      <div style="margin-top:10px; flex-basis:100%"><strong>Issues</strong></div>
+      <div style="margin-top:10px; flex-basis:100%"><pre id="issues" class="log" style="margin-top:6px"></pre></div>
     </div>
   </div>
 
@@ -123,12 +126,12 @@
       <strong>Summary</strong>
       <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
         <label class="small">Student ID override
-          <input id="idOverride" type="text" style="width:120px;margin-left:6px" />
+          <input id="idOverride" type="text" style="width:120px;margin-left:6px" fdprocessedid="vvcbrr">
         </label>
-        <button id="btnApplyId" class="small">Apply</button>
+        <button id="btnApplyId" class="small" fdprocessedid="c3vb0r">Apply</button>
         <span class="small" id="studentResolved"></span>
-        <button id="btnOpenPDF" class="small">Open in new tab (PDF)</button>
-        <button id="btnDownloadAll" class="small">Download all (PDF)</button>
+        <button id="btnOpenPDF" class="small" fdprocessedid="4ttbva">Print this page (PDF)</button>
+        <button id="btnDownloadAll" class="small" fdprocessedid="qlm59">Print all (PDF)</button>
       </div>
       <pre id="summary" class="log" style="margin-top:6px"></pre>
     </div>
@@ -137,20 +140,20 @@
     <div id="studentArea">
       <div class="student-area-toolbar" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
         <label for="previewMode" style="font-weight:600;">View:</label>
-        <select id="previewMode">
-          <option value="sheet" selected>Scanned sheet</option>
+        <select id="previewMode" fdprocessedid="2o4gjg">
+          <option value="sheet" selected="">Scanned sheet</option>
           <option value="summary">Student summary</option>
           <option value="analysis">Item analysis (PDF)</option>
         </select>
       </div>
 
       <!-- Student summary panel (existing content) -->
-      <div id="studentSummaryPanel">
+      <div id="studentSummaryPanel" style="display: none;">
         <div id="reportPreview" class="report-preview"></div>
       </div>
 
       <!-- Scanned sheet panel (new canvas, hidden by default) -->
-      <div id="studentSheetPanel" style="display:none">
+      <div id="studentSheetPanel" style="">
         <canvas id="studentSheetCanvas" style="max-width:100%; width:100%; height:auto;"></canvas>
       </div>
     </div>
@@ -158,31 +161,16 @@
   </div>
 
   <!-- Controls + Preview -->
-  <div class="card" style="flex:1 1 360px;min-width:320px">
-    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-    <!-- Thr factor removed from UI (hidden to avoid breaking code) -->
-    <label class="small pill" style="display:none">Thr factor
-      <input id="thrMul" type="number" value="1.0" step="0.05" min="0.2" max="3.0" style="width:64px;margin-left:6px">
-    </label>
-    <!-- Overlays removed from UI (hidden to avoid breaking code) -->
-    <label class="small pill" style="display:none"><input type="checkbox" id="dbg" checked> Overlays</label>
-    <!-- Status removed here to avoid duplicate IDs; now shown near Process PDF -->
-    <!-- <span class="small" id="status" style="margin-left:auto">PDF not loaded</span> -->
-    
-    </div>
-   
-  </div>
+  <!-- Controls + Preview card removed -->
 </div>
 
 <div class="card" style="margin-top:16px">
   <div style="display:flex; align-items:center; justify-content:space-between;">
     <strong>All results</strong>
-    <button id="btnClearResults" class="small">Clear stored results</button>
+    <button id="btnClearResults" class="small" fdprocessedid="ekpe6i">Clear stored results</button>
   </div>
   <pre id="out" class="log" style="margin-top:8px"></pre>
-  <!-- Issues log -->
-  <div style="margin-top:10px"><strong>Issues</strong></div>
-  <pre id="issues" class="log" style="margin-top:6px"></pre>
+
 </div>
 
 <script>
@@ -1603,5 +1591,6 @@ if (btnPrint) btnPrint.onclick = () => {
   }
 };
 </script>
-</body>
-</html>
+
+
+<span id="PING_IFRAME_FORM_DETECTION" style="display: none;"></span></body></html>
