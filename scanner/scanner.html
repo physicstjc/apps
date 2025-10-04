@@ -1524,42 +1524,47 @@ if (btnDownloadAll) btnDownloadAll.onclick = () => {
 };
 
 // New function to download as ZIP
-async function createZipAndDownload() {
-  setStatus("Preparing download ZIP...");
-  const zip = new JSZip();
+function createZipAndDownload() {
+  return (async () => {
+    try {
+      setStatus("Preparing ZIP…");
 
-  // Add scanner.html
-  const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
-  zip.file("scanner.html", htmlContent);
+      const zip = new JSZip();
 
-  // Fetch studentlist.csv
-  let studentListContent = "ID,STUDENT,CLASS\n"; // Placeholder header
-  try {
-    const response = await fetch("studentlist.csv");
-    if (response.ok) {
-      studentListContent = await response.text();
-    } else {
-      console.warn("studentlist.csv not found or failed to fetch, using placeholder.");
+      // Include current scanner.html from the live DOM
+      const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      zip.file("scanner.html", htmlContent);
+
+      // Try to include studentlist.csv from the same directory
+      let csvContent = null;
+      try {
+        const res = await fetch("studentlist.csv", { cache: "no-cache" });
+        if (res.ok) csvContent = await res.text();
+      } catch (e) {
+        console.warn("Failed to fetch studentlist.csv:", e);
+      }
+      if (!csvContent) {
+        // Fallback: header-only CSV to avoid missing file
+        csvContent = "student_id,name\n";
+      }
+      zip.file("studentlist.csv", csvContent);
+
+      // Generate and trigger download
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "OMSScanner-local.zip";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setStatus("ZIP downloaded.");
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (err) {
+      console.error("ZIP generation failed:", err);
+      setStatus("Failed to prepare ZIP.");
     }
-  } catch (e) {
-    console.warn("Error fetching studentlist.csv, using placeholder:", e);
-  }
-  zip.file("studentlist.csv", studentListContent);
-
-  // Generate and download the ZIP
-  zip.generateAsync({ type: "blob" }).then(function(content) {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(content);
-    a.download = "oms_scanner_offline.zip";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-    setStatus("ZIP download complete.");
-  }).catch(e => {
-    console.error("Error generating ZIP:", e);
-    setStatus("Failed to create ZIP.");
-  });
+  })();
 }
 
 /* ===== DOM ready: hook minor UI ===== */
