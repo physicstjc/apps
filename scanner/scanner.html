@@ -36,6 +36,19 @@
   .link-pill:hover{border-color:#22d3ee;color:#67e8f9}
   textarea{width:100%;min-height:100px;background:#0a0f1e;color:#cbd5e1;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px}
 
+  /* Generic CTA highlight for any element */
+  .cta {
+    border-color: #22d3ee !important;
+    box-shadow: 0 0 0 2px rgba(34,211,238,.55), 0 0 14px rgba(34,211,238,.45);
+    position: relative;
+    animation: ctaPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes ctaPulse {
+    0%   { box-shadow: 0 0 0 2px rgba(34,211,238,.55), 0 0 6px rgba(34,211,238,.35); transform: scale(1.00); }
+    50%  { box-shadow: 0 0 0 2px rgba(34,211,238,.75), 0 0 16px rgba(34,211,238,.55); transform: scale(1.02); }
+    100% { box-shadow: 0 0 0 2px rgba(34,211,238,.55), 0 0 6px rgba(34,211,238,.35); transform: scale(1.00); }
+  }
+
   /* Print (A4) */
   @media print {
     @page { size: A4; margin: 12mm; }
@@ -86,6 +99,7 @@
       </label>
       <button id="btnSaveKey" fdprocessedid="v3q6at">Save answer key</button>
       <button id="btnClearKey" fdprocessedid="uw5uxk">Clear</button>
+      <button id="btnUploadCSV" class="small">Upload Student List</button>
       <span id="keyStatus" class="small" style="margin-left:auto">Not saved</span>
     </div>
 
@@ -105,7 +119,9 @@
     <!-- Moved controls: Process/CSV + Prev/Next + Page indicator -->
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
       <button id="btnProcess" class="primary" disabled="">Process PDF</button>
-      <button id="btnCSV" disabled="">Download CSV</button>
+      <button id="btnCSV" disabled="">Download Raw Data</button>
+      <!-- New: Upload student CSV -->
+
       <div style="margin-top:10px; flex-basis:100%">
       <button id="prevBtn" fdprocessedid="3r7lxq">⬅ Prev</button>
       <span class="small">Page <span id="pageNum">0</span> / <span id="pageCount">0</span></span>
@@ -384,6 +400,10 @@ if (btnProcessEl) btnProcessEl.onclick = ()=>processPDF();
 const btnCSVEl = document.getElementById("btnCSV");
 if (btnCSVEl) btnCSVEl.onclick = ()=>downloadCSV();
 
+// New: Upload student CSV button
+const btnUploadCSVEl = document.getElementById("btnUploadCSV");
+if (btnUploadCSVEl) btnUploadCSVEl.onclick = ()=>loadStudentList();
+
 // Add: ZIP download for local copy (scanner.html + studentlist.csv)
 const btnDownloadZipEl = document.getElementById("btnDownloadZip");
 if (btnDownloadZipEl) {
@@ -421,6 +441,8 @@ if (previewModeSel) {
   previewModeSel.value = "sheet";
   // Initialize panels visibility on load
   updateStudentArea();
+  // Initialize the CTA sequence on load
+  initCTASequence();
 }
 
 // New helper: toggle student area panels based on dropdown mode
@@ -1260,20 +1282,16 @@ function parseCSV(text) {
   return rows;
 }
 async function loadStudentList() {
-  try {
-    const res = await fetch("studentlist.csv");
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    const rows = parseCSV(text);
-    if (!rows.length) return;
-
+  // ... existing code ...
+  // Helper to ingest parsed CSV rows and populate studentMap
+  function ingestRows(rows) {
+    if (!rows || !rows.length) return;
     const header = rows[0].map(h => h.trim().toUpperCase());
     const idxID = header.indexOf("ID");
     const idxName = header.indexOf("STUDENT");
     const idxClass = header.indexOf("CLASS");
 
     studentMap = new Map();
-
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i];
       const id = (idxID >= 0 && cols[idxID] ? cols[idxID] : "").trim().toUpperCase();
@@ -1282,9 +1300,51 @@ async function loadStudentList() {
       const cls = (idxClass >= 0 && cols[idxClass] ? cols[idxClass] : "").trim();
       studentMap.set(id, { id, name, cls });
     }
-  } catch (err) {
-    console.warn("Student list not loaded:", err);
   }
+
+  // Default: prompt user to pick studentlist.csv via file chooser
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".csv,text/csv";
+  input.style.display = "none";
+  document.body.appendChild(input);
+
+  const cleanup = () => {
+    try { document.body.removeChild(input); } catch {}
+  };
+
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    if (!file) {
+      cleanup();
+      if (typeof setStatus === "function") setStatus("No file selected for student list.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        const rows = parseCSV(text);
+        ingestRows(rows);
+        if (typeof setStatus === "function") setStatus("Loaded studentlist.csv.");
+        if (typeof renderSummaryForPage === "function") renderSummaryForPage(currentPage);
+      } catch (e) {
+        console.error("Failed to parse selected student CSV:", e);
+        if (typeof setStatus === "function") setStatus("Failed to parse selected student list.");
+      } finally {
+        cleanup();
+      }
+    };
+    reader.onerror = () => {
+      console.error("Failed to read selected student CSV:", reader.error);
+      cleanup();
+      if (typeof setStatus === "function") setStatus("Failed to read selected student list.");
+    };
+    reader.readAsText(file);
+  }, { once: true });
+
+  // Trigger the file picker
+  input.click();
 }
 
 /* ===== Summary & Reports ===== */
@@ -1648,6 +1708,63 @@ function createZipAndDownload() {
       setStatus("Failed to prepare ZIP.");
     }
   })();
+}
+
+// Inside the main <script> tag
+function initCTASequence() {
+  // Remove any existing CTA highlights to enforce this sequence
+  ["ansPaste","btnSaveKey","btnUploadCSV","btnPickPDF","btnProcess"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove("cta");
+  });
+
+  const ans = document.getElementById("ansPaste");
+  const saveBtn = document.getElementById("btnSaveKey");
+  const uploadBtn = document.getElementById("btnUploadCSV");
+  const pickPdfBtn = document.getElementById("btnPickPDF");
+  const processBtn = document.getElementById("btnProcess");
+  const fileInput = document.getElementById("file");
+  const dropEl = document.getElementById("drop");
+  if (!ans || !saveBtn || !uploadBtn || !pickPdfBtn || !processBtn) return;
+
+  // Helper: transition highlight to Process PDF, keep until clicked
+  const highlightProcessUntilClicked = () => {
+    if (pickPdfBtn) pickPdfBtn.classList.remove("cta");
+    processBtn.classList.add("cta");
+    processBtn.addEventListener("click", () => {
+      processBtn.classList.remove("cta");
+    }, { once: true });
+  };
+
+  // Step 1: highlight textarea + Save button
+  ans.classList.add("cta");
+  saveBtn.classList.add("cta");
+
+  // After Save is clicked, move highlight to Upload Student List
+  saveBtn.addEventListener("click", () => {
+    ans.classList.remove("cta");
+    saveBtn.classList.remove("cta");
+    uploadBtn.classList.add("cta");
+
+    // After Upload Student List is clicked, highlight Choose PDF…
+    uploadBtn.addEventListener("click", () => {
+      uploadBtn.classList.remove("cta");
+      pickPdfBtn.classList.add("cta");
+
+      // When a PDF is selected via file chooser, switch to Process PDF
+      if (fileInput) {
+        fileInput.addEventListener("change", () => {
+          highlightProcessUntilClicked();
+        }, { once: true });
+      }
+      // Also support drag-and-drop upload
+      if (dropEl) {
+        dropEl.addEventListener("drop", () => {
+          highlightProcessUntilClicked();
+        }, { once: true });
+      }
+    }, { once: true });
+  }, { once: true });
 }
 
 /* ===== DOM ready: hook minor UI ===== */
