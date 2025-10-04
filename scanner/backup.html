@@ -9,8 +9,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- OpenCV.js -->
 <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-<!-- Add: JSZip for ZIP creation -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <style>
   :root{--muted:#94a3b8}
@@ -18,8 +16,8 @@
   h1{margin:0 0 10px;font-size:20px}
   .row{display:flex;gap:12px;flex-wrap:wrap}
   .card{background:#0e152b;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
-  .drop{display:grid;place-items:center;min-height:120px;border:2px dashed rgba(34,211,238,.5);border-radius:12px;cursor:pointer;background:rgba(34,211,238,.12)}
-  .drop.dragover{border-color:#22d3ee;background:rgba(34,211,238,.22)}
+  .drop{display:grid;place-items:center;min-height:120px;border:2px dashed rgba(255,255,255,.25);border-radius:12px;cursor:pointer}
+  .drop.dragover{border-color:#22d3ee;background:rgba(34,211,238,.06)}
   .small{font-size:12px;color:var(--muted)}
   button{border:1px solid rgba(255,255,255,.2);background:#111827;color:#e5e7eb;border-radius:8px;padding:7px 12px;cursor:pointer}
   button.primary{background:linear-gradient(180deg,#1f2937,#0e152b)}
@@ -69,7 +67,7 @@
 </head>
 <body>
 <h1>Optical Mark Sheet Scanner</h1>
-<a href="#" id="btnDownloadZip" class="link-pill" title="Download local copy (ZIP)">⬇ Download local copy</a>
+<a href="scanner.html" download class="link-pill" title="Save this page to run offline">⬇ Download local copy</a>
 <span class="small">(offline use avoids upload restrictions)</span>
 
 <div class="row">
@@ -102,8 +100,6 @@
       <button id="prevBtn">⬅ Prev</button>
       <span class="small">Page <span id="pageNum">0</span> / <span id="pageCount">0</span></span>
       <button id="nextBtn">Next ➡</button>
-      <!-- Status moved here, near Process PDF -->
-      <span class="small" id="status" style="margin-left:8px">PDF not loaded</span>
       <!-- MCQs to record moved up -->
       <label class="small pill">MCQs to record
         <input id="mcqCount" type="number" value="30" min="1" max="45" style="width:64px;margin-left:6px">
@@ -117,6 +113,7 @@
       <strong>Results</strong>
       <span class="small">format: <code>filename;X;X;X;X;A;A;... (N answers; multi like A+B)</code></span>
     </div>
+    <pre id="out" class="log" style="margin-top:8px"></pre>
     <div id="dlRow" style="margin-top:6px"></div>
 
     <div style="margin-top:10px">
@@ -133,27 +130,7 @@
       <pre id="summary" class="log" style="margin-top:6px"></pre>
     </div>
 
-    <!-- Student preview area — insert dropdown + two panels -->
-    <div id="studentArea">
-      <div class="student-area-toolbar" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-        <label for="previewMode" style="font-weight:600;">View:</label>
-        <select id="previewMode">
-          <option value="sheet" selected>Scanned sheet</option>
-          <option value="summary">Student summary</option>
-          <option value="analysis">Item analysis (PDF)</option>
-        </select>
-      </div>
-
-      <!-- Student summary panel (existing content) -->
-      <div id="studentSummaryPanel">
-        <div id="reportPreview" class="report-preview"></div>
-      </div>
-
-      <!-- Scanned sheet panel (new canvas, hidden by default) -->
-      <div id="studentSheetPanel" style="display:none">
-        <canvas id="studentSheetCanvas" style="max-width:100%; width:100%; height:auto;"></canvas>
-      </div>
-    </div>
+    <div id="reportPreview" class="report-preview"></div>
     <div id="printArea" class="print-sheet"></div>
   </div>
 
@@ -166,24 +143,18 @@
     </label>
     <!-- Overlays removed from UI (hidden to avoid breaking code) -->
     <label class="small pill" style="display:none"><input type="checkbox" id="dbg" checked> Overlays</label>
-    <!-- Status removed here to avoid duplicate IDs; now shown near Process PDF -->
-    <!-- <span class="small" id="status" style="margin-left:auto">PDF not loaded</span> -->
-    
+    <!-- MCQs to record moved up: removed here to prevent duplicate IDs -->
+    <span class="small" id="status" style="margin-left:auto">PDF not loaded</span>
     </div>
+<div class="viewer-large">
+  <h2>Scanned sheet preview</h2>
+  <canvas id="previewLarge"></canvas>
+</div>
    
   </div>
 </div>
 
-<div class="card" style="margin-top:16px">
-  <div style="display:flex; align-items:center; justify-content:space-between;">
-    <strong>All results</strong>
-    <button id="btnClearResults" class="small">Clear stored results</button>
-  </div>
-  <pre id="out" class="log" style="margin-top:8px"></pre>
-  <!-- Issues log -->
-  <div style="margin-top:10px"><strong>Issues</strong></div>
-  <pre id="issues" class="log" style="margin-top:6px"></pre>
-</div>
+
 
 <script>
 /* ===== PDF.js worker ===== */
@@ -246,80 +217,6 @@ let pageSummaries = [];          // per-page summary meta
 let idOverrides = new Map();     // per-page ID overrides
 let savedAnswerKey = null;       // saved/confirmed answer key (array of letters)
 
-// Track issues across runs and detect duplicate IDs across pages/PDFs
-let issues = [];
-const seenStudentIds = new Set();
-
-// Cache all loaded PDFs and page canvases
-const docs = []; // [{ pdf, numPages, baseOffset, fileName }]
-let totalPages = 0;
-const pageCanvases = []; // global page index => Canvas
-
-// Map a global page index to its document and local page number
-function globalIndexToDocPage(idx) {
-  let remaining = idx;
-  for (let i = 0; i < docs.length; i++) {
-    const d = docs[i];
-    if (remaining <= d.numPages) {
-      return { docIndex: i, pageInDoc: remaining, entry: d };
-    }
-    remaining -= d.numPages;
-  }
-  return null;
-}
-
-// Render a specific page from a specific doc (used during processing)
-async function renderDocPageCanvas(pdfDoc, pageNumberInDoc, scale = Math.max(2.8, 2.0 * devicePixelRatio)) {
-  const page = await pdfDoc.getPage(pageNumberInDoc);
-  const vp = page.getViewport({ scale });
-  const c = document.createElement("canvas");
-  c.width = vp.width;
-  c.height = vp.height;
-  await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
-  return c;
-}
-
-// Get or build the canvas for a global page index (used for previews)
-async function getCanvasForGlobalPage(globalIndex, scale = 1.2) {
-  if (pageCanvases[globalIndex]) return pageCanvases[globalIndex];
-  const map = globalIndexToDocPage(globalIndex);
-  if (!map) return null;
-  const { entry, pageInDoc } = map;
-  const page = await entry.pdf.getPage(pageInDoc);
-  const vp = page.getViewport({ scale });
-  const c = document.createElement("canvas");
-  c.width = vp.width;
-  c.height = vp.height;
-  await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
-  pageCanvases[globalIndex] = c;
-  return c;
-}
-
-/* ===== Persistence for "All results" ===== */
-const LS_RESULTS_KEY = "oms.results";
-function loadStoredResults() {
-  try {
-    const raw = localStorage.getItem(LS_RESULTS_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(arr)) {
-      results = arr;
-      outEl.textContent = results.join("\n");
-      const btnCSVEl = document.getElementById("btnCSV");
-      if (btnCSVEl) btnCSVEl.disabled = results.length === 0;
-    }
-  } catch (e) {
-    console.warn("Failed to load stored results:", e);
-    results = [];
-  }
-}
-function saveStoredResults() {
-  try {
-    localStorage.setItem(LS_RESULTS_KEY, JSON.stringify(results));
-  } catch (e) {
-    console.warn("Failed to save stored results:", e);
-  }
-}
-
 /* ===== UI wiring ===== */
 function setStatus(s){ statusEl.textContent = s; }
 $("#file").addEventListener("change", e => { const f=e.target.files?.[0]; if(f){ loadedFileName=f.name; loadPDF(f);} });
@@ -328,145 +225,51 @@ $("#file").addEventListener("change", e => { const f=e.target.files?.[0]; if(f){
 $("#drop").addEventListener("drop", e=>{
   const f=e.dataTransfer?.files?.[0]; if(f){ loadedFileName=f.name; loadPDF(f); }
 });
-const prevBtnEl = document.getElementById("prevBtn");
-if (prevBtnEl) prevBtnEl.onclick = ()=>{ if(PDF && currentPage>1){ currentPage--; renderPreview(); } };
-const nextBtnEl = document.getElementById("nextBtn");
-if (nextBtnEl) nextBtnEl.onclick = ()=>{ if(currentPage < totalPages){ currentPage++; renderPreview(); } };
-const btnProcessEl = document.getElementById("btnProcess");
-if (btnProcessEl) btnProcessEl.onclick = ()=>processPDF();
-const btnCSVEl = document.getElementById("btnCSV");
-if (btnCSVEl) btnCSVEl.onclick = ()=>downloadCSV();
-
-// Add: ZIP download for local copy (scanner.html + studentlist.csv)
-const btnDownloadZipEl = document.getElementById("btnDownloadZip");
-if (btnDownloadZipEl) {
-  btnDownloadZipEl.addEventListener("click", async (e) => {
-    e.preventDefault();
-    await createZipAndDownload();
-  });
-}
-
-// Load any stored results on startup
-loadStoredResults();
-
-// Clear stored results button
-const btnClearResults = document.getElementById("btnClearResults");
-if (btnClearResults) {
-  btnClearResults.onclick = () => {
-    try { localStorage.removeItem(LS_RESULTS_KEY); } catch {}
-    results = [];
-    outEl.textContent = "";
-    if (btnCSVEl) btnCSVEl.disabled = true;
-    // Clear issues and seen IDs
-    issues = [];
-    seenStudentIds.clear();
-    const issuesEl = document.getElementById("issues");
-    if (issuesEl) issuesEl.textContent = "";
-    setStatus("Cleared stored results.");
-  };
-}
-
-// Add: dropdown wiring to toggle student area
-const previewModeSel = document.getElementById("previewMode");
-if (previewModeSel) {
-  previewModeSel.onchange = () => updateStudentArea();
-  // Default to scanned sheet on load
-  previewModeSel.value = "sheet";
-  // Initialize panels visibility on load
-  updateStudentArea();
-}
-
-// New helper: toggle student area panels based on dropdown mode
-function updateStudentArea(){
-  const mode = document.getElementById("previewMode")?.value || "summary";
-  const summaryPanel = document.getElementById("studentSummaryPanel");
-  const sheetPanel = document.getElementById("studentSheetPanel");
-
-  if (summaryPanel && sheetPanel) {
-    if (mode === "sheet") {
-      summaryPanel.style.display = "none";
-      sheetPanel.style.display = "";
-      // If a PDF is loaded, ensure the scanned sheet is shown
-      if (typeof PDF !== "undefined" && PDF) {
-        renderPreview();
-      }
-    } else if (mode === "summary") {
-      sheetPanel.style.display = "none";
-      summaryPanel.style.display = "";
-      if (typeof renderCurrentReportPreview === "function") {
-        renderCurrentReportPreview(currentPage);
-      }
-    } else if (mode === "analysis") {
-      // Hide both in-panel views and open item analysis preview
-      sheetPanel.style.display = "none";
-      summaryPanel.style.display = "none";
-      openItemAnalysisPreview();
-    }
-  }
-}
+$("#prevBtn").onclick=()=>{ if(PDF && currentPage>1){ currentPage--; renderPreview(); } };
+$("#nextBtn").onclick=()=>{ if(PDF && currentPage<PDF.numPages){ currentPage++; renderPreview(); } };
+$("#btnProcess").onclick=()=>processPDF();
+$("#btnCSV").onclick=()=>downloadCSV();
 
 /* ===== PDF helpers ===== */
 async function loadPDF(file){
   try{
     setStatus("Loading PDF…");
     const buf=await file.arrayBuffer();
-    const newDoc = await pdfjsLib.getDocument({data:buf}).promise;
-    PDF = newDoc; // keep latest doc available for processing
-    const numPages = newDoc.numPages;
-
-    // Register this doc and increase combined page count
-    const baseOffset = totalPages;
-    docs.push({ pdf: newDoc, numPages, baseOffset, fileName: loadedFileName || "pages" });
-    totalPages += numPages;
-
-    const btnProcessEl = document.getElementById("btnProcess");
-    if (btnProcessEl) btnProcessEl.disabled=false;
-
-    // Show combined page count; jump to the first page of the newly added doc
-    const pageCountEl = document.getElementById("pageCount");
-    if (pageCountEl) pageCountEl.textContent = totalPages;
-    currentPage = baseOffset + 1;
-
-    await renderPreview();
+    PDF=await pdfjsLib.getDocument({data:buf}).promise;
+    $("#btnProcess").disabled=false;
+    $("#pageCount").textContent=PDF.numPages;
+    currentPage=1; await renderPreview();
     setStatus("Loaded. Ready.");
   }catch(e){ console.error(e); setStatus("Failed to load PDF."); }
 }
 async function renderPreview(){
-  if(totalPages === 0) return;
+  if(!PDF) return;
+  const page = await PDF.getPage(currentPage);
+  const vp = page.getViewport({ scale: 0.5 }); // smaller preview
 
-  const mode = document.getElementById("previewMode")?.value || "summary";
-
-  if (mode === "sheet") {
-    const sheetCanvas = document.getElementById("studentSheetCanvas");
-    if (!sheetCanvas) {
-      console.warn("Student sheet canvas #studentSheetCanvas not found — skipping render.");
-    } else {
-      const srcCanvas = await getCanvasForGlobalPage(currentPage);
-      if (srcCanvas) {
-        sheetCanvas.width = srcCanvas.width;
-        sheetCanvas.height = srcCanvas.height;
-        const ctx = sheetCanvas.getContext("2d");
-        ctx.clearRect(0, 0, sheetCanvas.width, sheetCanvas.height);
-        ctx.drawImage(srcCanvas, 0, 0);
-      }
-    }
-  } else if (mode === "summary") {
-    if (typeof renderCurrentReportPreview === "function") {
-      renderCurrentReportPreview(currentPage);
-    }
-  } else {
-    // analysis: nothing to render inside the student area
+  // Guard: fetch the canvas and skip if not present
+  const previewEl = document.getElementById("preview");
+  if (!previewEl) {
+    console.warn("Preview canvas #preview not found — skipping render.");
+    return;
   }
 
-  // Update page indicator against combined total
-  const pageNumEl = document.getElementById("pageNum");
-  if (pageNumEl) pageNumEl.textContent = currentPage;
-  const pageCountEl = document.getElementById("pageCount");
-  if (pageCountEl) pageCountEl.textContent = totalPages;
+  previewEl.width = vp.width; previewEl.height = vp.height;
+  await page.render({ canvasContext: previewEl.getContext("2d"), viewport: vp }).promise;
 
-  if (typeof renderSummaryForPage === "function") {
-    renderSummaryForPage(currentPage);
+  // Larger bottom preview
+  const largeCanvas = document.getElementById("previewLarge");
+  if (largeCanvas) {
+    const vpLarge = page.getViewport({ scale: 1.2 }); // bigger preview at the bottom
+    largeCanvas.width = vpLarge.width; largeCanvas.height = vpLarge.height;
+    await page.render({ canvasContext: largeCanvas.getContext("2d"), viewport: vpLarge }).promise;
   }
+
+  $("#pageNum").textContent=currentPage;
+  // Show summary for the current page
+  renderSummaryForPage(currentPage);
+  // Also update the current student's preview
+  renderCurrentReportPreview(currentPage);
 }
 async function renderPageCanvas(n, scale=Math.max(2.8, 2.0*devicePixelRatio)){
   const page=await PDF.getPage(n);
@@ -824,46 +627,35 @@ function overlayGhost(previewCanvas, warped, packs, invH, srcW, srcH){
     ctx.restore();
   }
 }
+
+/* ===== Pipeline ===== */
 async function processPDF(){
-  // ... existing code ...
   if(!PDF){ setStatus("Load a PDF first"); return; }
   if(!cvReady){ setStatus("Loading OpenCV…"); return; }
 
   $("#btnProcess").disabled=true; $("#btnCSV").disabled=true;
-
-  // Find the most recently loaded doc
-  const docEntry = docs[docs.length - 1];
-  if (!docEntry) { setStatus("Load a PDF first"); $("#btnProcess").disabled=false; return; }
-
-  const newResults = [];
-  outEl.textContent="";
+  results=[]; outEl.textContent="";
 
   const thrMul = Math.max(0.2, Math.min(3.0, parseFloat(document.getElementById("thrMul")?.value || "1.0")));
   const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
   const answerKey = getAnswerKey();
 
-  for(let p=1;p<=docEntry.numPages;p++){
-    setStatus(`Processing page ${p}/${docEntry.numPages}…`);
-
-    // Render the original page canvas and cache under global index
-    const pageCanvas = await renderDocPageCanvas(docEntry.pdf, p);
-    const globalIndex = docEntry.baseOffset + p;
-    pageCanvases[globalIndex] = pageCanvas;
-
-    // Continue with processing pipeline
+  for(let p=1;p<=PDF.numPages;p++){
+    setStatus(`Processing page ${p}/${PDF.numPages}…`);
+    const pageCanvas=await renderPageCanvas(p);
     let src=canvasToMat(pageCanvas);
     const { warped, invH, srcW, srcH } = edgeFitWarp(src);
     src.delete();
 
     const overlayPacks=[];
-    // INSERT: build indexChars and answers for this page
+
     // ---------- INDEX ----------
     const idxImg = warpRegion(warped, TEMPLATE.index.corners, TEMPLATE.outIndexW, TEMPLATE.outIndexH);
     const idxCrop = cropInside(idxImg);
     const idxBin  = binarize(idxCrop);
 
     const rInIdx  = Math.max(2, Math.round((idxCrop.rows/(TEMPLATE.index.rows*2))*TEMPLATE.index.innerR));
-    // Index centres (uniform grid within cropped region)
+    // Index centres (uniform grid)
     const cIdx = TEMPLATE.crop;
     const idxRowCentersPx = Array.from({length: TEMPLATE.index.rows}, (_, i) =>
       Math.round((cIdx.top + ((i + 0.5) / TEMPLATE.index.rows) * (1 - cIdx.top - cIdx.bottom)) * idxCrop.rows)
@@ -940,65 +732,20 @@ async function processPDF(){
 
       roi.delete(); crop.delete(); bin0.delete(); bin.delete();
     }
-    // END INSERT
 
     while (answers.length < mcqCount) answers.push("");
     const finalAnswers=answers.slice(0, mcqCount);
 
-    const base = (docEntry.fileName||"pages").replace(/\.[^.]+$/,"");
+    const base = (loadedFileName||"pages").replace(/\.[^.]+$/,"");
     const indexOut = indexChars.slice(0, TEMPLATE.index.rows);
     const line=[`${base}_p${String(p).padStart(2,"0")}`, ...indexOut, ...finalAnswers].join(";");
-    newResults.push(line);
+    results.push(line);
 
+    // ID heuristic from index (chars 2..5 if available; else all)
     const indexStrFull = indexChars.join("");
     const idFromSheet = indexStrFull.length >= 5 ? indexStrFull.slice(1, 5) : indexStrFull;
 
-    // ===== Build issues for this page =====
-    (function buildIssuesForPage(){
-      const messages = [];
-
-      // Missing and multiple answers
-      const missingQs = [];
-      const multipleQs = []; // store as 'Qn(picks)'
-      for (let i = 0; i < mcqCount; i++) {
-        const ans = (finalAnswers[i] || "").trim();
-        if (!ans) missingQs.push(i + 1);
-        else if (ans.includes("+")) multipleQs.push(`Q${i + 1}(${ans})`);
-      }
-      if (missingQs.length) {
-        messages.push(`Missing answers: ${missingQs.map(q => `Q${q}`).join(", ")}`);
-      }
-      if (multipleQs.length) {
-        messages.push(`Multiple answers: ${multipleQs.join(", ")}`);
-      }
-
-      // Resolve student ID: prefer override for this local page number 'p'
-      const override = idOverrides.get(p);
-      const studentIdCandidate = (override && override.length > 0)
-        ? override.trim().toUpperCase()
-        : (idFromSheet || "").toUpperCase();
-
-      if (!studentIdCandidate) {
-        messages.push("Student ID not found (empty index)");
-      } else {
-        if (!studentMap.has(studentIdCandidate)) {
-          messages.push(`Student ID not found in list: ${studentIdCandidate}`);
-        }
-        if (seenStudentIds.has(studentIdCandidate)) {
-          messages.push(`Duplicated student ID: ${studentIdCandidate}`);
-        } else {
-          seenStudentIds.add(studentIdCandidate);
-        }
-      }
-
-      // Append issues line for this page if any
-      if (messages.length) {
-        const pageTag = `${base}_p${String(p).padStart(2,"0")}`;
-        issues.push(`${pageTag}: ${messages.join("; ")}`);
-      }
-    })();
-    // ===== End issues for this page =====
-
+    // Page score vs key
     let denom = 0, marks = 0;
     const symbols = [];
     for (let i = 0; i < mcqCount; i++) {
@@ -1019,11 +766,10 @@ async function processPDF(){
     const pct = denom > 0 ? ((marks / denom) * 100).toFixed(1) : "N/A";
     const pageTag = `${base}_p${String(p).padStart(2,"0")}`;
 
-    // Save summary keyed by global page index
-    pageSummaries[globalIndex] = { pageTag, idFromSheet, marks, denom, pct, symbols, finalAnswers };
+    pageSummaries[p] = { pageTag, idFromSheet, marks, denom, pct, symbols, finalAnswers };
 
-    // Optional: overlay preview for the page if it’s the current global page
-    if (globalIndex === currentPage) {
+    // Optional: draw overlay preview for this page if it's the current page
+    if (p === currentPage) {
       const previewEl = document.getElementById("preview");
       if (previewEl) overlayGhost(previewEl, warped, overlayPacks, invH, srcW, srcH);
     }
@@ -1032,21 +778,14 @@ async function processPDF(){
     warped.delete();
   }
 
-  // Merge and persist
-  results = results.concat(newResults);
   outEl.textContent=results.join("\n");
-  saveStoredResults();
-
-  // Update issues panel
-  const issuesEl = document.getElementById("issues");
-  if (issuesEl) issuesEl.textContent = issues.join("\n");
 
   renderSummaryForPage(currentPage);
   renderCurrentReportPreview(currentPage);
 
   $("#btnCSV").disabled = results.length===0;
   $("#btnProcess").disabled=false;
-  setStatus(`Done. Parsed ${newResults.length} page(s).`);
+  setStatus(`Done. Parsed ${results.length} page(s).`);
 }
 
 /* ===== CSV ===== */
@@ -1374,139 +1113,6 @@ function buildAllReportsHTMLDoc(){
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${styles}</head><body>${pages.join("")}${autoPrint}</body></html>`;
 }
 
-function buildItemAnalysisHTMLDoc(){
-  // Determine MCQ count (prefer input field, fallback to answer key length)
-  const nFromInput = parseInt(document.getElementById("mcqCount")?.value || "0", 10);
-  const nFromKey = Array.isArray(savedAnswerKey) ? savedAnswerKey.length : 0;
-  const N = nFromInput || nFromKey;
-
-  const ABCD_LOCAL = ["A","B","C","D"];
-  if (!N) {
-    return `<!DOCTYPE html><html><body><h1>Item Analysis</h1><p>No MCQ count or answer key available.</p></body></html>`;
-  }
-
-  const dist = Array.from({length:N}, ()=>({total:0, A:0,B:0,C:0,D:0, missing:0, correct:0, key:null}));
-  if (Array.isArray(savedAnswerKey)) {
-    for (let i=0;i<N;i++) dist[i].key = savedAnswerKey[i] || "";
-  }
-
-  // Parse results lines. Format note in UI: filename;X;X;X;X;A;A;... (N answers; multi like A+B)
-  if (Array.isArray(results)) {
-    results.forEach(line=>{
-      const tok = String(line).split(";");
-      // The number of index columns is TEMPLATE.index.rows, which is 4.
-      // So answers start from index 1 (filename) + 4 (index chars) = 5.
-      // We need at least 5 + N tokens.
-      if (tok.length < 5 + N) return;
-      const answers = tok.slice(tok.length - N); // Get the last N tokens as answers
-      for (let i=0;i<N;i++){
-        const t = (answers[i] || "").trim();
-        if (!t || t === "X") { dist[i].missing++; continue; }
-
-        // Multi-select support: "A+B"
-        const letters = t.split("+").map(s=>s.trim()).filter(c=>ABCD_LOCAL.includes(c));
-        if (letters.length === 0) { dist[i].missing++; continue; }
-
-        dist[i].total++;
-        letters.forEach(c => { dist[i][c]++; });
-
-        // Correctness if key present (supports multi like "A+B")
-        const keyStr = String(dist[i].key || "");
-        if (keyStr) {
-          const keyLetters = keyStr.split("+").map(s=>s.trim()).filter(c=>ABCD_LOCAL.includes(c));
-          const setAns = new Set(letters), setKey = new Set(keyLetters);
-          if (setAns.size === setKey.size && [...setAns].every(c => setKey.has(c))) {
-            dist[i].correct++;
-          }
-        }
-      }
-    });
-  }
-
-  // ===== Heatmap helpers (per-option: green for correct option, red for wrong option) =====
-    function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-    function alphaForPercent(p){ return clamp01(p/100) * 0.75; } // up to 0.75 opacity for readability
-    function greenBg(percent){ return `rgba(34,197,94,${alphaForPercent(percent)})`; }  // green (correct option)
-    function redBg(percent){ return `rgba(239,68,68,${alphaForPercent(percent)})`; }    // red (wrong option)
-  const rowsHtml = dist.map((d, idx)=>{
-    const answered = d.A + d.B + d.C + d.D;
-    const totalConsidered = answered;
-    const keyStr = String(d.key || "");
-    const keyLetters = keyStr ? keyStr.split("+").map(s=>s.trim()).filter(c=>["A","B","C","D"].includes(c)) : [];
-    const corrRate = totalConsidered ? Math.round(100 * d.correct / totalConsidered) : 0;
-    const correctCount = d.correct || 0;
-
-    // Per-option cells: show "count (percent%)", color-coded based on correctness
-    function optionCell(letter){
-      const count = d[letter] || 0;
-      const pct = totalConsidered ? Math.round(100 * count / totalConsidered) : 0;
-      const isCorrectOption = keyLetters.includes(letter);
-      const bg = isCorrectOption ? greenBg(pct) : redBg(pct);
-      const title = `${count} picked (${pct}%)`;
-      return `<td class="heat" title="${title}" style="background-color:${bg}">${count} (${pct}%)</td>`;
-    }
-
-    return `<tr>
-      <td>${idx+1}</td>
-      <td style="text-align:center;font-weight:600">${keyStr}</td>
-      ${optionCell("A")}
-      ${optionCell("B")}
-      ${optionCell("C")}
-      ${optionCell("D")}
-      <td class="pct" title="${correctCount} correct (${corrRate}%)">${correctCount} (${corrRate}%)</td>
-    </tr>`;
-  }).join("");
-
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Item Analysis</title>
-    <style>
-      :root { color-scheme: light; }
-      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:16px}
-      h1{font-size:18px;margin:0 0 10px}
-      .small{color:#555;margin-bottom:10px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #ccc;padding:6px;text-align:right}
-      th:nth-child(1),td:nth-child(1){text-align:left}
-      th:nth-child(2),td:nth-child(2){text-align:center}
-      td.heat{transition:background-color .2s}
-      td.pct{font-weight:600}
-      .legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:8px 0 12px}
-      .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#444}
-      .swatch{width:100px;height:14px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.08) inset}
-      .swatch.wrong{background:linear-gradient(90deg, rgba(239,68,68,.1), rgba(239,68,68,.75))}
-      .swatch.correct{background:linear-gradient(90deg, rgba(34,197,94,.1), rgba(34,197,94,.75))}
-      @media print {
-        @page{ size: A4; margin: 12mm; }
-        body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      }
-    </style></head>
-    <body>
-      <h1>Item Analysis</h1>
-      <div class="small">Questions: ${N}; Students: ${Array.isArray(results) ? results.length : 0}</div>
-      <div class="legend">
-        <div class="legend-item"><div class="swatch correct"></div><span>Greener option cell = correct option picked more</span></div>
-        <div class="legend-item"><div class="swatch wrong"></div><span>Redder option cell = wrong option picked more</span></div>
-      </div>
-      <table>
-          <thead>
-            <tr><th>Q#</th><th>Key</th><th>A</th><th>B</th><th>C</th><th>D</th><th>Correct%</th></tr>
-          </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </body></html>`;
-  return html;}
-
-
-function openItemAnalysisPreview(){
-  if (!Array.isArray(results) || results.length === 0) {
-    alert("No results available yet. Process the PDF first.");
-    return;
-  }
-  const html = buildItemAnalysisHTMLDoc();
-  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-  window.open(url, "_blank");
-}
-
 /* ===== Buttons for reports ===== */
 const btnOpenPDF = document.getElementById("btnOpenPDF");
 if (btnOpenPDF) btnOpenPDF.onclick = () => {
@@ -1522,45 +1128,6 @@ if (btnDownloadAll) btnDownloadAll.onclick = () => {
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
 };
-
-// New function to download as ZIP
-async function createZipAndDownload() {
-  setStatus("Preparing download ZIP...");
-  const zip = new JSZip();
-
-  // Add scanner.html
-  const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
-  zip.file("scanner.html", htmlContent);
-
-  // Fetch studentlist.csv
-  let studentListContent = "ID,STUDENT,CLASS\n"; // Placeholder header
-  try {
-    const response = await fetch("studentlist.csv");
-    if (response.ok) {
-      studentListContent = await response.text();
-    } else {
-      console.warn("studentlist.csv not found or failed to fetch, using placeholder.");
-    }
-  } catch (e) {
-    console.warn("Error fetching studentlist.csv, using placeholder:", e);
-  }
-  zip.file("studentlist.csv", studentListContent);
-
-  // Generate and download the ZIP
-  zip.generateAsync({ type: "blob" }).then(function(content) {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(content);
-    a.download = "oms_scanner_offline.zip";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-    setStatus("ZIP download complete.");
-  }).catch(e => {
-    console.error("Error generating ZIP:", e);
-    setStatus("Failed to create ZIP.");
-  });
-}
 
 /* ===== DOM ready: hook minor UI ===== */
 document.addEventListener("DOMContentLoaded", () => {
@@ -1581,8 +1148,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnClear) btnClear.addEventListener("click", clearAnswerKey);
 
   loadStudentList();
-
-
 });
 
 /* ===== SAFETY: only bind if present (prevents load-time crash) ===== */
