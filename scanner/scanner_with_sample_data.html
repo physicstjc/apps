@@ -1,0 +1,2317 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMS Reader</title>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- OpenCV.js -->
+<script async="" src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+
+<style>
+  :root{--muted:#94a3b8}
+  body{margin:0;padding:16px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b0f1e;color:#e5e7eb}
+  h1{margin:0 0 10px;font-size:20px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .card{background:#0e152b;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+  .drop{display:grid;place-items:center;min-height:120px;border:2px dashed rgba(34,211,238,.5);border-radius:12px;cursor:pointer;background:rgba(34,211,238,.12)}
+  .drop.dragover{border-color:#22d3ee;background:rgba(34,211,238,.22)}
+  .small{font-size:12px;color:var(--muted)}
+  button{border:1px solid rgba(255,255,255,.2);background:#111827;color:#e5e7eb;border-radius:8px;padding:7px 12px;cursor:pointer}
+  button.primary{background:linear-gradient(180deg,#1f2937,#0e152b)}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  .viewer{margin-top:10px;display:flex;flex-direction:column;align-items:center}
+  #preview{max-width:95%;height:auto;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:#050814}
+  .viewer-large{margin-top:10px;display:flex;flex-direction:column;align-items:center}
+  #previewLarge{max-width:100%;height:auto;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:#050814}
+  .nav{margin-top:6px;display:flex;gap:10px;align-items:center}
+  pre.log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;margin:0;max-height:380px;overflow:auto}
+  label{user-select:none}
+  .pill{padding:3px 8px;border:1px solid rgba(255,255,255,.15);border-radius:999px}
+  code{color:#cbd5e1}
+  .link-pill{display:inline-block;padding:6px 10px;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:#111827;color:#22d3ee;text-decoration:none}
+  .link-pill:hover{border-color:#22d3ee;color:#67e8f9}
+  textarea{width:100%;min-height:100px;background:#0a0f1e;color:#cbd5e1;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px}
+
+  /* Generic CTA highlight for any element */
+  .cta {
+    border-color: #22d3ee !important;
+    box-shadow: 0 0 0 2px rgba(34,211,238,.55), 0 0 14px rgba(34,211,238,.45);
+    position: relative;
+    animation: ctaPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes ctaPulse {
+    0%   { box-shadow: 0 0 0 2px rgba(34,211,238,.55), 0 0 6px rgba(34,211,238,.35); transform: scale(1.00); }
+    50%  { box-shadow: 0 0 0 2px rgba(34,211,238,.75), 0 0 16px rgba(34,211,238,.55); transform: scale(1.02); }
+    100% { box-shadow: 0 0 0 2px rgba(34,211,238,.55), 0 0 6px rgba(34,211,238,.35); transform: scale(1.00); }
+  }
+
+  /* Print (A4) */
+  @media print {
+    @page { size: A4; margin: 12mm; }
+    body { background: #fff; color: #000; }
+    .row, .viewer, #out, #status, #keyStatus, #reportPreview { display: none !important; }
+    #printArea { display: block !important; }
+    .print-sheet { display: block !important; }
+  }
+  .print-sheet { display: none; background: #fff; color: #000; }
+  .print-sheet .header { font-size: 14px; margin-bottom: 8px; }
+  .print-sheet .sub { color: #444; font-size: 12px; margin-top: 2px; }
+  .print-sheet h2 { margin: 0 0 8px; font-size: 16px; color: #111; }
+  .print-sheet table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .print-sheet th, .print-sheet td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+  .print-sheet th { background: #f2f2f2; }
+  .print-sheet .ok { color: #16a34a; font-weight: 600; }
+  .print-sheet .bad { color: #dc2626; font-weight: 600; }
+
+  /* On-screen multi-page preview shells */
+  .report-preview { margin-top: 10px; max-height: 60vh; overflow: auto; padding: 8px; background: #0b0f1e; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; }
+  .report-page { width: 210mm; min-height: 297mm; background: #fff; color: #000; margin: 10px auto; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 6px 18px rgba(0,0,0,.3); padding: 12mm; }
+  .report-page h2 { margin: 0 0 8px; font-size: 16px; color: #111; }
+  .report-page .sub { color: #444; font-size: 12px; margin: 2px 0 8px; }
+  .report-page table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .report-page th, .report-page td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+  .report-page th { background: #f2f2f2; }
+  .report-page .ok { color: #16a34a; font-weight: 600; }
+  .report-page .bad { color: #dc2626; font-weight: 600; }
+</style>
+</head>
+<!-- Inline embedded CSV data for self-contained use -->
+<script id="studentlist-inline" type="text/csv">
+CLASS,STUDENT,ID
+3A, CHARLES SMITH, 3A01
+3A, "DAVID ATTENBOROUGH, SIR", 3A02
+3A, ELTON JOHN, 3A03
+3B, BRUCE WAYNE, 3B01
+3B, JOHN WAYNE, 3B02
+3B, PETER PARKER, 3B03
+<!-- Paste the student list here. Keep the same header and format. -->
+</script>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const h1 = document.querySelector('h1');
+  const details = document.getElementById('usageHelp');
+  if (!h1 || !details) return;
+
+  // Create a sticky top header bar
+  const top = document.createElement('div');
+  top.id = 'topHeaderBar';
+  top.style.cssText = 'display:flex; align-items:center; gap:12px; position:sticky; top:0; background:#0b0f1e; z-index:1000; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,.08);';
+
+  // Tidy spacing so they sit nicely on one row
+  h1.style.margin = '0';
+  details.style.margin = '0';
+  details.style.marginLeft = 'auto'; // push accordion to the right end
+
+  // Insert as the first element in the body, then move title and details into it
+  const body = document.body;
+  body.insertBefore(top, body.firstChild);
+  top.appendChild(h1);
+  top.appendChild(details);
+});
+</script>
+<h1>Optical Mark Sheet Scanner</h1><details id="usageHelp" style="margin: 0;">
+          <summary style="cursor: pointer; color: orange;">Instructions</summary>
+          <div style="padding: 8px 0 0 0;">
+             (<i>For admin</i>: Make copies of the optical mark sheets (OMS) using <a href="OMS template.pdf" target="_blank" style="color: orange;">this soft copy</a> for the exam. Edit the code of this file to include the comma-separated list of student data in the format "Class, Student Name, 4-character Index").
+            <ol style="margin: 0; padding-left: 18px;">
+              <li>Scan students' optical mark sheets (OMS) into a single pdf.</li>
+              <li>Key in the answer key, indicating the number of MCQs. Click "Save answer key"</li>
+              <li>Drag and drop the OMS pdf into the shaded area.</li>
+              <li>If there is a duplicate student ID, use the student ID overwrite feature to manually edit.</li>
+              <li>You can either export the data in csv using "Download Raw Data" or "Copy results" (for pasting into the template Excel file provided by Melvyn).</li>
+              <li>Click on "Print all (PDF)" to generate individualised reports for students.</li>
+            </ol>
+          </div>
+        </details>
+<div class="row">
+  
+  <!-- Answer Key -->
+  <div class="card" style="flex:1 1 360px;min-width:320px">
+    <strong>Answer Key</strong>
+    <div class="small" style="margin-top:6px">
+      Paste letters (e.g. "A B C D ..." or "ABCD..."). The scanner will use this directly.
+    </div>
+    <textarea id="ansPaste" placeholder="e.g. A B C D ... or ABCD..."></textarea>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+            <!-- MCQs to record moved up -->
+      <label class="small pill">MCQs to record
+        <input id="mcqCount" type="number" value="30" min="1" max="45" style="width:64px;margin-left:6px" fdprocessedid="kq7i0b">
+      </label>
+      <button id="btnSaveKey" fdprocessedid="v3q6at">Save answer key</button>
+      <button id="btnClearKey" fdprocessedid="uw5uxk">Clear</button>
+      <!-- Self-contained mode: hide upload -->
+      <button id="btnUploadCSV" class="small" style="display:none">Upload Student List</button>
+      <span id="keyStatus" class="small" style="margin-left:auto">Not saved</span>
+    </div>
+
+    <div id="drop" class="drop" style="margin-top:10px">
+      <div style="text-align:center">
+        <div>📄 Drag &amp; drop a PDF here</div>
+        <div style="margin:6px 0">or</div>
+        <!-- Hide the native file input to avoid duplicate UI -->
+        <input id="file" type="file" accept="application/pdf" multiple style="display:none">
+        <div class="small" style="margin-top:6px">All processing stays in your browser.</div>
+        <div style="margin-top:8px">
+          <button id="btnPickPDF" class="small">Choose PDF…</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Moved controls: Process/CSV + Status + Issues -->
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <button id="btnCSV" disabled="">Download Raw Data</button>
+      <!-- New: Upload student CSV -->
+      <!-- Status moved here, near Process PDF -->
+      <span class="small" id="status" style="margin-left:8px">Preparing ZIP…</span>
+       <!-- Issues log -->
+      <div style="margin-top:10px; flex-basis:100%"><strong>Issues</strong></div>
+      <div style="margin-top:10px; flex-basis:100%"><pre id="issues" class="log" style="margin-top:6px"></pre></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card" style="flex:2 1 540px;min-width:420px">
+
+    <!-- Summary section -->
+    <div style="margin-top:10px">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <strong>Student Summary</strong>
+      </div>
+
+      <!-- New: Navigation toolbar under Summary -->
+      <div class="summary-nav" style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <button id="prevBtn">⬅ Prev</button>
+        <button id="nextBtn">Next ➡</button>
+        <span class="small">Page <span id="pageNum">0</span> / <span id="pageCount">0</span></span>
+        <label class="small">Go to page
+          <input id="pageJump" type="number" min="1" style="width:80px;margin-left:6px">
+        </label>
+        <button id="btnGoPage" class="small">Go</button>
+      </div>
+
+      <!-- Existing overrides and actions -->
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <label class="small">Student ID overwrite
+          <input id="idOverride" type="text" style="width:min-content;margin-left:6px">
+        </label>
+        <button id="btnApplyId" class="small">Apply</button>
+        <span class="small" id="studentResolved"></span>
+        <label class="small">Answers overwrite
+          <input id="answersOverride" type="text" style="width:400px;margin-left:6px" placeholder="e.g. A;B;C;D;A+B;...">
+        </label>
+        <button id="btnApplyAnswers" class="small">Apply</button></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <button id="btnOpenPDF" class="small">Print this page (PDF)</button>
+        <button id="btnDownloadAll" class="small">Print all (PDF)</button>
+        <div class="student-area-toolbar" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <label for="previewMode" style="font-weight:600;">View:</label>
+        <select id="previewMode" fdprocessedid="2o4gjg">
+          <option value="sheet" selected="">Scanned sheet</option>
+          <option value="summary">Student summary</option>
+          <option value="analysis">Item analysis (PDF)</option>
+        </select>
+      </div>
+      </div>
+
+      <pre id="summary" class="log" style="margin-top:6px"></pre>
+    </div>
+
+    <!-- Student preview area — insert dropdown + two panels -->
+    <div id="studentArea">
+
+
+      <!-- Student summary panel (existing content) -->
+      <div id="studentSummaryPanel" style="display: none;">
+        <div id="reportPreview" class="report-preview"></div>
+      </div>
+
+      <!-- Scanned sheet panel (new canvas, hidden by default) -->
+      <div id="studentSheetPanel" style="">
+        <canvas id="studentSheetCanvas" style="max-width:100%; width:100%; height:auto;"></canvas>
+      </div>
+    </div>
+    <div id="printArea" class="print-sheet"></div>
+  </div>
+
+  <!-- Controls + Preview -->
+  <!-- Controls + Preview card removed -->
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <strong>All results</strong>
+      <span id="resultsCount" class="small muted">0 items</span>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button id="btnCopyResults" class="small">Copy results</button>
+      <button id="btnClearResults" class="small">Clear stored results</button>
+      <span id="copyStatus" class="small" style="opacity:.8;"></span>
+    </div>
+  </div>
+
+  <div class="small" style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+    <span>Format:</span>
+    <code>filename;X;X;X;X;A;A;... (multi shown as A+B)</code>
+  </div>
+
+  <pre id="out" class="log" style="margin-top:8px; display:block!important; max-height:40vh; overflow:auto; white-space:pre-wrap; word-wrap:break-word;"></pre>
+</div>
+
+<script>
+/* ===== PDF.js worker ===== */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* ===== Canonical frame ===== */
+const FID_W = 2100, FID_H = 2970;
+
+/* ===== DEFAULT TEMPLATE ===== */
+const TEMPLATE = {
+  "fiducial_frame": { "width": 2100, "height": 2970 },
+  "index": {
+    "top": 0.268, "left": 0.3671, "width": 0.6295, "height": 0.1502,
+    "rows": 4, "cols": 16, "innerR": 0.3,
+    "corners": [
+      {"x":0.3671,"y":0.268},
+      {"x":0.9967,"y":0.268},
+      {"x":0.998891339983259,"y":0.42255891742128315},
+      {"x":0.3688913399832589,"y":0.42356901843138417}
+    ]
+  },
+  "mcq": [
+    {
+      "top":0.4508,"left":0.0514,"width":0.2229,"height":0.503,
+      "rows":15,"cols":4,"innerR":0.32,
+      "corners":[{"x":0.0567,"y":0.4522},{"x":0.2743,"y":0.4508},{"x":0.2729,"y":0.9539},{"x":0.0567,"y":0.9539}]
+    },
+    {
+      "top":0.4522,"left":0.3943,"width":0.2181,"height":0.5054,
+      "rows":15,"cols":4,"innerR":0.32,
+      "corners":[        {
+          "x": 0.39667410714285717,
+          "y": 0.45
+        },
+        {
+          "x": 0.6138169642857143,
+          "y": 0.448989898989899
+        },
+        {
+          "x": 0.6124,
+          "y": 0.9576
+        },
+        {
+          "x": 0.3943,
+          "y": 0.9576
+        }]
+    },
+    {
+      "top":0.4522,"left":0.7305,"width":0.22,"height":0.504,
+      "rows":15,"cols":4,"innerR":0.32,
+      "corners":[{"x":0.7305,"y":0.4559},{"x":0.9505,"y":0.4522},{"x":0.9486,"y":0.9539},{"x":0.7305,"y":0.9562}]
+    }
+  ],
+  "ringWeight": 0.72,
+  "ringFactor": 1.7,
+  "outIndexW": 1600,
+  "outIndexH": 260,
+  "outMCQW": 520,
+  "outMCQH": 900,
+  "crop": { "left": 0, "right": 0, "top": 0, "bottom": 0 },
+  "mcqBottomHalfOnly": true,
+  "mcqBubbleCenterFrac": 0.75
+};
+
+// ===== Constants & UI =====
+const DIGITS16 = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"];
+const ABCD = ["A","B","C","D"];
+const $ = s => document.querySelector(s);
+const statusEl = $("#status"), outEl = $("#out"), preview = $("#preview"), previewLarge = $("#previewLarge");
+const dbg = $("#dbg");
+let PDF = null, results = [], currentPage = 1, cvReady = false, loadedFileName = "pages", lastCSVUrl = null;
+let studentMap = new Map();
+let pageSummaries = [];          // per-page summary meta
+let idOverrides = new Map();     // per-page ID overrides
+let savedAnswerKey = null;       // saved/confirmed answer key (array of letters)
+
+// Track issues across runs and detect duplicate IDs across pages/PDFs
+let issues = [];
+
+// Centralized renderer for the Issues panel — each line clickable
+function renderIssuesPanel(){
+  const el = document.getElementById("issues");
+  if (!el) return;
+  // Convert "pageTag: message" into clickable lines
+  const html = (issues || []).map(line => {
+    const m = String(line || "").match(/^([^:]+):\s*(.*)$/);
+    const pageTag = m ? m[1] : "";
+    const msg = m ? m[2] : String(line || "");
+    return `<a href="#" data-page="${escapeHTML(pageTag)}" style="color: orange;">${escapeHTML(pageTag)}</a>: ${escapeHTML(msg)}<br>`;
+  }).join("");
+  el.innerHTML = html;
+  // Bind click to navigate to page
+  el.querySelectorAll("a[data-page]").forEach(a => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const tag = a.getAttribute("data-page");
+      const idx = pageSummaries.findIndex(m => m && m.pageTag === tag);
+      if (idx >= 0) {
+        currentPage = idx;
+        renderPreview();
+      } else {
+        console.warn("Issue link: page not found for tag:", tag);
+      }
+    });
+  });
+}
+
+// Basic HTML escaper
+function escapeHTML(s){
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+const seenStudentIds = new Set();
+
+// Cache all loaded PDFs and page canvases
+const docs = []; // [{ pdf, numPages, baseOffset, fileName }]
+let totalPages = 0;
+const pageCanvases = []; // global page index => Canvas
+
+// Map a global page index to its document and local page number
+function globalIndexToDocPage(idx) {
+  let remaining = idx;
+  for (let i = 0; i < docs.length; i++) {
+    const d = docs[i];
+    if (remaining <= d.numPages) {
+      return { docIndex: i, pageInDoc: remaining, entry: d };
+    }
+    remaining -= d.numPages;
+  }
+  return null;
+}
+
+// Render a specific page from a specific doc (used during processing)
+async function renderDocPageCanvas(pdfDoc, pageNumberInDoc, scale = Math.max(2.8, 2.0 * devicePixelRatio)) {
+  const page = await pdfDoc.getPage(pageNumberInDoc);
+  const vp = page.getViewport({ scale });
+  const c = document.createElement("canvas");
+  c.width = vp.width;
+  c.height = vp.height;
+  await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+  return c;
+}
+
+// Get or build the canvas for a global page index (used for previews)
+async function getCanvasForGlobalPage(globalIndex, scale = 1.2) {
+  if (pageCanvases[globalIndex]) return pageCanvases[globalIndex];
+  const map = globalIndexToDocPage(globalIndex);
+  if (!map) return null;
+  const { entry, pageInDoc } = map;
+  const page = await entry.pdf.getPage(pageInDoc);
+  const vp = page.getViewport({ scale });
+  const c = document.createElement("canvas");
+  c.width = vp.width;
+  c.height = vp.height;
+  await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+  pageCanvases[globalIndex] = c;
+  return c;
+}
+
+/* ===== Persistence for "All results" ===== */
+const LS_RESULTS_KEY = "oms.results";
+function loadStoredResults() {
+  try {
+    const raw = localStorage.getItem(LS_RESULTS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(arr)) {
+      results = arr;
+          outEl.textContent = results.join("\n");
+          const countEl = document.getElementById("resultsCount");
+          if (countEl) countEl.textContent = `${results.length} item${results.length === 1 ? "" : "s"}`;
+          const btnCSVEl = document.getElementById("btnCSV");
+          if (btnCSVEl) btnCSVEl.disabled = results.length === 0;
+    }
+  } catch (e) {
+    console.warn("Failed to load stored results:", e);
+    results = [];
+  }
+}
+function saveStoredResults() {
+  try {
+    localStorage.setItem(LS_RESULTS_KEY, JSON.stringify(results));
+  } catch (e) {
+    console.warn("Failed to save stored results:", e);
+  }
+}
+
+/* ===== UI wiring ===== */
+function setStatus(s){ statusEl.textContent = s; }
+["dragenter","dragover"].forEach(evt => $("#drop").addEventListener(evt, e=>{ e.preventDefault(); $("#drop").classList.add("dragover"); }));
+["dragleave","drop"].forEach(evt => $("#drop").addEventListener(evt, e=>{ e.preventDefault(); $("#drop").classList.remove("dragover"); }));
+$("#drop").addEventListener("drop", e=>{
+  e.preventDefault();
+  const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+  if (files.length) {
+    processSelectedFiles(files);
+  } else {
+    setStatus("No files dropped.");
+  }
+});
+
+// Add: resilient file chooser handlers
+function onFileChosen(e) {
+  try {
+    const input = e.target;
+    const files = input && input.files ? Array.from(input.files) : [];
+    if (!files.length) {
+      setStatus("No file selected.");
+      return;
+    }
+    processSelectedFiles(files);
+  } catch (err) {
+    console.error("Error handling file selection:", err);
+    setStatus("Failed to read selected file.");
+  }
+}
+
+// Helper: process multiple files (sequentially load each PDF)
+async function processSelectedFiles(files) {
+  try {
+    const pdfs = Array.from(files || []).filter(f =>
+      f && (f.type === "application/pdf" || (f.name || "").toLowerCase().endsWith(".pdf"))
+    );
+    if (!pdfs.length) {
+      setStatus("No PDFs found.");
+      return;
+    }
+    setStatus(`Loading ${pdfs.length} PDF${pdfs.length === 1 ? "" : "s"}…`);
+    for (const f of pdfs) {
+      loadedFileName = f.name;
+      await loadPDF(f);
+    }
+  } catch (err) {
+    console.error("Error processing files:", err);
+    setStatus("Failed to process selected files.");
+  }
+}
+
+// Direct binding if the input exists
+const fileInputEl = document.getElementById("file");
+if (fileInputEl) {
+  fileInputEl.addEventListener("change", onFileChosen);
+} else {
+  // Delegated binding as a fallback (handles re-rendered inputs)
+  document.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t && t.id === "file" && t.type === "file") {
+      onFileChosen(e);
+    }
+  });
+}
+
+// Button to programmatically open the file picker
+const btnPickPDF = document.getElementById("btnPickPDF");
+if (btnPickPDF) {
+  btnPickPDF.onclick = () => {
+    const el = document.getElementById("file");
+    if (!el) {
+      setStatus("File input not found.");
+      return;
+    }
+    el.click();
+  };
+}
+
+// Make the entire drop area clickable (opens file chooser)
+const dropEl = document.getElementById("drop");
+if (dropEl) {
+  dropEl.addEventListener("click", (e) => {
+    // Avoid double-trigger when clicking the explicit button
+    if (e.target && e.target.id === "btnPickPDF") return;
+    const el = document.getElementById("file");
+    if (el) el.click();
+  });
+}
+const prevBtnEl = document.getElementById("prevBtn");
+if (prevBtnEl) prevBtnEl.onclick = ()=>{ if(PDF && currentPage>1){ currentPage--; renderPreview(); } };
+const nextBtnEl = document.getElementById("nextBtn");
+if (nextBtnEl) nextBtnEl.onclick = ()=>{ if(currentPage < totalPages){ currentPage++; renderPreview(); } };
+
+// New: page jump input + Go button
+const pageJumpEl = document.getElementById("pageJump");
+if (pageJumpEl) {
+  pageJumpEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const n = parseInt(pageJumpEl.value, 10);
+      if (Number.isFinite(n) && totalPages > 0) {
+        const target = Math.max(1, Math.min(n, totalPages));
+        currentPage = target;
+        renderPreview();
+      }
+    }
+  });
+}
+const btnGoPageEl = document.getElementById("btnGoPage");
+if (btnGoPageEl) {
+  btnGoPageEl.onclick = () => {
+    const n = parseInt(pageJumpEl?.value ?? "", 10);
+    if (Number.isFinite(n) && totalPages > 0) {
+      const target = Math.max(1, Math.min(n, totalPages));
+      currentPage = target;
+      renderPreview();
+    }
+  };
+}
+
+const btnCSVEl = document.getElementById("btnCSV");
+if (btnCSVEl) btnCSVEl.onclick = ()=>downloadCSV();
+
+// New: Upload student CSV button
+const btnUploadCSVEl = document.getElementById("btnUploadCSV");
+if (btnUploadCSVEl) btnUploadCSVEl.onclick = ()=>loadStudentList();
+
+
+// Load any stored results on startup
+loadStoredResults();
+
+// Clear stored results button
+const btnClearResults = document.getElementById("btnClearResults");
+if (btnClearResults) {
+      btnClearResults.onclick = () => {
+        try { localStorage.removeItem(LS_RESULTS_KEY); } catch {}
+        results = [];
+        outEl.textContent = "";
+        const countEl = document.getElementById("resultsCount");
+        if (countEl) countEl.textContent = "0 items";
+        const copyStatusEl = document.getElementById("copyStatus");
+        if (copyStatusEl) copyStatusEl.textContent = "";
+        if (btnCSVEl) btnCSVEl.disabled = true;
+        // Clear issues and seen IDs
+        issues = [];
+        seenStudentIds.clear();
+        const issuesEl = document.getElementById("issues");
+        if (issuesEl) issuesEl.textContent = "";
+        setStatus("Cleared stored results.");
+      };
+    }
+
+// Add: Copy results button
+const btnCopyResults = document.getElementById("btnCopyResults");
+if (btnCopyResults) {
+  btnCopyResults.onclick = async () => {
+    try {
+      const text = (outEl?.textContent || (Array.isArray(results) ? results.join("\n") : "") || "").trim();
+          if (!text) { setStatus?.("No results to copy."); return; }
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.top = "-9999px";
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+          }
+          const copyStatusEl = document.getElementById("copyStatus");
+          if (copyStatusEl) {
+            copyStatusEl.textContent = "Copied!";
+            setTimeout(() => { copyStatusEl.textContent = ""; }, 1500);
+          }
+          setStatus?.("Copied results to clipboard.");
+        } catch (e) {
+          console.error("Failed to copy results:", e);
+          setStatus?.("Failed to copy results.");
+    }
+  };
+}
+
+// Add: dropdown wiring to toggle student area
+const previewModeSel = document.getElementById("previewMode");
+if (previewModeSel) {
+  previewModeSel.onchange = () => updateStudentArea();
+  // Default to scanned sheet on load
+  previewModeSel.value = "sheet";
+  // Initialize panels visibility on load
+  updateStudentArea();
+  // Initialize the CTA sequence on load
+  setupCTA();
+}
+
+// New helper: toggle student area panels based on dropdown mode
+function updateStudentArea(){
+  const mode = document.getElementById("previewMode")?.value || "summary";
+  const summaryPanel = document.getElementById("studentSummaryPanel");
+  const sheetPanel = document.getElementById("studentSheetPanel");
+
+  if (summaryPanel && sheetPanel) {
+    if (mode === "sheet") {
+      summaryPanel.style.display = "none";
+      sheetPanel.style.display = "";
+      // If a PDF is loaded, ensure the scanned sheet is shown
+      if (typeof PDF !== "undefined" && PDF) {
+        renderPreview();
+      }
+    } else if (mode === "summary") {
+      sheetPanel.style.display = "none";
+      summaryPanel.style.display = "";
+      if (typeof renderCurrentReportPreview === "function") {
+        renderCurrentReportPreview(currentPage);
+      }
+    } else if (mode === "analysis") {
+      // Hide both in-panel views and open item analysis preview
+      sheetPanel.style.display = "none";
+      summaryPanel.style.display = "none";
+      openItemAnalysisPreview();
+    }
+  }
+}
+
+/* ===== PDF helpers ===== */
+async function loadPDF(file){
+  try{
+    setStatus("Loading PDF…");
+    const buf=await file.arrayBuffer();
+    const newDoc = await pdfjsLib.getDocument({data:buf}).promise;
+    PDF = newDoc; // keep latest doc available for processing
+    const numPages = newDoc.numPages;
+    // Use the current totalPages as the base offset for the new doc
+    const baseOffset = totalPages;
+    docs.push({ pdf: newDoc, numPages, baseOffset, fileName: loadedFileName || "pages", processed: false });
+
+    // Update combined total pages and the UI
+    totalPages += numPages;
+    const pageCountEl = document.getElementById("pageCount");
+    if (pageCountEl) pageCountEl.textContent = totalPages;
+
+    setStatus(`PDF loaded (${numPages} pages).`);
+
+    // Show the first page immediately in the preview
+    currentPage = Math.max(1, currentPage);
+    await renderPreview();
+
+    // Immediately process once PDF is loaded; wait for cvReady if needed
+    const startProcessing = () => {
+        if (!cvReady) {
+            setStatus("Initializing scanner…");
+            const t = setInterval(() => {
+                if (cvReady) {
+                    clearInterval(t);
+                    processPDF();
+                }
+            }, 150);
+        } else {
+            processPDF();
+        }
+    };
+    startProcessing();
+  }catch(e){ console.error(e); setStatus("Failed to load PDF."); }
+}
+// ... existing code ...
+
+// Guard to prevent concurrent runs
+let isProcessing = false;
+
+async function processPDF(){
+  // ... existing code ...
+  if(!PDF){ setStatus("Load a PDF first"); return; }
+  if(!cvReady){ setStatus("Loading OpenCV…"); return; }
+
+  if (isProcessing) { setStatus("Processing in progress…"); return; }
+  isProcessing = true;
+  try {
+    const pendingDocs = docs.filter(d => !d.processed);
+    if (!pendingDocs.length) {
+      setStatus("No new PDFs to process.");
+      return;
+    }
+
+    outEl.textContent = "";
+
+    const thrMul = Math.max(0.2, Math.min(3.0, parseFloat(document.getElementById("thrMul")?.value || "1.0")));
+    const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+    const answerKey = getAnswerKey();
+
+    for (const docEntry of pendingDocs) {
+      const newResults = [];
+      // ... existing code ...
+      for(let p=1;p<=docEntry.numPages;p++){
+        // ... existing code ...
+      }
+      // Merge and persist after each doc
+      results = results.concat(newResults);
+      outEl.textContent = results.join("\n");
+      const countElPost = document.getElementById("resultsCount");
+      if (countElPost) countElPost.textContent = `${results.length} item${results.length === 1 ? "" : "s"}`;
+      saveStoredResults();
+
+      // Mark this doc as processed
+      docEntry.processed = true;
+    }
+
+    // Update issues panel
+    renderIssuesPanel();
+
+    renderSummaryForPage(currentPage);
+    renderCurrentReportPreview(currentPage);
+
+    $("#btnCSV").disabled = results.length===0;
+    setStatus("Processing complete.");
+  } finally {
+    isProcessing = false;
+  }
+}
+async function renderPreview(){
+  if(totalPages === 0) return;
+
+  const mode = document.getElementById("previewMode")?.value || "summary";
+
+  if (mode === "sheet") {
+    const sheetCanvas = document.getElementById("studentSheetCanvas");
+    if (!sheetCanvas) {
+      console.warn("Student sheet canvas #studentSheetCanvas not found — skipping render.");
+    } else {
+      const srcCanvas = await getCanvasForGlobalPage(currentPage);
+      if (srcCanvas) {
+        sheetCanvas.width = srcCanvas.width;
+        sheetCanvas.height = srcCanvas.height;
+        const ctx = sheetCanvas.getContext("2d");
+        ctx.clearRect(0, 0, sheetCanvas.width, sheetCanvas.height);
+        ctx.drawImage(srcCanvas, 0, 0);
+      }
+    }
+  } else if (mode === "summary") {
+    if (typeof renderCurrentReportPreview === "function") {
+      renderCurrentReportPreview(currentPage);
+    }
+  } else {
+    // analysis: nothing to render inside the student area
+  }
+
+  // Update page indicator against combined total
+  const pageNumEl = document.getElementById("pageNum");
+  if (pageNumEl) pageNumEl.textContent = currentPage;
+  const pageCountEl = document.getElementById("pageCount");
+  if (pageCountEl) pageCountEl.textContent = totalPages;
+
+  if (typeof renderSummaryForPage === "function") {
+    renderSummaryForPage(currentPage);
+  }
+}
+async function renderPageCanvas(n, scale=Math.max(2.8, 2.0*devicePixelRatio)){
+  const page=await PDF.getPage(n);
+  const vp=page.getViewport({scale});
+  const c=document.createElement("canvas"); c.width=vp.width; c.height=vp.height;
+  await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+  return c;
+}
+
+/* ===== OpenCV ready gate ===== */
+(function waitCV(){ if(typeof cv==="undefined"||!cv.imread){ setTimeout(waitCV,150); return; } cvReady=true; setStatus("Ready. Load a PDF."); })();
+
+/* ===== Helpers ===== */
+function canvasToMat(c){ return cv.imread(c); }
+function fracPtsToPx(c){ return c.map(p=>({x:Math.round(p.x*FID_W), y:Math.round(p.y*FID_H)})); }
+
+/* ===== Fiducials & warp ===== */
+function detectCornerSquares(srcMat){
+  const iw=srcMat.cols, ih=srcMat.rows;
+  let gray=new cv.Mat(), bin=new cv.Mat();
+  cv.cvtColor(srcMat, gray, cv.COLOR_RGBA2GRAY, 0);
+  cv.GaussianBlur(gray, gray, new cv.Size(5,5), 0);
+  cv.threshold(gray, bin, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+  let contours=new cv.MatVector(), hier=new cv.Mat();
+  cv.findContours(bin, contours, hier, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+  const cand=[];
+  for(let i=0;i<contours.size();i++){
+    const r=cv.boundingRect(contours.get(i));
+    const area=r.width*r.height;
+    if(area<(iw*ih)*0.00002 || area>(iw*ih)*0.01) continue;
+    const ratio=r.width/r.height; if(ratio<0.8||ratio>1.25) continue;
+    const roi=bin.roi(r); const fill=cv.mean(roi)[0]/255; roi.delete();
+    if(fill<0.6) continue;
+    cand.push({ cx:r.x+r.width/2, cy:r.y+r.height/2, rect:r });
+  }
+  contours.delete(); hier.delete(); gray.delete(); bin.delete();
+
+  function pick(tx,ty){
+    let best=null, bestD=1e18, bestIdx=-1;
+    cand.forEach((p,i)=>{ const d=(p.cx-tx)**2+(p.cy-ty)**2; if(d<bestD){ bestD=d; best=p; bestIdx=i; }});
+    if(bestIdx>=0) cand.splice(bestIdx,1);
+    return best;
+  }
+
+  const TL=pick(0,0), TR=pick(iw,0), BR=pick(iw,ih), BL=pick(0,ih);
+  if(!TL||!TR||!BR||!BL) return null;
+
+  return {
+    pTL:{x:TL.rect.x, y:TL.rect.y},
+    pTR:{x:TR.rect.x+TR.rect.width, y:TR.rect.y},
+    pBR:{x:BR.rect.x+BR.rect.width, y:BR.rect.y+BR.rect.height},
+    pBL:{x:BL.rect.x, y:BL.rect.y+BL.rect.height}
+  };
+}
+function edgeFitWarp(src){
+  const c=detectCornerSquares(src);
+  if(!c){
+    let warped=new cv.Mat();
+    cv.resize(src, warped, new cv.Size(FID_W, FID_H));
+    return { warped, invH: null, srcW: src.cols, srcH: src.rows };
+  }
+  const srcPts=cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([
+    c.pTL.x,c.pTL.y, c.pTR.x,c.pTR.y, c.pBR.x,c.pBR.y, c.pBL.x,c.pBL.y
+  ]));
+  const dstPts=cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([0,0, FID_W,0, FID_W,FID_H, 0,FID_H]));
+  const H=cv.getPerspectiveTransform(srcPts,dstPts);
+  let warped=new cv.Mat();
+  cv.warpPerspective(src, warped, H, new cv.Size(FID_W,FID_H));
+  const Hinv=cv.getPerspectiveTransform(dstPts, srcPts);
+  srcPts.delete(); dstPts.delete(); H.delete();
+  return { warped, invH: Hinv, srcW: src.cols, srcH: src.rows };
+}
+
+/* ===== Region warp & crop ===== */
+function warpRegion(warpedFull, cornersFrac, outW, outH){
+  const pts = fracPtsToPx(cornersFrac);
+  const srcPts = cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([
+    pts[0].x,pts[0].y, pts[1].x,pts[1].y, pts[2].x,pts[2].y, pts[3].x,pts[3].y
+  ]));
+  const dstPts = cv.matFromArray(4,1,cv.CV_32FC2,new Float32Array([0,0, outW,0, outW,outH, 0,outH]));
+  const H = cv.getPerspectiveTransform(srcPts, dstPts);
+  let out = new cv.Mat();
+  cv.warpPerspective(warpedFull, out, H, new cv.Size(outW, outH));
+  srcPts.delete(); dstPts.delete(); H.delete();
+  return out;
+}
+function cropInside(mat){
+  const {left,right,top,bottom}=TEMPLATE.crop;
+  const x = Math.round(mat.cols*left);
+  const y = Math.round(mat.rows*top);
+  const w = Math.round(mat.cols*(1-left-right));
+  const h = Math.round(mat.rows*(1-top-bottom));
+  return mat.roi(new cv.Rect(x,y,w,h));
+}
+
+/* ===== Binarize & morphology ===== */
+function binarize(img){
+  let gray=new cv.Mat(); cv.cvtColor(img, gray, cv.COLOR_RGBA2GRAY, 0);
+  cv.GaussianBlur(gray, gray, new cv.Size(3,3), 0);
+  let bin=new cv.Mat();
+  cv.threshold(gray, bin, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+  gray.delete();
+  return bin; // ink=255
+}
+function refineBinary(bin) {
+  const kOpen  = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(2,2));
+  const kClose = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(3,3));
+  let tmp = new cv.Mat(), out = new cv.Mat();
+  cv.morphologyEx(bin, tmp,  cv.MORPH_OPEN,  kOpen);
+  cv.morphologyEx(tmp, out,  cv.MORPH_CLOSE, kClose);
+  kOpen.delete(); kClose.delete(); tmp.delete();
+  return out;
+}
+
+/* ===== Donut (index helper) ===== */
+function buildDonutKernel(rIn, rOut, ringWeight){
+  const k = 2*rOut+1, mat = new cv.Mat.zeros(k,k,cv.CV_32F);
+  const c=rOut;
+  for(let y=0;y<k;y++){
+    for(let x=0;x<k;x++){
+      const dx=x-c, dy=y-c; const d=dx*dx+dy*dy;
+      let v=0;
+      if(d<=rIn*rIn) v=1.0;
+      else if(d<=rOut*rOut) v=-ringWeight;
+      mat.floatPtr(y,x)[0]=v;
+    }
+  }
+  const mean=cv.mean(mat)[0];
+  for(let y=0;y<k;y++) for(let x=0;x<k;x++) mat.floatPtr(y,x)[0]-=mean;
+  return mat;
+}
+
+/* ===== Row bands (for bottom-half scanning) ===== */
+function computeRowBands(rows, cropRows) {
+  const bands = [];
+  for (let i = 0; i < rows; i++) {
+    const yTop = Math.round((i / rows) * cropRows);
+    const yBottom = Math.round(((i + 1) / rows) * cropRows) - 1;
+    bands.push([yTop, Math.max(yTop, yBottom)]);
+  }
+  return bands;
+}
+
+/* ===== MCQ decision (multi-select, bottom-half only) ===== */
+function decideMCQMultiInkBottom(bin, rowBands, colCenters, rCount, thrMul = 1.0, centerFrac = 0.75, bottomHalfOnly = true) {
+  const rowsOut = [];
+  for (let r = 0; r < rowBands.length; r++) {
+    const [yTop, yBottom] = rowBands[r];
+    const bandH = Math.max(1, yBottom - yTop + 1);
+    const yCenter = Math.round(yTop + centerFrac * bandH);
+
+    const clipLow = bottomHalfOnly ? Math.round(yTop + 0.5 * bandH) : Math.max(0, yCenter - rCount);
+    const clipHigh = bottomHalfOnly ? yBottom : Math.min(bin.rows - 1, yCenter + rCount);
+
+    const counts = [];
+    for (const x0 of colCenters) {
+      let count = 0;
+      const xLow = Math.max(0, Math.floor(x0 - rCount));
+      const xHigh = Math.min(bin.cols - 1, Math.ceil(x0 + rCount));
+      for (let yy = clipLow; yy <= clipHigh; yy++) {
+        const dy = yy - yCenter;
+        const ptr = bin.ucharPtr(yy);
+        for (let xx = xLow; xx <= xHigh; xx++) {
+          const dx = xx - x0;
+          if (dx*dx + dy*dy <= rCount*rCount) {
+            if (ptr[xx] > 0) count++;
+          }
+        }
+      }
+      counts.push(count);
+    }
+
+    const area = Math.PI * rCount * rCount * (bottomHalfOnly ? 0.6 : 1.0);
+    // Loosen thresholds so lighter shading is recognized as a valid correct pick
+    const minInkSoft = Math.max(6, Math.round(area * 0.20 * thrMul));
+    const minInkHard = Math.max(minInkSoft + Math.round(area * 0.08), Math.round(area * 0.28 * thrMul));
+    const countsSorted = [...counts].sort((a,b)=>a-b);
+    const median = countsSorted[Math.floor(countsSorted.length/2)];
+    // Reduced noise margin
+    const noiseMargin = Math.round(area * (bottomHalfOnly ? 0.12 : 0.10) * thrMul);
+
+    const best = Math.max(...counts);
+    const bestIdx = counts.indexOf(best);
+
+    if (best < minInkHard || best < (median + noiseMargin)) {
+      rowsOut.push("");
+      continue;
+    }
+
+    // Increased near-best ratios for stricter selection
+    const nearBestRatio   = 0.90 / Math.max(1.0, Math.pow(thrMul, 0.6));
+    const multiRelaxRatio = 0.85 / Math.max(1.0, Math.pow(thrMul, 0.5));
+    const secondBestRatio = 0.80 / Math.max(1.0, Math.pow(thrMul, 0.5));
+
+    let picksIdxs = [];
+    for (let i = 0; i < counts.length; i++) {
+      const v = counts[i];
+      if (v >= Math.max(minInkSoft, median + noiseMargin) && v >= best * nearBestRatio) {
+        picksIdxs.push(i);
+      }
+    }
+
+    // Reduced strong ratio
+    const strongRatio = 0.95;
+    const strongIdxs = picksIdxs.filter(i => counts[i] >= Math.max(minInkHard, Math.round(best * strongRatio)));
+
+    // Identify second-best candidate
+    let secondIdx = -1, secondVal = -1;
+    for (let i = 0; i < counts.length; i++) {
+      if (i === bestIdx) continue;
+      const v = counts[i];
+      if (v > secondVal) {
+        secondVal = v;
+        secondIdx = i;
+      }
+    }
+
+    let finalIdxs;
+    if (strongIdxs.length >= 2) {
+      finalIdxs = strongIdxs;
+    } else if (strongIdxs.length === 1) {
+      const sIdx = strongIdxs[0];
+      finalIdxs = [sIdx];
+      for (let i = 0; i < counts.length; i++) {
+        if (i === sIdx) continue;
+        const v = counts[i];
+        if (v >= Math.max(minInkSoft, median + noiseMargin) && v >= best * multiRelaxRatio) {
+          finalIdxs.push(i);
+        }
+      }
+      if (finalIdxs.length < 2 && secondIdx >= 0 && secondVal >= Math.max(minInkSoft, median + noiseMargin) && (secondVal >= best * secondBestRatio)) {
+        finalIdxs.push(secondIdx);
+      }
+      if (finalIdxs.length > 3) finalIdxs = finalIdxs.slice(0, 3);
+    } else if (picksIdxs.length >= 2 && best >= minInkHard) {
+      finalIdxs = picksIdxs;
+      if (finalIdxs.length > 3) finalIdxs = finalIdxs.slice(0, 3);
+    } else if (picksIdxs.length >= 1) {
+      finalIdxs = [bestIdx];
+    } else {
+      if (secondIdx >= 0 && secondVal >= Math.max(minInkSoft, median + noiseMargin) && (secondVal >= best * secondBestRatio)) {
+        finalIdxs = [bestIdx, secondIdx];
+      } else {
+        finalIdxs = [];
+      }
+    }
+
+    let _out = "";
+    if (finalIdxs.length === 0) {
+      _out = "";
+    } else if (finalIdxs.length === 1) {
+      _out = ABCD[finalIdxs[0]];
+    } else {
+      _out = finalIdxs.map(i => ABCD[i]).join("+");
+    }
+    rowsOut.push(_out);
+  }
+  return rowsOut;
+}
+
+/* ===== Index (single best per row) ===== */
+function decideByInk(bin, rowCenters, colCenters, rIn, thrMul = 1.0) {
+  const picks = [];
+  const area = Math.PI * rIn * rIn;
+  const minInk = Math.max(6, Math.round(area * 0.24 * thrMul));
+  const ratioThr = 1.35 * Math.max(1.0, thrMul);
+
+  for (const y0 of rowCenters) {
+    const counts = [];
+    for (const x0 of colCenters) {
+      let count = 0;
+      const xLow = Math.max(0, Math.floor(x0 - rIn));
+      const xHigh = Math.min(bin.cols - 1, Math.ceil(x0 + rIn));
+      const yLow = Math.max(0, Math.floor(y0 - rIn));
+      const yHigh = Math.min(bin.rows - 1, Math.ceil(y0 + rIn));
+      for (let yy = yLow; yy <= yHigh; yy++) {
+        const dy = yy - y0;
+        const ptr = bin.ucharPtr(yy);
+        for (let xx = xLow; xx <= xHigh; xx++) {
+          const dx = xx - x0;
+          if (dx*dx + dy*dy <= rIn*rIn) {
+            if (ptr[xx] > 0) count++;
+          }
+        }
+      }
+      counts.push(count);
+    }
+
+    let bestIdx = 0, best = counts[0], second = -1;
+    for (let i = 1; i < counts.length; i++) {
+      const v = counts[i];
+      if (v > best) { second = best; best = v; bestIdx = i; }
+      else if (v > second) { second = v; }
+    }
+    const passAbs = best >= minInk;
+    const passRatio = second > 0 ? (best / Math.max(second, 1)) >= ratioThr : true;
+    picks.push((passAbs && passRatio) ? bestIdx : -1);
+  }
+  return picks;
+}
+
+/* ===== Overlays (ghost+grid) ===== */
+function overlayGhost(previewCanvas, warped, packs, invH, srcW, srcH){
+  // Guard for hidden/removed dbg checkbox and for missing canvas
+  if (!(document.getElementById("dbg")?.checked)) return;
+  if (!previewCanvas || !previewCanvas.getContext) return;
+
+  const ctx = previewCanvas.getContext("2d");
+  const ghostOn = true, outlinesOn = true, gridOn = true;
+
+  if (ghostOn) {
+    ctx.save();
+    ctx.globalAlpha=0.27;
+    const ghost=document.createElement("canvas");
+    ghost.width=FID_W; ghost.height=FID_H;
+    cv.imshow(ghost, warped);
+    const gw=Math.min(previewCanvas.width*0.36, 420), gh=gw*(FID_H/FID_W);
+    ctx.drawImage(ghost, previewCanvas.width-gw-8, 8, gw, gh);
+    ctx.restore();
+
+    const ox=previewCanvas.width-gw-8, oy=8, sx=gw/FID_W, sy=gh/FID_H;
+
+    ctx.save();
+    packs.forEach(pk=>{
+      const pts=pk.corners;
+
+      if (outlinesOn) {
+        ctx.strokeStyle="rgba(0,255,255,.9)";
+        ctx.globalAlpha=.9;
+        ctx.lineWidth=1.0;
+        ctx.beginPath();
+        ctx.moveTo(ox+pts[0].x*sx, oy+pts[0].y*sy);
+        for(let i=1;i<4;i++) ctx.lineTo(ox+pts[i].x*sx, oy+pts[i].y*sy);
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      if (gridOn && pk.rowFracs && pk.rowFracs.length){
+        ctx.strokeStyle="rgba(0,255,255,.45)";
+        ctx.globalAlpha=.9;
+        ctx.lineWidth=0.8;
+        for(const fRaw of pk.rowFracs){
+          const f = Math.max(0, Math.min(1, fRaw));
+          const lx = pts[0].x + f*(pts[3].x - pts[0].x);
+          const ly = pts[0].y + f*(pts[3].y - pts[0].y);
+          const rx = pts[1].x + f*(pts[2].x - pts[1].x);
+          const ry = pts[1].y + f*(pts[2].y - pts[1].y);
+          ctx.beginPath();
+          ctx.moveTo(ox+lx*sx, oy+ly*sy);
+          ctx.lineTo(ox+rx*sx, oy+ry*sy);
+          ctx.stroke();
+        }
+      }
+
+      if (gridOn && pk.colFracs && pk.colFracs.length){
+        ctx.strokeStyle="rgba(0,255,255,.45)";
+        ctx.globalAlpha=.9;
+        ctx.lineWidth=0.8;
+        for(const gRaw of pk.colFracs){
+          const g = Math.max(0, Math.min(1, gRaw));
+          const tx = pts[0].x + g*(pts[1].x - pts[0].x);
+          const ty = pts[0].y + g*(pts[1].y - pts[0].y);
+          const bx = pts[3].x + g*(pts[2].x - pts[3].x);
+          const by = pts[3].y + g*(pts[2].y - pts[3].y);
+          ctx.beginPath();
+          ctx.moveTo(ox+tx*sx, oy+ty*sy);
+          ctx.lineTo(ox+bx*sx, oy+by*sy);
+          ctx.stroke();
+        }
+      }
+    });
+    ctx.restore();
+  }
+
+  if(invH){
+    const sX = previewCanvas.width / srcW;
+    const sY = previewCanvas.height / srcH;
+
+    const drawTransformedLine = (x0,y0,x1,y1) => {
+      const srcPts = cv.matFromArray(2,1,cv.CV_32FC2, new Float32Array([x0,y0, x1,y1]));
+      const dstPts = new cv.Mat();
+      cv.perspectiveTransform(srcPts, dstPts, invH);
+      const d = dstPts.data32F;
+      ctx.beginPath();
+      ctx.moveTo(d[0]*sX, d[1]*sY);
+      ctx.lineTo(d[2]*sX, d[3]*sY);
+      ctx.stroke();
+      srcPts.delete(); dstPts.delete();
+    };
+
+    ctx.save();
+    ctx.strokeStyle="rgba(0,255,255,.9)";
+    ctx.globalAlpha=.9;
+    ctx.lineWidth=1.2;
+    packs.forEach(pk=>{
+      const pts=pk.corners;
+      for(let i=0;i<4;i++){
+        const j=(i+1)%4;
+        drawTransformedLine(pts[i].x, pts[i].y, pts[j].x, pts[j].y);
+      }
+    });
+    ctx.restore();
+  }
+}
+async function processPDF(){
+  // ... existing code ...
+  if(!PDF){ setStatus("Load a PDF first"); return; }
+  if(!cvReady){ setStatus("Loading OpenCV…"); return; }
+
+
+
+  // Find the most recently loaded doc
+  const docEntry = docs[docs.length - 1];
+  if (!docEntry) { setStatus("Load a PDF first"); return; }
+
+  const newResults = [];
+  outEl.textContent="";
+
+  const thrMul = Math.max(0.2, Math.min(3.0, parseFloat(document.getElementById("thrMul")?.value || "1.0")));
+  const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+  const answerKey = getAnswerKey();
+
+  for(let p=1;p<=docEntry.numPages;p++){
+    setStatus(`Processing page ${p}/${docEntry.numPages}…`);
+
+    // Render the original page canvas and cache under global index
+    const pageCanvas = await renderDocPageCanvas(docEntry.pdf, p);
+    const globalIndex = docEntry.baseOffset + p;
+    pageCanvases[globalIndex] = pageCanvas;
+
+    // Continue with processing pipeline
+    let src=canvasToMat(pageCanvas);
+    const { warped, invH, srcW, srcH } = edgeFitWarp(src);
+    src.delete();
+
+    const overlayPacks=[];
+    // INSERT: build indexChars and answers for this page
+    // ---------- INDEX ----------
+    const idxImg = warpRegion(warped, TEMPLATE.index.corners, TEMPLATE.outIndexW, TEMPLATE.outIndexH);
+    const idxCrop = cropInside(idxImg);
+    const idxBin  = binarize(idxCrop);
+
+    const rInIdx  = Math.max(2, Math.round((idxCrop.rows/(TEMPLATE.index.rows*2))*TEMPLATE.index.innerR));
+    // Index centres (uniform grid within cropped region)
+    const cIdx = TEMPLATE.crop;
+    const idxRowCentersPx = Array.from({length: TEMPLATE.index.rows}, (_, i) =>
+      Math.round((cIdx.top + ((i + 0.5) / TEMPLATE.index.rows) * (1 - cIdx.top - cIdx.bottom)) * idxCrop.rows)
+    );
+    const idxColCentersPx = Array.from({length: TEMPLATE.index.cols}, (_, i) =>
+      Math.round((cIdx.left + ((i + 0.5) / TEMPLATE.index.cols) * (1 - cIdx.left - cIdx.right)) * idxCrop.cols)
+    );
+
+    const picksIdx = decideByInk(idxBin, idxRowCentersPx, idxColCentersPx, rInIdx, thrMul);
+    const indexChars = picksIdx.map(i => i<0 ? "" : DIGITS16[i]);
+
+    // Overlay pack (index grid)
+    {
+      const c = TEMPLATE.crop;
+      const idxRowFracs = Array.from({length: TEMPLATE.index.rows - 1}, (_,i)=>
+        c.top + ((i+1)/TEMPLATE.index.rows) * (1 - c.top - c.bottom)
+      );
+      const idxColFracs = Array.from({length: TEMPLATE.index.cols - 1}, (_,i)=>
+        c.left + ((i+1)/TEMPLATE.index.cols) * (1 - c.left - c.right)
+      );
+      overlayPacks.push({
+        corners: fracPtsToPx(TEMPLATE.index.corners),
+        rowFracs: idxRowFracs,
+        colFracs: idxColFracs
+      });
+    }
+
+    idxImg.delete(); idxCrop.delete(); idxBin.delete();
+
+    // ---------- MCQs ----------
+    const answers=[];
+    let remaining = mcqCount;
+    for(const block of TEMPLATE.mcq){
+      if (remaining <= 0) break;
+
+      const roi  = warpRegion(warped, block.corners, TEMPLATE.outMCQW, TEMPLATE.outMCQH);
+      const crop = cropInside(roi);
+      const bin0 = binarize(crop);
+      const bin  = refineBinary(bin0);
+
+      const c = TEMPLATE.crop;
+      const mcqColCentersPx = Array.from({length: block.cols}, (_, i) =>
+        Math.round((c.left + ((i + 0.5) / block.cols) * (1 - c.left - c.right)) * crop.cols)
+      );
+
+      const allBands = computeRowBands(block.rows, crop.rows);
+      const rowsNeeded = Math.min(block.rows, remaining);
+      const rowBands = allBands.slice(0, rowsNeeded);
+
+      const rIn     = Math.max(2, Math.round((crop.rows/(block.rows*2))*block.innerR));
+      const rCount  = Math.max(2, Math.round(rIn * 0.95));
+
+      const rowStrings = decideMCQMultiInkBottom(
+        bin,
+        rowBands,
+        mcqColCentersPx,
+        rCount,
+        thrMul,
+        TEMPLATE.mcqBubbleCenterFrac,
+        TEMPLATE.mcqBottomHalfOnly
+      );
+      answers.push(...rowStrings);
+      remaining -= rowStrings.length;
+
+      // Overlay pack
+      {
+        const rowFracs = Array.from({length: block.rows - 1}, (_,i)=> (i+1)/block.rows);
+        const colFracs = Array.from({length: block.cols - 1}, (_,i)=> (i+1)/block.cols);
+        overlayPacks.push({
+          corners: fracPtsToPx(block.corners),
+          rowFracs, colFracs
+        });
+      }
+
+      roi.delete(); crop.delete(); bin0.delete(); bin.delete();
+    }
+    // END INSERT
+
+    while (answers.length < mcqCount) answers.push("");
+    const finalAnswers=answers.slice(0, mcqCount);
+
+    const base = (docEntry.fileName||"pages").replace(/\.[^.]+$/,"");
+    const indexOut = indexChars.slice(0, TEMPLATE.index.rows);
+    const line=[`${base}_p${String(p).padStart(2,"0")}`, ...indexOut, ...finalAnswers].join(";");
+    newResults.push(line);
+
+    const indexStrFull = indexChars.join("");
+    const idFromSheet = indexStrFull.length >= 5 ? indexStrFull.slice(1, 5) : indexStrFull;
+
+    // ===== Build issues for this page =====
+    (function buildIssuesForPage(){
+      // Compute pageTag first to avoid TDZ (temporal dead zone) errors
+      const pageTag = `${base}_p${String(p).padStart(2,"0")}`;      const messages = [];
+
+      // Missing and multiple answers
+      const missingQs = [];
+      const multipleQs = []; // store as 'Qn(picks)'
+
+      for (let i = 0; i < mcqCount; i++) {
+        const ans = (finalAnswers[i] || "").trim();
+        if (isMultipleAnswer(ans)) {
+          multipleQs.push(`Q${i + 1}(${ans})`);
+        } else if (!ans) {
+          // Only empty answers count as missing
+          missingQs.push(i + 1);
+        }
+      }
+
+      if (missingQs.length) {
+        messages.push(`Missing answers: ${missingQs.map(q => `Q${q}`).join(", ")}`);
+      }
+      if (multipleQs.length) {
+        messages.push(`Multiple answers: ${multipleQs.join(", ")}`);
+      }
+
+      // Resolve student ID: prefer override keyed by pageTag
+      const override = idOverrides.get(pageTag);
+      const studentIdCandidate = (override && override.length > 0)
+        ? override.trim().toUpperCase()
+        : (idFromSheet || "").toUpperCase();
+
+      if (!studentIdCandidate) {
+        messages.push("Student ID not found (empty index)");
+      } else {
+        if (!studentMap.has(studentIdCandidate)) {
+          messages.push(`Student ID not found in list: ${studentIdCandidate}`);
+        }
+        if (seenStudentIds.has(studentIdCandidate)) {
+          messages.push(`Duplicated student ID: ${studentIdCandidate}`);
+        } else {
+          seenStudentIds.add(studentIdCandidate);
+        }
+      }
+
+      // Append issues lines for this page: multiple lines (one per message)
+      if (messages.length) {
+        for (const msg of messages) {
+          issues.push(`${pageTag}: ${msg}`);
+        }
+      }
+    })();
+    // ===== End issues for this page =====
+
+    let denom = 0, marks = 0;
+    const symbols = [];
+    for (let i = 0; i < mcqCount; i++) {
+      const key = answerKey[i] || "";
+      const ans = finalAnswers[i] || "";
+      if (key) {
+        denom++;
+        if (ans === key) {
+          marks++;
+          symbols.push("✓");
+        } else {
+          symbols.push("✗");
+        }
+      } else {
+        symbols.push("-");
+      }
+    }
+    const pct = denom > 0 ? ((marks / denom) * 100).toFixed(1) : "N/A";
+    const pageTag = `${base}_p${String(p).padStart(2,"0")}`;
+
+    // Save summary keyed by global page index
+    pageSummaries[globalIndex] = { pageTag, idFromSheet, marks, denom, pct, symbols, finalAnswers };
+
+    // Optional: overlay preview for the page if it’s the current global page
+    if (globalIndex === currentPage) {
+      const previewEl = document.getElementById("preview");
+      if (previewEl) overlayGhost(previewEl, warped, overlayPacks, invH, srcW, srcH);
+    }
+
+    if(invH) invH.delete();
+    warped.delete();
+  }
+
+  // Merge and persist
+  results = results.concat(newResults);
+    outEl.textContent=results.join("\n");
+    const countElPost = document.getElementById("resultsCount");
+    if (countElPost) countElPost.textContent = `${results.length} item${results.length === 1 ? "" : "s"}`;
+    saveStoredResults();
+
+  // Update issues panel
+  const issuesEl = document.getElementById("issues");
+  if (issuesEl) renderIssuesPanel();
+
+  renderSummaryForPage(currentPage);
+  renderCurrentReportPreview(currentPage);
+
+  $("#btnCSV").disabled = results.length===0;
+  setStatus("Processing complete.");
+}
+
+/* ===== CSV ===== */
+function downloadCSV(){
+  // ... existing code ...
+  if(!results.length) return;
+  const indexCols = TEMPLATE.index.rows || 4;
+  const exportLines = results.map(line => {
+    const cells = line.split(";");
+    const pageTag = cells[0];
+
+    // Apply override to the 4 index characters (if any)
+    const override = idOverrides.get(pageTag);
+    if (override && override.length > 0) {
+      const chars = override.toUpperCase().split("");
+      for (let i = 0; i < indexCols; i++) {
+        cells[1 + i] = chars[i] || "";
+      }
+    }
+
+    // Derive class (1st+2nd) and index (3rd+4th) from the index characters
+    const idxChars = [];
+    for (let i = 0; i < Math.min(indexCols, 4); i++) {
+      idxChars.push(cells[1 + i] || "");
+    }
+    const idxCode = idxChars.join("").toUpperCase();
+    const cls = idxCode.slice(0, 2) || "";
+    const idx = idxCode.slice(2, 4) || "";
+
+    // Lookup student name using the 4-char code (after override application)
+    const stuName = (studentMap.get(idxCode)?.name) || "";
+
+    // Lookup score: number of correct answers (marks) from pageSummaries via pageTag
+    let score = "";
+    const meta = pageSummaries.find(m => m && m.pageTag === pageTag);
+    if (meta && typeof meta.marks === "number") {
+      score = String(meta.marks);
+    }
+
+    // Insert derived columns immediately after pageTag: class, index, name, score
+    cells.splice(1, 0, cls, idx, stuName, score);
+
+    return cells.join(";");
+  });
+
+  const blob=new Blob([exportLines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const base = (loadedFileName||"pages").replace(/\.[^.]+$/,"");
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}${String(d.getSeconds()).padStart(2,"0")}`;
+  const filename = `oms_${base}_${stamp}.csv`;
+
+  // Revoke previous URL if any
+  if (lastCSVUrl) {
+    try { URL.revokeObjectURL(lastCSVUrl); } catch {}
+    lastCSVUrl = null;
+  }
+
+  const url=URL.createObjectURL(blob);
+  lastCSVUrl = url;
+
+  // Visible download link
+  const sizeKB = Math.max(1, Math.round(blob.size / 1024));
+  const dlRow = document.getElementById("dlRow");
+  if (dlRow) {
+    dlRow.innerHTML = "";
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.textContent = `Download ${filename} (${sizeKB} KB)`;
+    a.style.color = "#22d3ee";
+    a.style.textDecoration = "none";
+    a.className = "pill";
+    dlRow.appendChild(a);
+
+    a.click();
+
+    setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch {}
+      if (lastCSVUrl === url) lastCSVUrl = null;
+    }, 120000);
+  } else {
+    const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 30000);
+  }
+}
+
+/* ===== Answer key helpers ===== */
+function parsePastedAnswers(text, n) {
+  const t = (text || "").trim().toUpperCase();
+  const tokens = t.split(/[^A-D]+/).filter(Boolean);
+  const out = new Array(n).fill("");
+
+  if (tokens.length === 1 && tokens[0].length >= n) {
+    for (let i = 0; i < n; i++) {
+      const c = tokens[0][i];
+      out[i] = ["A","B","C","D"].includes(c) ? c : "";
+    }
+  } else {
+    for (let i = 0; i < n; i++) {
+      const c = tokens[i] || "";
+      out[i] = ["A","B","C","D"].includes(c) ? c : "";
+    }
+  }
+  return out;
+}
+function saveAnswerKey() {
+  const n = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+  const taVal = document.getElementById("ansPaste")?.value || "";
+  const arr = parsePastedAnswers(taVal, n);
+  savedAnswerKey = arr;
+  const status = document.getElementById("keyStatus");
+  if (status) status.textContent = `Saved ${arr.filter(v => v).length}/${n}`;
+}
+function clearAnswerKey() {
+  savedAnswerKey = null;
+  const ta = document.getElementById("ansPaste");
+  if (ta) ta.value = "";
+  const status = document.getElementById("keyStatus");
+  if (status) status.textContent = "Not saved";
+}
+function getAnswerKey() {
+  const n = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+  if (Array.isArray(savedAnswerKey)) {
+    const normalized = savedAnswerKey.slice(0, n);
+    if (normalized.length < n) {
+      normalized.push(...new Array(n - normalized.length).fill(""));
+    }
+    return normalized;
+  }
+  const taVal = document.getElementById("ansPaste")?.value || "";
+  return parsePastedAnswers(taVal, n);
+}
+
+// ... existing code ...
+function isMultipleAnswer(s) {
+  const t = (s || "").toUpperCase().trim();
+  if (!t || t === "-") return false;
+
+  // Normalize and validate plus-separated tokens
+  if (t.includes("+")) {
+    const parts = t.split("+").map(x => x.trim());
+    return parts.length >= 2 && parts.every(x => /^[A-D]$/.test(x));
+  }
+
+  // Concatenated letters: AB, ABC
+  if (/^[A-D]{2,}$/.test(t)) return true;
+
+  // Comma or slash in a single token: A,B or A/B
+  if (/[A-D]\s*[/,]\s*[A-D]/.test(t)) return true;
+
+  // Space-separated sequence: A B or A B C
+  if (/^(?:[A-D]\s+){1,}[A-D]$/.test(t)) return true;
+
+  return false;
+}
+
+/* ===== Student list (CSV) ===== */
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, field = "", row = [], inQuotes = false;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        row.push(field); field = "";
+      } else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); field = "";
+        rows.push(row); row = [];
+      } else {
+        field += ch;
+      }
+    }
+    i++;
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+async function loadStudentList() {
+  // Read embedded CSV from a script tag
+  const csvEl = document.getElementById("studentlist-inline");
+  if (!csvEl) {
+    if (typeof setStatus === "function") setStatus("No embedded student list found.");
+    return;
+  }
+
+  try {
+    const text = (csvEl.textContent || csvEl.innerText || "").trim();
+    if (!text) {
+      if (typeof setStatus === "function") setStatus("Embedded student list is empty.");
+      return;
+    }
+
+    // Helper to ingest parsed CSV rows and populate studentMap
+    function ingestRows(rows) {
+      if (!rows || !rows.length) return;
+      const header = rows[0].map(h => h.trim().toUpperCase());
+      const idxID = header.indexOf("ID");
+      const idxName = header.indexOf("STUDENT");
+      const idxClass = header.indexOf("CLASS");
+
+      studentMap = new Map();
+      for (let i = 1; i < rows.length; i++) {
+        const cols = rows[i];
+        const id = (idxID >= 0 && cols[idxID] ? cols[idxID] : "").trim().toUpperCase();
+        if (!id) continue;
+        const name = (idxName >= 0 && cols[idxName] ? cols[idxName] : "").trim();
+        const cls = (idxClass >= 0 && cols[idxClass] ? cols[idxClass] : "").trim();
+        studentMap.set(id, { id, name, cls });
+      }
+    }
+
+    const rows = parseCSV(text);
+    ingestRows(rows);
+
+    if (typeof setStatus === "function") setStatus(`Loaded embedded student list (${studentMap.size} students).`);
+    if (typeof renderSummaryForPage === "function") renderSummaryForPage(currentPage);
+  } catch (e) {
+    console.error("Failed to parse embedded student list:", e);
+    if (typeof setStatus === "function") setStatus("Failed to parse embedded student list.");
+  }
+}
+
+/* ===== Summary & Reports ===== */
+function renderSummaryForPage(p){
+  const summaryEl = document.getElementById("summary");
+  const idInput = document.getElementById("idOverride");
+  const resolvedEl = document.getElementById("studentResolved");
+  if (!summaryEl) return;
+
+  const meta = pageSummaries[p];
+  if (!meta) {
+    summaryEl.textContent = "No summary for this page.";
+    if (idInput) idInput.value = "";
+    if (resolvedEl) resolvedEl.textContent = "";
+    return;
+  }
+
+  const override = (meta && idOverrides.get(meta.pageTag)) || "";
+  if (idInput) idInput.value = override || meta.idFromSheet || "";
+
+  // Use semicolon-separated tokens in the override input
+  const ansInput = document.getElementById("answersOverride");
+  if (ansInput) {
+    const arr = Array.isArray(meta.finalAnswers) ? meta.finalAnswers : [];
+    ansInput.value = arr.join(";");
+  }
+
+  const useId = (override || meta.idFromSheet || "").toUpperCase();
+  const stu = useId ? (studentMap.get(useId) || null) : null;
+  const info = stu ? `${stu.id} ${stu.name} (${stu.cls})`
+                   : (useId ? `${useId} (not found)` : "ID: N/A");
+  if (resolvedEl) resolvedEl.textContent = info;
+
+  const line = meta.denom > 0
+    ? `${meta.pageTag} — ${info}: ${meta.marks}/${meta.denom} (${meta.pct}%)  [${meta.symbols.join("")}]`
+    : `${meta.pageTag} — ${info}: No answer key set`;
+
+  summaryEl.textContent = line;
+}
+function renderCurrentReportPreview(p) {
+  const reportPreviewEl = document.getElementById("reportPreview");
+  if (!reportPreviewEl) return;
+  reportPreviewEl.innerHTML = buildReportHTMLForPage(p, 'preview');
+}
+function buildReportHTMLForPage(p, mode){
+  const meta = pageSummaries[p];
+  if (!meta) return `<div class="${mode === 'preview' ? 'report-page' : ''}"><div>No data for page ${p}.</div></div>`;
+
+  // FIX: use pageTag-keyed override (previously used idOverrides.get(p))
+  const override = idOverrides.get(meta.pageTag) || "";
+  const useId = (override || meta.idFromSheet || "").toUpperCase();
+  const stu = useId ? (studentMap.get(useId) || null) : null;
+  const answerKey = getAnswerKey();
+
+  const namePart = stu ? `Name: ${stu.name}` : "";
+  const classPart = stu ? `Class: ${stu.cls}` : "";
+  const idPart = useId ? `ID: ${useId}${stu ? "" : " (not found)"}` : "ID: N/A";
+
+  const totalQ = (meta.finalAnswers && meta.finalAnswers.length) ? meta.finalAnswers.length : 0;
+  const rows = [];
+  for (let i = 0; i < totalQ; i++) {
+    const qn = String(i + 1).padStart(2, "0");
+    const ans = meta.finalAnswers[i] || "";
+    const key = answerKey[i] || "";
+    let result = "-";
+    if (key) result = (ans === key) ? "✓" : "✗";
+    const correct = key ? key : "—";
+    rows.push(
+      `<tr>
+        <td>Q${qn}</td>
+        <td>${ans || "-"}</td>
+        <td class="${result === "✓" ? "ok" : (result === "✗" ? "bad" : "")}">${result}</td>
+        <td>${result === "✗" ? correct : (key ? "" : "—")}</td>
+      </tr>`
+    );
+  }
+
+  const shellClass = (mode === 'preview') ? 'report-page' : 'print-sheet page-break';
+  return `
+    <div class="${shellClass}">
+      <h2>Student Report</h2>
+      <div class="sub">${idPart}${namePart ? " • " + namePart : ""}${classPart ? " • " + classPart : ""}</div>
+      <div class="sub">Page: ${meta.pageTag} • Score: ${meta.marks}/${meta.denom} (${meta.pct}%)</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:12%">Question</th>
+            <th style="width:38%">Chosen</th>
+            <th style="width:15%">Result</th>
+            <th style="width:35%">Correct (if wrong)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+function buildCurrentReportHTMLDoc(){
+  const p = currentPage;
+  const content = buildReportHTMLForPage(p, 'print');
+  const styles = `
+    <style>
+      @page { size: A4; margin: 12mm; }
+      body { background: #fff; color: #000; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+      .print-sheet { background: #fff; color: #000; }
+      .print-sheet .header { font-size: 14px; margin-bottom: 8px; }
+      .print-sheet .sub { color: #444; font-size: 12px; margin-top: 2px; }
+      .print-sheet h2 { margin: 12px 0 8px; font-size: 16px; color: #111; }
+      .print-sheet table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .print-sheet th, .print-sheet td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+      .print-sheet th { background: #f2f2f2; }
+      .ok { color: #16a34a; font-weight: 600; }
+      .bad { color: #dc2626; font-weight: 600; }
+      .page-break { page-break-after: always; }
+    </style>
+  `;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">${styles}</head><body>${content}</body></html>`;
+}
+function renderAllReportsPreview(){
+  const preview = document.getElementById("reportPreview");
+  if (!preview) return;
+  const pages = [];
+
+  // Use combined total pages across all uploaded PDFs
+  if (totalPages === 0) {
+    preview.innerHTML = "<div class='small'>No PDF loaded.</div>";
+    return;
+  }
+
+  for (let p = 1; p <= totalPages; p++) {
+    if (pageSummaries[p]) {
+      pages.push(buildReportHTMLForPage(p, 'preview'));
+    }
+  }
+
+  if (pages.length === 0) {
+    preview.innerHTML = "<div class='small'>No processed pages yet.</div>";
+    return;
+  }
+
+  preview.innerHTML = pages.join("\n");
+}
+function buildAllReportsHTMLDoc(){
+  const pages = [];
+
+  // Include all processed pages across all uploaded PDFs
+  const count = totalPages;
+  for (let p = 1; p <= count; p++) {
+    if (pageSummaries[p]) {
+      pages.push(buildReportHTMLForPage(p, 'print'));
+    }
+  }
+  const styles = `
+    <style>
+      @page { size: A4; margin: 12mm; }
+      body { background: #fff; color: #000; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+      .print-sheet { background: #fff; color: #000; }
+      .print-sheet .header { font-size: 14px; margin-bottom: 8px; }
+      .print-sheet .sub { color: #444; font-size: 12px; margin-top: 2px; }
+      .print-sheet h2 { margin: 12px 0 8px; font-size: 16px; color: #111; }
+      .print-sheet table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .print-sheet th, .print-sheet td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+      .print-sheet th { background: #f2f2f2; }
+      .ok { color: #16a34a; font-weight: 600; }
+      .bad { color: #dc2626; font-weight: 600; }
+      .page-break { page-break-after: always; }
+    </style>
+  `;
+  const autoPrint = `
+    <script>
+      window.addEventListener('load', function() {
+        try { window.print(); } catch (e) {}
+      });
+    <\/script>
+  `;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">${styles}</head><body>${pages.join("")}${autoPrint}</body></html>`;
+}
+
+function buildItemAnalysisHTMLDoc(){
+  // Determine MCQ count (prefer input field, fallback to answer key length)
+  const nFromInput = parseInt(document.getElementById("mcqCount")?.value || "0", 10);
+  const nFromKey = Array.isArray(savedAnswerKey) ? savedAnswerKey.length : 0;
+  const N = nFromInput || nFromKey;
+
+  const ABCD_LOCAL = ["A","B","C","D"];
+  if (!N) {
+    return `<!DOCTYPE html><html><body><h1>Item Analysis</h1><p>No MCQ count or answer key available.</p></body></html>`;
+  }
+
+  const dist = Array.from({length:N}, ()=>({total:0, A:0,B:0,C:0,D:0, missing:0, error:0, correct:0, key:null}));
+  if (Array.isArray(savedAnswerKey)) {
+    for (let i=0;i<N;i++) dist[i].key = savedAnswerKey[i] || "";
+  }
+
+  // Parse results lines. Format note in UI: filename;X;X;X;X;A;A;... (N answers; ERR indicates multiple/invalid marks)
+  if (Array.isArray(results)) {
+    results.forEach(line=>{
+      const tok = String(line).split(";");
+      // The number of index columns is TEMPLATE.index.rows, which is 4.
+      // So answers start from index 1 (filename) + 4 (index chars) = 5.
+      // We need at least 5 + N tokens.
+      if (tok.length < 5 + N) return;
+      const answers = tok.slice(tok.length - N); // Get the last N tokens as answers
+      for (let i=0;i<N;i++){
+        const t = (answers[i] || "").trim();
+        if (!t || t === "X") { dist[i].missing++; continue; }
+        if (t === "ERR") { dist[i].error++; continue; }
+
+        // Legacy multi-select support was "A+B"; now typical strings are single letters.
+        const letters = t.split("+").map(s=>s.trim()).filter(c=>ABCD_LOCAL.includes(c));
+        if (letters.length === 0) { dist[i].missing++; continue; }
+
+        dist[i].total++;
+        letters.forEach(c => { dist[i][c]++; });
+
+        // Correctness if key present (legacy multi like "A+B" still supported on import)
+        const keyStr = String(dist[i].key || "");
+        if (keyStr) {
+          const keyLetters = keyStr.split("+").map(s=>s.trim()).filter(c=>ABCD_LOCAL.includes(c));
+          const setAns = new Set(letters), setKey = new Set(keyLetters);
+          if (setAns.size === setKey.size && [...setAns].every(c => setKey.has(c))) {
+            dist[i].correct++;
+          }
+        }
+      }
+    });
+  }
+
+  // ===== Heatmap helpers (per-option: green for correct option, red for wrong option) =====
+    function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+    function alphaForPercent(p){ return clamp01(p/100) * 0.75; } // up to 0.75 opacity for readability
+    function greenBg(percent){ return `rgba(34,197,94,${alphaForPercent(percent)})`; }  // green (correct option)
+    function redBg(percent){ return `rgba(239,68,68,${alphaForPercent(percent)})`; }    // red (wrong option)
+  const rowsHtml = dist.map((d, idx)=>{
+    const answered = d.A + d.B + d.C + d.D;
+    const totalConsidered = answered;
+    const keyStr = String(d.key || "");
+    const keyLetters = keyStr ? keyStr.split("+").map(s=>s.trim()).filter(c=>["A","B","C","D"].includes(c)) : [];
+    const corrRate = totalConsidered ? Math.round(100 * d.correct / totalConsidered) : 0;
+    const correctCount = d.correct || 0;
+
+    // Per-option cells: show "count (percent%)", color-coded based on correctness
+    function optionCell(letter){
+      const count = d[letter] || 0;
+      const pct = totalConsidered ? Math.round(100 * count / totalConsidered) : 0;
+      const isCorrectOption = keyLetters.includes(letter);
+      const bg = isCorrectOption ? greenBg(pct) : redBg(pct);
+      const title = `${count} picked (${pct}%)`;
+      return `<td class="heat" title="${title}" style="background-color:${bg}">${count} (${pct}%)</td>`;
+    }
+
+    return `<tr>
+      <td>${idx+1}</td>
+      <td style="text-align:center;font-weight:600">${keyStr}</td>
+      ${optionCell("A")}
+      ${optionCell("B")}
+      ${optionCell("C")}
+      ${optionCell("D")}
+      <td class="pct" title="${correctCount} correct (${corrRate}%)">${correctCount} (${corrRate}%)</td>
+    </tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Item Analysis</title>
+    <style>
+      :root { color-scheme: light; }
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:16px}
+      h1{font-size:18px;margin:0 0 10px}
+      .small{color:#555;margin-bottom:10px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #ccc;padding:6px;text-align:right}
+      th:nth-child(1),td:nth-child(1){text-align:left}
+      th:nth-child(2),td:nth-child(2){text-align:center}
+      td.heat{transition:background-color .2s}
+      td.pct{font-weight:600}
+      .legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:8px 0 12px}
+      .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#444}
+      .swatch{width:100px;height:14px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.08) inset}
+      .swatch.wrong{background:linear-gradient(90deg, rgba(239,68,68,.1), rgba(239,68,68,.75))}
+      .swatch.correct{background:linear-gradient(90deg, rgba(34,197,94,.1), rgba(34,197,94,.75))}
+      @media print {
+        @page{ size: A4; margin: 12mm; }
+        body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    </style></head>
+    <body>
+      <h1>Item Analysis</h1>
+      <div class="small">Questions: ${N}; Students: ${Array.isArray(results) ? results.length : 0}</div>
+      <div class="legend">
+        <div class="legend-item"><div class="swatch correct"></div><span>Greener option cell = correct option picked more</span></div>
+        <div class="legend-item"><div class="swatch wrong"></div><span>Redder option cell = wrong option picked more</span></div>
+      </div>
+      <table>
+          <thead>
+            <tr><th>Q#</th><th>Key</th><th>A</th><th>B</th><th>C</th><th>D</th><th>Correct%</th></tr>
+          </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </body></html>`;
+  return html;}
+
+
+function openItemAnalysisPreview(){
+  if (!Array.isArray(results) || results.length === 0) {
+    alert("No results available yet. Process the PDF first.");
+    return;
+  }
+  const html = buildItemAnalysisHTMLDoc();
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  window.open(url, "_blank");
+}
+
+/* ===== Buttons for reports ===== */
+const btnOpenPDF = document.getElementById("btnOpenPDF");
+if (btnOpenPDF) btnOpenPDF.onclick = () => {
+  const html = buildCurrentReportHTMLDoc();
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+};
+const btnDownloadAll = document.getElementById("btnDownloadAll");
+if (btnDownloadAll) btnDownloadAll.onclick = () => {
+  const html = buildAllReportsHTMLDoc();
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+};
+
+
+// Inside the main <script> tag
+function setupCTA() {
+  // Remove any existing CTA highlights to enforce this sequence
+  const ids = ["ansPaste","btnSaveKey","btnUploadCSV","btnPickPDF"];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove("cta");
+  });
+
+  const uploadBtn = document.getElementById("btnUploadCSV");
+  const pickPdfBtn = document.getElementById("btnPickPDF");
+  // Removed: const processBtn = document.getElementById("btnProcess");
+
+  const ans = document.getElementById("ansPaste");
+  const saveBtn = document.getElementById("btnSaveKey");
+  const uploadCsvBtn = document.getElementById("btnUploadCSV");
+
+  if (!ans || !saveBtn || !uploadCsvBtn || !pickPdfBtn) return;
+
+  // No CTA transitions to Process PDF anymore since the button is removed.
+}
+
+/* ===== DOM ready: hook minor UI ===== */
+document.addEventListener("DOMContentLoaded", () => {
+  const btnApplyId = document.getElementById("btnApplyId");
+  if (btnApplyId) {
+    btnApplyId.addEventListener("click", () => {
+      const p = currentPage;
+      const val = (document.getElementById("idOverride")?.value || "").trim();
+      const meta = pageSummaries[p];
+      if (!meta) {
+        setStatus("No processed data for this page yet.");
+        return;
+      }
+      const pageTag = meta.pageTag;
+      if (val) idOverrides.set(pageTag, val);
+      else idOverrides.delete(pageTag);
+
+      // Update the specific line in All results with the override index chars
+      applyOverrideToResults(pageTag, val);
+
+      // Recompute issues across all pages and refresh the Issues panel
+      recomputeIssues();
+
+      // Refresh summary and report preview
+      renderSummaryForPage(p);
+      renderCurrentReportPreview(p);
+
+      setStatus("Student ID override applied.");
+    });
+  }
+  const btnSave = document.getElementById("btnSaveKey");
+  if (btnSave) btnSave.addEventListener("click", saveAnswerKey);
+  const btnClear = document.getElementById("btnClearKey");
+  if (btnClear) btnClear.addEventListener("click", clearAnswerKey);
+
+  loadStudentList();
+
+  // NEW: answers override binding
+  const btnApplyAnswers = document.getElementById("btnApplyAnswers");
+  if (btnApplyAnswers) {
+    const applyAnswers = () => {
+      const p = currentPage;
+      const meta = pageSummaries[p];
+      if (!meta) {
+        setStatus("No processed data for this page yet.");
+        return;
+      }
+
+      // Parse override text into N answers
+      const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+      const raw = (document.getElementById("answersOverride")?.value || "").trim();
+      const arr = parseStudentAnswers(raw, mcqCount);
+
+      // Update page meta answers and recompute score/symbols
+      const answerKey = getAnswerKey();
+      let denom = 0, marks = 0;
+      const symbols = [];
+      for (let i = 0; i < mcqCount; i++) {
+        const key = answerKey[i] || "";
+        const ans = arr[i] || "";
+        if (key) {
+          denom++;
+          if (ans === key) {
+            marks++;
+            symbols.push("✓");
+          } else {
+            symbols.push("✗");
+          }
+        } else {
+          symbols.push("-");
+        }
+      }
+      const pct = denom > 0 ? ((marks / denom) * 100).toFixed(1) : "N/A";
+
+      // Persist into pageSummaries
+      meta.finalAnswers = arr.slice(0, mcqCount);
+      meta.marks = marks;
+      meta.denom = denom;
+      meta.pct = pct;
+      meta.symbols = symbols;
+
+      // Update All results line (answers tail)
+      applyAnswersOverrideToResults(meta.pageTag, meta.finalAnswers);
+
+      // Recompute issues, refresh summary/report
+      recomputeIssues();
+      renderSummaryForPage(p);
+      renderCurrentReportPreview(p);
+
+      setStatus("Answers overwrite applied.");
+    };
+
+    btnApplyAnswers.addEventListener("click", applyAnswers);
+
+    // Enter-to-apply on the answers input
+    const answersInput = document.getElementById("answersOverride");
+    if (answersInput) {
+      answersInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") applyAnswers();
+      });
+    }
+  }
+});
+
+function applyOverrideToResults(pageTag, overrideStr){
+  try {
+    if (!pageTag) return;
+    const indexCols = TEMPLATE.index.rows || 4;
+    const chars = (overrideStr || "").toUpperCase().split("");
+
+    results = results.map(line => {
+      const cells = line.split(";");
+      if (cells[0] === pageTag) {
+        for (let i = 0; i < indexCols; i++) {
+          cells[1 + i] = chars[i] || "";
+        }
+        return cells.join(";");
+      }
+      return line;
+    });
+
+    outEl.textContent = results.join("\n");
+    const countElOverride = document.getElementById("resultsCount");
+    if (countElOverride) countElOverride.textContent = `${results.length} item${results.length === 1 ? "" : "s"}`;
+    saveStoredResults();
+  } catch (e) {
+    console.warn("Failed to apply override to results:", e);
+  }
+}
+
+// NEW: update the answers tail in All results for a given pageTag
+function applyAnswersOverrideToResults(pageTag, answersArr){
+  try {
+    if (!pageTag) return;
+    const indexCols = TEMPLATE.index.rows || 4;
+    const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+    const normalized = Array.isArray(answersArr) ? answersArr.slice(0, mcqCount) : [];
+    if (normalized.length < mcqCount) {
+      normalized.push(...new Array(mcqCount - normalized.length).fill(""));
+    }
+
+    results = results.map(line => {
+      const cells = line.split(";");
+      if (cells[0] === pageTag) {
+        const start = 1 + indexCols;
+        for (let i = 0; i < mcqCount; i++) {
+          cells[start + i] = normalized[i] || "";
+        }
+        return cells.join(";");
+      }
+      return line;
+    });
+
+    outEl.textContent = results.join("\n");
+    const countElOverride = document.getElementById("resultsCount");
+    if (countElOverride) countElOverride.textContent = `${results.length} item${results.length === 1 ? "" : "s"}`;
+    saveStoredResults();
+  } catch (e) {
+    console.warn("Failed to apply answer overwrite to results:", e);
+  }
+}
+
+// NEW: parse a free-form student answers string into N tokens
+function parseStudentAnswers(text, n){
+  const rawTokens = (text || "")
+    .toUpperCase()
+    .split(";")
+    .map(t => t.trim());
+
+  const out = [];
+  const validLetter = /^[A-D]$/;
+
+  const isMulti = (s) => {
+    const t = (s || "").toUpperCase().trim();
+    if (!t) return false;
+    if (t === "-") return false;
+    if (t.includes("+")) return /^[A-D](\+[A-D])+$/.test(t); // A+B(+C…)
+    if (/[A-D]\s*[/,]\s*[A-D]/.test(t)) return true;        // A/B or A, B (still allowed inside a token)
+    if (/^[A-D]{2,}$/.test(t)) return true;                 // AB / ABC
+    return false;
+  };
+
+  for (let i = 0; i < n; i++) {
+    const raw = rawTokens[i] || "";
+    if (!raw) {
+      out[i] = "";
+    } else if (validLetter.test(raw)) {
+      out[i] = raw;
+    } else if (isMulti(raw)) {
+      // Normalize multi separators inside the token to '+'
+      out[i] = raw.replace(/[ ,/]+/g, "+").replace(/\++/g, "+");
+    } else {
+      // Unknown token: treat as blank
+      out[i] = "";
+    }
+  }
+  return out;
+}
+function recomputeIssues(){
+  try {
+    issues = [];
+    seenStudentIds.clear();
+
+    const mcqCount = Math.max(1, Math.min(45, parseInt(document.getElementById("mcqCount")?.value || "30", 10)));
+
+    // Re-evaluate per-page issues with current overrides
+    for (let p = 1; p <= totalPages; p++) {
+      const meta = pageSummaries[p];
+      if (!meta) continue;
+
+      const messages = [];
+
+      // Missing/multiple answers from stored finalAnswers
+      const finalAnswers = meta.finalAnswers || [];
+      const missingQs = [];
+      const multipleQs = [];
+
+      for (let i = 0; i < mcqCount; i++) {
+        const ans = (finalAnswers[i] || "").trim();
+        if (!ans) {
+          missingQs.push(i + 1);
+        } else if (isMultipleAnswer(ans)) {
+          multipleQs.push(`Q${i + 1}(${ans})`);
+        }
+      }
+
+      if (missingQs.length) messages.push(`Missing answers: ${missingQs.map(q => `Q${q}`).join(", ")}`);
+      if (multipleQs.length) messages.push(`Multiple answers: ${multipleQs.join(", ")}`);
+
+      // ID resolution (prefer override)
+      const pageTag = meta.pageTag;
+      const override = idOverrides.get(pageTag);
+      const candidate = (override && override.length > 0
+        ? override.trim().toUpperCase()
+        : (meta.idFromSheet || "").toUpperCase());
+
+      const idProblems = [];
+      let idOk = true;
+      if (!candidate) {
+        idProblems.push("Student ID not found (empty index)");
+        idOk = false;
+      } else {
+        if (!studentMap.has(candidate)) {
+          idProblems.push(`Student ID not found in list: ${candidate}`);
+          idOk = false;
+        }
+        if (seenStudentIds.has(candidate)) {
+          idProblems.push(`Duplicated student ID: ${candidate}`);
+          idOk = false;
+        } else {
+          seenStudentIds.add(candidate);
+        }
+      }
+
+      if (idProblems.length) {
+        messages.push(...idProblems);
+      } else if (override && override.length > 0) {
+        messages.push(`Student ID override applied: ${candidate} — rectified`);
+      }
+
+      // Append issues lines for this page: multiple lines (one per message)
+      if (messages.length) {
+        for (const msg of messages) {
+          issues.push(`${pageTag}: ${msg}`);
+        }
+      }
+    }
+
+    const issuesEl = document.getElementById("issues");
+    if (issuesEl) renderIssuesPanel();
+  } catch (e) {
+    console.warn("Failed to recompute issues:", e);
+  }
+}
+/* ===== SAFETY: only bind if present (prevents load-time crash) ===== */
+const btnPrint = document.getElementById("btnPrint");
+if (btnPrint) btnPrint.onclick = () => {
+  // If you add a Print button back to DOM, this will work.
+  // Currently not shown; we keep this guard to avoid runtime error.
+  const p = currentPage;
+  const printArea = document.getElementById("printArea");
+  if (printArea) {
+    printArea.innerHTML = buildReportHTMLForPage(p, 'print');
+    window.print();
+  }
+};
+</script>
+
+
+</body></html>
