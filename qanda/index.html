@@ -12,7 +12,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background: linear-gradient(135deg, #1e293b 0%, #4338ca 100%);
             min-height: 100vh;
             display: flex;
@@ -26,7 +26,7 @@
             width: 100%;
         }
 
-        .loading, .error, .no-questions {
+        .state-screen {
             background: white;
             border-radius: 1rem;
             padding: 3rem;
@@ -132,7 +132,6 @@
         .bottom-controls {
             display: flex;
             justify-content: center;
-            gap: 2rem;
             margin-top: 2rem;
         }
 
@@ -142,10 +141,8 @@
             background: none;
             border: none;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
             transition: color 0.2s;
+            padding: 0.5rem;
         }
 
         .control-button:hover {
@@ -157,18 +154,6 @@
             margin-top: 1rem;
             color: #c7d2fe;
             font-size: 0.875rem;
-        }
-
-        .error-title {
-            color: #dc2626;
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-
-        .error-message {
-            color: #4b5563;
-            margin-bottom: 1.5rem;
         }
 
         .retry-button {
@@ -194,18 +179,18 @@
 </head>
 <body>
     <div class="container">
-        <div id="loading" class="loading">
+        <div id="loading" class="state-screen">
             <div class="spinner"></div>
             <p style="font-size: 1.25rem; color: #1f2937;">Loading questions...</p>
         </div>
 
-        <div id="error" class="error hidden">
-            <h2 class="error-title">Error</h2>
-            <p class="error-message" id="error-message"></p>
+        <div id="error" class="state-screen hidden">
+            <h2 style="color: #dc2626; font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem;">Error</h2>
+            <p id="error-message" style="color: #4b5563; margin-bottom: 1.5rem;"></p>
             <button class="retry-button" onclick="loadQuestions()">Try Again</button>
         </div>
 
-        <div id="no-questions" class="no-questions hidden">
+        <div id="no-questions" class="state-screen hidden">
             <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">No Questions Yet</h2>
             <p style="color: #6b7280; margin-bottom: 1.5rem;">Waiting for form responses...</p>
             <button class="retry-button" onclick="loadQuestions()">Refresh</button>
@@ -225,9 +210,7 @@
 
             <div class="navigation">
                 <button class="nav-button" id="prev-btn" onclick="previousQuestion()">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
+                    <span>&larr;</span>
                     <span>Previous</span>
                 </button>
 
@@ -237,24 +220,18 @@
 
                 <button class="nav-button" id="next-btn" onclick="nextQuestion()">
                     <span>Next</span>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
+                    <span>&rarr;</span>
                 </button>
             </div>
 
             <div class="bottom-controls">
                 <button class="control-button" onclick="loadQuestions()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="23 4 23 10 17 10"></polyline>
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                    </svg>
-                    Refresh Questions
+                    &#8634; Refresh Questions
                 </button>
             </div>
 
             <div class="keyboard-hint">
-                Use ← → arrow keys to navigate
+                Use arrow keys to navigate
             </div>
         </div>
     </div>
@@ -265,11 +242,17 @@
         var currentIndex = 0;
 
         function showElement(id) {
-            var elements = document.querySelectorAll('.loading, .error, .no-questions, #main-content');
-            for (var i = 0; i < elements.length; i++) {
-                elements[i].classList.add('hidden');
+            var screens = ['loading', 'error', 'no-questions', 'main-content'];
+            for (var i = 0; i < screens.length; i++) {
+                var el = document.getElementById(screens[i]);
+                if (el) {
+                    el.classList.add('hidden');
+                }
             }
-            document.getElementById(id).classList.remove('hidden');
+            var targetEl = document.getElementById(id);
+            if (targetEl) {
+                targetEl.classList.remove('hidden');
+            }
         }
 
         function loadQuestions() {
@@ -311,14 +294,14 @@
 
         function previousQuestion() {
             if (currentIndex > 0) {
-                currentIndex--;
+                currentIndex = currentIndex - 1;
                 displayQuestion();
             }
         }
 
         function nextQuestion() {
             if (currentIndex < questions.length - 1) {
-                currentIndex++;
+                currentIndex = currentIndex + 1;
                 displayQuestion();
             }
         }
