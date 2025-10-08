@@ -6,20 +6,17 @@
 <title>Panel Q&A Navigator</title>
 <style>
   :root{
-    --bg1:#0f172a; --bg2:#4338ca;
-    --card:#ffffff; --ink:#0f172a;
+    --bg2:#4338ca; --card:#ffffff; --ink:#0f172a;
     --muted:#64748b; --brand:#4f46e5; --brand-700:#4338ca;
     --shadow:0 25px 50px -12px rgba(0,0,0,.25); --radius:20px;
   }
   *{box-sizing:border-box} html,body{height:100%}
   body{
-    margin:0;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     background:
       radial-gradient(900px 560px at 110% 10%, rgba(67,56,202,.55) 0%, transparent 60%),
       linear-gradient(135deg, #1e293b 0%, var(--bg2) 100%);
-    color:#fff;
-    padding:clamp(12px,2.5vw,24px);
+    color:#fff; padding:clamp(12px,2.5vw,24px);
   }
   .container{max-width:1100px;margin-inline:auto}
 
@@ -41,6 +38,8 @@
   }
   .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.22)}
   .btn.primary{background:#fff;color:var(--brand);border-color:transparent}
+  .btn.warning{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+  .btn[disabled]{opacity:.55;cursor:not-allowed}
   .icon{width:18px;height:18px}
 
   /* Progress */
@@ -48,7 +47,7 @@
     border-radius:999px;overflow:hidden;margin:10px 0}
   .progress{height:100%;width:0;background:linear-gradient(90deg,#a5b4fc,#4f46e5);transition:width .25s ease}
 
-  /* State cards */
+  /* States */
   .state{
     background:var(--card);color:var(--ink);border-radius:var(--radius);
     padding:clamp(20px,3.5vw,32px);box-shadow:var(--shadow);text-align:center;
@@ -70,28 +69,17 @@
   .q{font-size:clamp(20px,3.6vw,40px);line-height:1.45;letter-spacing:.2px}
 
   /* Presenter controls */
-  .controls{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+  .controls{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:6px}
   .controls .group{display:flex;gap:10px;flex-wrap:wrap}
-
   .counter{color:#e5e7eb;font-weight:700}
 
-  /* QR directly under questions */
-  .qr-block{
-    display:grid;place-items:center;gap:8px;margin-top:clamp(14px,3vw,22px);
-    text-align:center;
-  }
-  .qr-img{
-    width:clamp(220px,42vw,420px); /* bigger & responsive */
-    height:auto;border-radius:12px;background:#fff;
-    box-shadow:0 14px 28px rgba(0,0,0,.25);
-  }
+  /* QR below questions */
+  .qr-block{display:grid;place-items:center;gap:8px;margin-top:clamp(14px,3vw,22px);text-align:center}
+  .qr-img{width:clamp(220px,42vw,420px);height:auto;border-radius:12px;background:#fff;box-shadow:0 14px 28px rgba(0,0,0,.25)}
   .qr-caption{color:#e5e7eb;font-size:clamp(14px,2.2vw,16px)}
   .qr-caption a{color:#c7d2fe;text-decoration:underline}
 
-  /* Loading/empty QR smaller */
-  .qr-small{width:clamp(140px,28vw,220px)}
-
-  /* Responsive tweaks */
+  /* Responsive */
   @media (max-width:740px){
     .controls{justify-content:center}
     .counter{order:3;width:100%;text-align:center}
@@ -113,11 +101,19 @@
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
           Anonymise
         </button>
-        <button class="btn" onclick="loadQuestions()" title="Reload questions">
+        <button class="btn" onclick="loadQuestions()" title="Reload">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
           Refresh
         </button>
-        <button class="btn primary" onclick="toggleFullscreen()" title="Fullscreen">
+        <button class="btn" id="btnViewBookmarks" onclick="toggleBookmarksView()" title="View Bookmarks (V)">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2z"/></svg>
+          Bookmarks Only
+        </button>
+        <button class="btn warning" onclick="clearBookmarks()" title="Clear Bookmarks (C)">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Clear
+        </button>
+        <button class="btn primary" onclick="toggleFullscreen()" title="Fullscreen (F)">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M9 21H5a2 2 0 0 1-2-2v-4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/></svg>
           Fullscreen
         </button>
@@ -133,7 +129,7 @@
       <p style="color:#334155">Loading questions…</p>
       <h2 style="margin-top:6px">Learning for the Future. Panel Discussion.</h2>
       <div class="qr-block" style="margin-top:12px">
-        <img class="qr-img qr-small" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda"/>
+        <img class="qr-img" style="width:clamp(160px,30vw,260px)" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda"/>
         <div class="qr-caption" style="color:#374151">Ask your question: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a></div>
       </div>
     </section>
@@ -164,7 +160,16 @@
           <div id="question-class"></div>
         </div>
         <div class="underline" aria-hidden="true"></div>
+
+        <!-- Question text + bookmark toggle -->
         <div class="q" id="question-text">—</div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn" id="btnBookmark" onclick="toggleBookmark()" title="Bookmark (B)">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2z"/></svg>
+            <span id="bookmark-label">Bookmark</span>
+          </button>
+          <span style="color:#64748b" id="bookmark-count">0 saved</span>
+        </div>
       </div>
 
       <div class="controls">
@@ -178,14 +183,14 @@
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         </div>
-        <div class="counter">Question <span id="current-index">1</span> of <span id="total-questions">0</span></div>
+        <div class="counter" id="counter-text">Question <span id="current-index">1</span> of <span id="total-questions">0</span></div>
         <div class="group">
           <button class="btn" onclick="loadQuestions()">Refresh</button>
           <button class="btn" onclick="toggleAnon()">Anonymise</button>
         </div>
       </div>
 
-      <!-- BIG, CENTERED QR directly below questions -->
+      <!-- Big, centered QR -->
       <div class="qr-block" aria-label="QR code to submit questions">
         <img class="qr-img" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda">
         <div class="qr-caption">
@@ -196,10 +201,87 @@
   </div>
 
 <script>
+  // ====== Config & State ======
   var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySlNsQii7TMpUPcVxVo6yNmI_0fu2f3WkkTy13nk29SKVB7sTaMVvZTGxMJHBGmHEHOA/exec';
-  var questions = [];
-  var currentIndex = 0;
+  var questions = [];              // normalized questions
+  var orderAll = [];               // array of IDs in full order
+  var orderBookmarks = [];         // array of IDs bookmarked (order saved)
+  var currentIndex = 0;            // index within the ACTIVE list
   var anonymise = false;
+  var viewBookmarksOnly = false;
+  var LS_KEY = 'panel_qna_bookmarks_v1';
+
+  // ====== Utilities ======
+  function hashId(q){
+    // simple stable hash of name|class|question
+    var s = (q.name||'') + '|' + (q.class||'') + '|' + (q.question||'');
+    var h = 0;
+    for (var i=0;i<s.length;i++){ h = ((h<<5)-h) + s.charCodeAt(i); h |= 0; }
+    return 'q_' + (h>>>0).toString(36);
+  }
+
+  function pick(obj, keys){
+    for (var i=0;i<keys.length;i++){
+      var k = keys[i];
+      if (obj[k]!=null) return String(obj[k]);
+      var f = Object.keys(obj).find(function(key){return key.toLowerCase()===k.toLowerCase();});
+      if (f) return String(obj[f]);
+    }
+    return '';
+  }
+
+  function normalise(it){
+    var q = {
+      name: pick(it, ['name','student','displayName']),
+      class: pick(it, ['class','className','group','formClass']),
+      question: pick(it, ['question','q','text','message'])
+    };
+    q._id = hashId(q);
+    return q;
+  }
+
+  function activeOrder(){ return viewBookmarksOnly ? orderBookmarks : orderAll; }
+
+  function saveBookmarks(){
+    // persist only IDs, in current order
+    try { localStorage.setItem(LS_KEY, JSON.stringify(orderBookmarks)); } catch(e){}
+  }
+
+  function loadBookmarksFromStorage(){
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      var arr = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+      orderBookmarks = arr;
+    } catch(e){ orderBookmarks = []; }
+  }
+
+  function isBookmarked(id){ return orderBookmarks.indexOf(id) !== -1; }
+
+  function updateBookmarkUI(){
+    var id = activeOrder()[currentIndex];
+    var bookmarked = isBookmarked(id);
+    document.getElementById('bookmark-label').textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+    document.getElementById('btnBookmark').classList.toggle('primary', bookmarked);
+    document.getElementById('bookmark-count').textContent = (orderBookmarks.length || 0) + ' saved';
+
+    var btnView = document.getElementById('btnViewBookmarks');
+    btnView.classList.toggle('primary', viewBookmarksOnly);
+    btnView.textContent = viewBookmarksOnly ? 'Viewing Bookmarks' : 'Bookmarks Only';
+  }
+
+  function setCounter(){
+    var total = Math.max(activeOrder().length, 1);
+    var pct = Math.min(100, ((currentIndex+1)/total)*100);
+    document.getElementById('progress').style.width = pct + '%';
+    document.getElementById('current-index').textContent = Math.min(currentIndex+1,total);
+    document.getElementById('total-questions').textContent = total;
+
+    var mode = viewBookmarksOnly ? 'Bookmarked' : 'Question';
+    document.getElementById('counter-text').innerHTML = mode + ' <span id="current-index">'+(Math.min(currentIndex+1,total))+'</span> of <span id="total-questions">'+total+'</span>';
+
+    document.getElementById('prev-btn').disabled = currentIndex===0;
+    document.getElementById('next-btn').disabled = currentIndex>=total-1;
+  }
 
   function showOnly(id){
     ['loading','error','no-questions','main-content'].forEach(function(x){
@@ -207,25 +289,30 @@
     });
   }
 
-  function updateProgress(){
-    var total = Math.max(questions.length,1);
-    var pct = Math.min(100, ((currentIndex+1)/total)*100);
-    document.getElementById('progress').style.width = pct + '%';
-    document.getElementById('current-index').textContent = Math.min(currentIndex+1,total);
-    document.getElementById('total-questions').textContent = total;
-    document.getElementById('prev-btn').disabled = currentIndex===0;
-    document.getElementById('next-btn').disabled = currentIndex>=total-1;
-  }
-
+  // ====== Rendering ======
   function render(){
-    if(!questions.length) return;
-    var q = questions[currentIndex];
+    if (!activeOrder().length){
+      // no questions (or no bookmarks in bookmark view)
+      if (viewBookmarksOnly){
+        // Show a friendly empty state within main screen
+        document.getElementById('question-name').textContent = '';
+        document.getElementById('question-class').textContent = '';
+        document.getElementById('question-text').textContent = 'No bookmarked questions yet.';
+      }
+      setCounter();
+      updateBookmarkUI();
+      return;
+    }
+    var id = activeOrder()[currentIndex];
+    var q = questions.find(function(x){ return x._id===id; }) || {};
     document.getElementById('question-name').textContent = anonymise ? 'Anonymous' : (q.name||'');
     document.getElementById('question-class').textContent = anonymise ? '' : (q.class||'');
-    document.getElementById('question-text').textContent = q.question || '';
-    updateProgress();
+    document.getElementById('question-text').textContent = q.question || '—';
+    setCounter();
+    updateBookmarkUI();
   }
 
+  // ====== Data loading ======
   function loadQuestions(){
     showOnly('loading');
     fetch(SCRIPT_URL + '?t=' + Date.now(), { cache:'no-store' })
@@ -237,8 +324,20 @@
       .then(function(data){
         var arr = Array.isArray(data) ? data : (Array.isArray(data && data.questions) ? data.questions : []);
         questions = arr.map(normalise).filter(function(x){return x.question;});
-        if(questions.length){ currentIndex=0; render(); showOnly('main-content'); }
-        else { showOnly('no-questions'); }
+        orderAll = questions.map(function(q){ return q._id; });
+
+        // Remove bookmarks for IDs no longer present
+        loadBookmarksFromStorage();
+        orderBookmarks = orderBookmarks.filter(function(id){ return orderAll.indexOf(id) !== -1; });
+        saveBookmarks();
+
+        if (orderAll.length){
+          currentIndex = 0;
+          showOnly('main-content');
+          render();
+        } else {
+          showOnly('no-questions');
+        }
       })
       .catch(function(err){
         document.getElementById('error-message').textContent = 'Failed to load questions. ' + (err && err.message || '');
@@ -246,35 +345,81 @@
       });
   }
 
-  function normalise(it){
-    function pick(obj, keys){
-      for(var i=0;i<keys.length;i++){
-        var k = keys[i];
-        if(obj[k]!=null) return String(obj[k]);
-        var f = Object.keys(obj).find(function(key){return key.toLowerCase()===k.toLowerCase();});
-        if(f) return String(obj[f]);
-      }
-      return '';
+  // ====== Controls ======
+  function previousQuestion(){ if(currentIndex>0){ currentIndex--; render(); } }
+  function nextQuestion(){ if(currentIndex < activeOrder().length-1){ currentIndex++; render(); } }
+  function toggleAnon(){ anonymise = !anonymise; document.getElementById('btnAnon')?.classList.toggle('primary', anonymise); render(); }
+
+  function toggleBookmark(){
+    if (!activeOrder().length) return;
+    var id = activeOrder()[currentIndex];
+    var i = orderBookmarks.indexOf(id);
+    if (i === -1){ orderBookmarks.push(id); }
+    else { orderBookmarks.splice(i,1); }
+    saveBookmarks();
+
+    // If we're in bookmarked view and we removed the current one, adjust index
+    if (viewBookmarksOnly){
+      var list = activeOrder();
+      if (currentIndex >= list.length) currentIndex = Math.max(0, list.length-1);
     }
-    return {
-      name: pick(it, ['name','student','displayName']),
-      class: pick(it, ['class','className','group','formClass']),
-      question: pick(it, ['question','q','text','message'])
-    };
+    render();
   }
 
-  function previousQuestion(){ if(currentIndex>0){ currentIndex--; render(); } }
-  function nextQuestion(){ if(currentIndex<questions.length-1){ currentIndex++; render(); } }
-  function toggleAnon(){ anonymise=!anonymise; render(); }
-  function toggleFullscreen(){ if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); } else { document.exitFullscreen?.(); } }
+  function toggleBookmarksView(){
+    viewBookmarksOnly = !viewBookmarksOnly;
+    // Snap currentIndex to equivalent question if possible
+    if (viewBookmarksOnly){
+      // focus nearest bookmarked item to current question
+      var curId = orderAll[currentIndex] || null;
+      var idx = curId ? orderBookmarks.indexOf(curId) : -1;
+      currentIndex = (idx !== -1) ? idx : 0;
+    } else {
+      // returning to all: map current bookmarked id back to full list position
+      var curId2 = orderBookmarks[currentIndex] || orderAll[0];
+      var idx2 = orderAll.indexOf(curId2);
+      currentIndex = (idx2 !== -1) ? idx2 : 0;
+    }
 
+    // If no bookmarks, keep main screen and show message
+    if (viewBookmarksOnly && orderBookmarks.length === 0){
+      showOnly('main-content');
+    }
+    render();
+  }
+
+  function clearBookmarks(){
+    if (!orderBookmarks.length) return;
+    var ok = confirm('Clear all bookmarks?');
+    if (!ok) return;
+    orderBookmarks = [];
+    saveBookmarks();
+    if (viewBookmarksOnly){
+      // switch back to all if bookmarks empty
+      viewBookmarksOnly = false;
+      currentIndex = Math.min(currentIndex, orderAll.length-1);
+    }
+    render();
+  }
+
+  function toggleFullscreen(){
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); }
+    else { document.exitFullscreen?.(); }
+  }
+
+  // Keyboard shortcuts
   document.addEventListener('keydown', function(e){
     if(e.key==='ArrowLeft') previousQuestion();
     else if(e.key==='ArrowRight') nextQuestion();
     else if(e.key.toLowerCase()==='a') toggleAnon();
     else if(e.key.toLowerCase()==='f') toggleFullscreen();
+    else if(e.key.toLowerCase()==='b') toggleBookmark();
+    else if(e.key.toLowerCase()==='v') toggleBookmarksView();
+    else if(e.key.toLowerCase()==='c') clearBookmarks();
   });
 
+  // Boot
+  loadBookmarksFromStorage();
   loadQuestions();
 </script>
 </body>
