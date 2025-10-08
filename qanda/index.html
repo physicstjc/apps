@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Q&A Navigator</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -21,10 +17,7 @@
             padding: 2rem;
         }
 
-        .container {
-            max-width: 80rem;
-            width: 100%;
-        }
+        .container { max-width: 80rem; width: 100%; }
 
         .state-screen {
             background: white;
@@ -38,164 +31,136 @@
             border: 4px solid #e5e7eb;
             border-top: 4px solid #4f46e5;
             border-radius: 50%;
-            width: 4rem;
-            height: 4rem;
+            width: 4rem; height: 4rem;
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
 
         .question-card {
             background: white;
             border-radius: 1.5rem;
             padding: 3rem;
             margin-bottom: 2rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
         }
 
-        .question-header {
-            margin-bottom: 2rem;
-        }
+        .question-header { margin-bottom: 2rem; }
 
         .question-meta {
-            display: flex;
-            align-items: baseline;
-            gap: 1rem;
-            margin-bottom: 0.5rem;
+            display: flex; align-items: baseline; gap: 1rem; margin-bottom: 0.5rem;
         }
 
-        .question-name {
-            color: #4f46e5;
-            font-weight: 600;
-            font-size: 1.125rem;
-        }
+        .question-name { color: #4f46e5; font-weight: 600; font-size: 1.125rem; }
+        .question-class { color: #6b7280; font-size: 0.875rem; }
 
-        .question-class {
-            color: #6b7280;
-            font-size: 0.875rem;
-        }
+        .question-underline { height: 4px; width: 5rem; background: #4f46e5; border-radius: 2px; }
 
-        .question-underline {
-            height: 4px;
-            width: 5rem;
-            background: #4f46e5;
-            border-radius: 2px;
-        }
+        .question-text { font-size: 1.875rem; color: #1f2937; line-height: 1.6; }
 
-        .question-text {
-            font-size: 1.875rem;
-            color: #1f2937;
-            line-height: 1.6;
-        }
-
-        .navigation {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+        .navigation { display: flex; align-items: center; justify-content: space-between; }
 
         .nav-button {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            background: white;
-            border: none;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 1.5rem; background: white; border: none; border-radius: 0.5rem;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
             transition: all 0.2s;
         }
+        .nav-button:hover:not(:disabled) { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .nav-button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .nav-button:hover:not(:disabled) {
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-        }
+        .counter { color: white; font-size: 1.125rem; font-weight: 600; }
 
-        .nav-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .counter {
-            color: white;
-            font-size: 1.125rem;
-            font-weight: 600;
-        }
-
-        .bottom-controls {
-            display: flex;
-            justify-content: center;
-            margin-top: 2rem;
-        }
+        .bottom-controls { display: flex; justify-content: center; margin-top: 2rem; }
 
         .control-button {
-            color: white;
-            font-size: 0.875rem;
-            background: none;
-            border: none;
-            cursor: pointer;
-            transition: color 0.2s;
-            padding: 0.5rem;
+            color: white; font-size: 0.875rem; background: none; border: none; cursor: pointer;
+            transition: color 0.2s; padding: 0.5rem;
         }
+        .control-button:hover { color: #c7d2fe; }
 
-        .control-button:hover {
-            color: #c7d2fe;
-        }
-
-        .keyboard-hint {
-            text-align: center;
-            margin-top: 1rem;
-            color: #c7d2fe;
-            font-size: 0.875rem;
-        }
+        .keyboard-hint { text-align: center; margin-top: 1rem; color: #c7d2fe; font-size: 0.875rem; }
 
         .retry-button {
-            padding: 0.75rem 1.5rem;
-            background: #4f46e5;
-            color: white;
-            border: none;
+            padding: 0.75rem 1.5rem; background: #4f46e5; color: white; border: none; border-radius: 0.5rem;
+            font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;
+        }
+        .retry-button:hover { background: #4338ca; }
+
+        .hidden { display: none; }
+
+        /* --- QR section --- */
+        .qr-section {
+            margin-top: 2rem;
+            display: grid;
+            place-items: center;
+            gap: 0.5rem;
+        }
+        .qr-section img {
+            width: clamp(140px, 22vw, 220px);
+            height: auto;
+            display: block;
             border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            transition: background 0.2s;
+            background: white;
+        }
+        .qr-caption {
+            font-size: 0.95rem;
+            color: #374151;
+        }
+        .qr-caption a {
+            color: #4f46e5;
+            text-decoration: underline;
         }
 
-        .retry-button:hover {
-            background: #4338ca;
-        }
-
-        .hidden {
-            display: none;
-        }
+        /* Dark background contexts (main page) */
+        .on-dark .qr-caption { color: #e5e7eb; }
+        .on-dark .qr-caption a { color: #c7d2fe; }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- LOADING -->
         <div id="loading" class="state-screen">
             <div class="spinner"></div>
             <p style="font-size: 1.25rem; color: #1f2937;">Loading questions...</p>
+
+            <!-- QR visible during loading -->
+            <div class="qr-section" aria-label="QR code to submit questions">
+                <!-- Hosted image option -->
+                <img src="https://for.edu.sg/qanda.png" alt="Scan to ask a question at for.edu.sg/qanda">
+                <!-- Local file option (uncomment if the PNG sits beside this HTML) -->
+                <!-- <img src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda"> -->
+                <div class="qr-caption">
+                    Ask your question: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a>
+                </div>
+            </div>
         </div>
 
+        <!-- ERROR -->
         <div id="error" class="state-screen hidden">
             <h2 style="color: #dc2626; font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem;">Error</h2>
             <p id="error-message" style="color: #4b5563; margin-bottom: 1.5rem;"></p>
             <button class="retry-button" onclick="loadQuestions()">Try Again</button>
         </div>
 
+        <!-- NO QUESTIONS -->
         <div id="no-questions" class="state-screen hidden">
             <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">No Questions Yet</h2>
             <p style="color: #6b7280; margin-bottom: 1.5rem;">Waiting for form responses...</p>
             <button class="retry-button" onclick="loadQuestions()">Refresh</button>
+
+            <!-- QR visible while waiting -->
+            <div class="qr-section" aria-label="QR code to submit questions">
+                <img src="https://for.edu.sg/qanda.png" alt="Scan to ask a question at for.edu.sg/qanda">
+                <!-- <img src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda"> -->
+                <div class="qr-caption">
+                    Ask your question: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a>
+                </div>
+            </div>
         </div>
 
+        <!-- MAIN -->
         <div id="main-content" class="hidden">
             <div class="question-card">
                 <div class="question-header">
@@ -210,8 +175,7 @@
 
             <div class="navigation">
                 <button class="nav-button" id="prev-btn" onclick="previousQuestion()">
-                    <span>&larr;</span>
-                    <span>Previous</span>
+                    <span>&larr;</span><span>Previous</span>
                 </button>
 
                 <div class="counter">
@@ -219,19 +183,23 @@
                 </div>
 
                 <button class="nav-button" id="next-btn" onclick="nextQuestion()">
-                    <span>Next</span>
-                    <span>&rarr;</span>
+                    <span>Next</span><span>&rarr;</span>
                 </button>
             </div>
 
             <div class="bottom-controls">
-                <button class="control-button" onclick="loadQuestions()">
-                    &#8634; Refresh Questions
-                </button>
+                <button class="control-button" onclick="loadQuestions()">&#8634; Refresh Questions</button>
             </div>
 
-            <div class="keyboard-hint">
-                Use arrow keys to navigate
+            <div class="keyboard-hint">Use arrow keys to navigate</div>
+
+            <!-- QR fixed at bottom of main screen -->
+            <div class="qr-section on-dark" aria-label="QR code to submit questions">
+                <img src="https://for.edu.sg/qanda.png" alt="Scan to ask a question at for.edu.sg/qanda">
+                <!-- <img src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda"> -->
+                <div class="qr-caption">
+                    Ask your question: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a>
+                </div>
             </div>
         </div>
     </div>
@@ -245,26 +213,33 @@
             var screens = ['loading', 'error', 'no-questions', 'main-content'];
             for (var i = 0; i < screens.length; i++) {
                 var el = document.getElementById(screens[i]);
-                if (el) {
-                    el.classList.add('hidden');
-                }
+                if (el) el.classList.add('hidden');
             }
             var targetEl = document.getElementById(id);
-            if (targetEl) {
-                targetEl.classList.remove('hidden');
-            }
+            if (targetEl) targetEl.classList.remove('hidden');
         }
 
         function loadQuestions() {
             showElement('loading');
 
-            fetch(SCRIPT_URL)
+            fetch(SCRIPT_URL + '?t=' + Date.now(), { cache: 'no-store' })
                 .then(function(response) {
-                    return response.json();
+                    // Try JSON first, then fallback to text->JSON
+                    var ct = response.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) return response.json();
+                    return response.text().then(function(t){ try { return JSON.parse(t); } catch(e){ throw new Error('Non-JSON response'); } });
                 })
                 .then(function(data) {
-                    if (data.questions && data.questions.length > 0) {
-                        questions = data.questions;
+                    var arr = Array.isArray(data) ? data : (Array.isArray(data.questions) ? data.questions : []);
+                    questions = arr.map(function(q){
+                        return {
+                            name: q.name || q.student || '',
+                            class: q.class || q.className || q.group || '',
+                            question: q.question || q.text || q.q || ''
+                        };
+                    });
+
+                    if (questions.length > 0) {
                         currentIndex = 0;
                         displayQuestion();
                         showElement('main-content');
@@ -273,7 +248,8 @@
                     }
                 })
                 .catch(function(err) {
-                    document.getElementById('error-message').textContent = 'Failed to load questions. Please check your internet connection.';
+                    document.getElementById('error-message').textContent =
+                        'Failed to load questions. ' + (err && err.message ? ('(' + err.message + ')') : '');
                     showElement('error');
                 });
         }
@@ -294,24 +270,21 @@
 
         function previousQuestion() {
             if (currentIndex > 0) {
-                currentIndex = currentIndex - 1;
+                currentIndex--;
                 displayQuestion();
             }
         }
 
         function nextQuestion() {
             if (currentIndex < questions.length - 1) {
-                currentIndex = currentIndex + 1;
+                currentIndex++;
                 displayQuestion();
             }
         }
 
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowLeft') {
-                previousQuestion();
-            } else if (e.key === 'ArrowRight') {
-                nextQuestion();
-            }
+            if (e.key === 'ArrowLeft') previousQuestion();
+            else if (e.key === 'ArrowRight') nextQuestion();
         });
 
         loadQuestions();
