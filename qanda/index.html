@@ -1,0 +1,232 @@
+import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+
+export default function PanelQANavigator() {
+  const [questions, setQuestions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [scriptUrl, setScriptUrl] = useState('');
+  const [isSetup, setIsSetup] = useState(true);
+
+  const loadQuestions = async (url) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.questions && data.questions.length > 0) {
+        setQuestions(data.questions);
+        setIsSetup(false);
+        setCurrentIndex(0);
+        localStorage.setItem('panelQAScriptUrl', url);
+      } else {
+        setError('No questions found in the response');
+      }
+    } catch (err) {
+      setError('Failed to load questions. Please check your script URL.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const savedUrl = localStorage.getItem('panelQAScriptUrl');
+    if (savedUrl) {
+      setScriptUrl(savedUrl);
+    }
+    setLoading(false);
+  }, []);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (scriptUrl.trim()) {
+      loadQuestions(scriptUrl.trim());
+    }
+  };
+
+  const goToPrevious = () => {
+    setCurrentIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'ArrowLeft') goToPrevious();
+    if (e.key === 'ArrowRight') goToNext();
+  };
+
+  if (isSetup) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">Panel Q&A Setup</h1>
+            
+            <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="font-semibold text-blue-900 mb-3">Setup Instructions:</h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
+                  <li>Open your Google Form responses spreadsheet</li>
+                  <li>Click Extensions → Apps Script</li>
+                  <li>Copy and paste the Google Apps Script code (see below)</li>
+                  <li>Click Deploy → New deployment</li>
+                  <li>Select "Web app" type</li>
+                  <li>Set "Execute as" to "Me"</li>
+                  <li>Set "Who has access" to "Anyone"</li>
+                  <li>Click Deploy and copy the web app URL</li>
+                  <li>Paste the URL below</li>
+                </ol>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Google Apps Script Web App URL
+                  </label>
+                  <input
+                    type="url"
+                    value={scriptUrl}
+                    onChange={(e) => setScriptUrl(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Loading...' : 'Load Questions'}
+                </button>
+              </form>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Need the Google Apps Script code?</strong> Copy this and paste it in your Apps Script editor:
+                </p>
+                <button
+                  onClick={() => {
+                    const code = `function doGet() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const data = sheet.getDataRange().getValues();
+  
+  // Skip header row
+  const questions = [];
+  for (let i = 1; i < data.length; i++) {
+    questions.push({
+      name: data[i][2],      // Column C
+      class: data[i][3],     // Column D
+      question: data[i][4]   // Column E
+    });
+  }
+  
+  return ContentService.createTextOutput(
+    JSON.stringify({ questions: questions })
+  ).setMimeType(ContentService.MimeType.JSON);
+}`;
+                    navigator.clipboard.writeText(code);
+                    alert('Code copied to clipboard!');
+                  }}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Click here to copy the script code
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQ = questions[currentIndex];
+
+  return (
+    <div 
+      className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 p-8 flex items-center justify-center"
+      onKeyDown={handleKeyPress}
+      tabIndex={0}
+    >
+      <div className="max-w-5xl w-full">
+        {/* Main Question Display */}
+        <div className="bg-white rounded-2xl shadow-2xl p-12 mb-8">
+          <div className="mb-8">
+            <div className="flex items-baseline gap-4 mb-2">
+              <span className="text-indigo-600 font-semibold text-lg">{currentQ.name}</span>
+              <span className="text-gray-500 text-sm">{currentQ.class}</span>
+            </div>
+            <div className="h-1 w-20 bg-indigo-600 rounded"></div>
+          </div>
+          
+          <div className="text-3xl text-gray-800 leading-relaxed">
+            {currentQ.question}
+          </div>
+        </div>
+
+        {/* Navigation Controls */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={goToPrevious}
+            disabled={currentIndex === 0}
+            className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+          >
+            <ChevronLeft className="w-6 h-6" />
+            <span className="font-semibold">Previous</span>
+          </button>
+
+          <div className="text-white text-lg font-semibold">
+            Question {currentIndex + 1} of {questions.length}
+          </div>
+
+          <button
+            onClick={goToNext}
+            disabled={currentIndex === questions.length - 1}
+            className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+          >
+            <span className="font-semibold">Next</span>
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Refresh and Reset Buttons */}
+        <div className="flex justify-center gap-4 mt-8">
+          <button
+            onClick={() => loadQuestions(scriptUrl)}
+            className="flex items-center gap-2 text-white text-sm hover:text-indigo-200 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh Questions
+          </button>
+          <button
+            onClick={() => {
+              setIsSetup(true);
+              setQuestions([]);
+              setCurrentIndex(0);
+            }}
+            className="text-white text-sm hover:text-indigo-200 transition-colors"
+          >
+            Change Data Source
+          </button>
+        </div>
+
+        {/* Keyboard Hint */}
+        <div className="text-center mt-4 text-indigo-200 text-sm">
+          Use ← → arrow keys to navigate
+        </div>
+      </div>
+    </div>
+  );
+}
