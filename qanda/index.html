@@ -1,163 +1,337 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Q&A Navigator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-export default function PanelQANavigator() {
-  const [questions, setQuestions] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySlNsQii7TMpUPcVxVo6yNmI_0fu2f3WkkTy13nk29SKVB7sTaMVvZTGxMJHBGmHEHOA/exec';
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #4338ca 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
 
-  const loadQuestions = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const response = await fetch(SCRIPT_URL);
-      const data = await response.json();
-      
-      if (data.questions && data.questions.length > 0) {
-        setQuestions(data.questions);
-        setCurrentIndex(0);
-      } else {
-        setError('No questions found in the response');
-      }
-    } catch (err) {
-      setError('Failed to load questions. Please check your internet connection.');
-    } finally {
-      setLoading(false);
-    }
-  };
+        .container {
+            max-width: 80rem;
+            width: 100%;
+        }
 
-  useEffect(() => {
-    loadQuestions();
-  }, []);
+        .loading, .error, .no-questions {
+            background: white;
+            border-radius: 1rem;
+            padding: 3rem;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
 
-  const goToPrevious = () => {
-    setCurrentIndex(prev => Math.max(0, prev - 1));
-  };
+        .spinner {
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 4rem;
+            height: 4rem;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
 
-  const goToNext = () => {
-    setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1));
-  };
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'ArrowLeft') goToPrevious();
-    if (e.key === 'ArrowRight') goToNext();
-  };
+        .question-card {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-xl">Loading questions...</p>
+        .question-header {
+            margin-bottom: 2rem;
+        }
+
+        .question-meta {
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .question-name {
+            color: #4f46e5;
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .question-class {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .question-underline {
+            height: 4px;
+            width: 5rem;
+            background: #4f46e5;
+            border-radius: 2px;
+        }
+
+        .question-text {
+            font-size: 1.875rem;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+
+        .navigation {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+
+        .nav-button:hover:not(:disabled) {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .counter {
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .bottom-controls {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .control-button {
+            color: white;
+            font-size: 0.875rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s;
+        }
+
+        .control-button:hover {
+            color: #c7d2fe;
+        }
+
+        .keyboard-hint {
+            text-align: center;
+            margin-top: 1rem;
+            color: #c7d2fe;
+            font-size: 0.875rem;
+        }
+
+        .error-title {
+            color: #dc2626;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .error-message {
+            color: #4b5563;
+            margin-bottom: 1.5rem;
+        }
+
+        .retry-button {
+            padding: 0.75rem 1.5rem;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .retry-button:hover {
+            background: #4338ca;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p style="font-size: 1.25rem; color: #1f2937;">Loading questions...</p>
         </div>
-      </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 flex items-center justify-center p-8">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
-          <p className="text-gray-700 mb-6">{error}</p>
-          <button
-            onClick={loadQuestions}
-            className="w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-          >
-            Try Again
-          </button>
+        <div id="error" class="error hidden">
+            <h2 class="error-title">Error</h2>
+            <p class="error-message" id="error-message"></p>
+            <button class="retry-button" onclick="loadQuestions()">Try Again</button>
         </div>
-      </div>
-    );
-  }
 
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 flex items-center justify-center p-8">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">No Questions Yet</h2>
-          <p className="text-gray-600 mb-6">Waiting for form responses...</p>
-          <button
-            onClick={loadQuestions}
-            className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Refresh
-          </button>
+        <div id="no-questions" class="no-questions hidden">
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">No Questions Yet</h2>
+            <p style="color: #6b7280; margin-bottom: 1.5rem;">Waiting for form responses...</p>
+            <button class="retry-button" onclick="loadQuestions()">Refresh</button>
         </div>
-      </div>
-    );
-  }
 
-  const currentQ = questions[currentIndex];
-
-  return (
-    <div 
-      className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 p-8 flex items-center justify-center"
-      onKeyDown={handleKeyPress}
-      tabIndex={0}
-    >
-      <div className="max-w-5xl w-full">
-        {/* Main Question Display */}
-        <div className="bg-white rounded-2xl shadow-2xl p-12 mb-8">
-          <div className="mb-8">
-            <div className="flex items-baseline gap-4 mb-2">
-              <span className="text-indigo-600 font-semibold text-lg">{currentQ.name}</span>
-              <span className="text-gray-500 text-sm">{currentQ.class}</span>
+        <div id="main-content" class="hidden">
+            <div class="question-card">
+                <div class="question-header">
+                    <div class="question-meta">
+                        <span class="question-name" id="question-name"></span>
+                        <span class="question-class" id="question-class"></span>
+                    </div>
+                    <div class="question-underline"></div>
+                </div>
+                <div class="question-text" id="question-text"></div>
             </div>
-            <div className="h-1 w-20 bg-indigo-600 rounded"></div>
-          </div>
-          
-          <div className="text-3xl text-gray-800 leading-relaxed">
-            {currentQ.question}
-          </div>
+
+            <div class="navigation">
+                <button class="nav-button" id="prev-btn" onclick="previousQuestion()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span>Previous</span>
+                </button>
+
+                <div class="counter">
+                    Question <span id="current-index">1</span> of <span id="total-questions">0</span>
+                </div>
+
+                <button class="nav-button" id="next-btn" onclick="nextQuestion()">
+                    <span>Next</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="bottom-controls">
+                <button class="control-button" onclick="loadQuestions()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    Refresh Questions
+                </button>
+            </div>
+
+            <div class="keyboard-hint">
+                Use ← → arrow keys to navigate
+            </div>
         </div>
-
-        {/* Navigation Controls */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={goToPrevious}
-            disabled={currentIndex === 0}
-            className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
-          >
-            <ChevronLeft className="w-6 h-6" />
-            <span className="font-semibold">Previous</span>
-          </button>
-
-          <div className="text-white text-lg font-semibold">
-            Question {currentIndex + 1} of {questions.length}
-          </div>
-
-          <button
-            onClick={goToNext}
-            disabled={currentIndex === questions.length - 1}
-            className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
-          >
-            <span className="font-semibold">Next</span>
-            <ChevronRight className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Refresh Button */}
-        <div className="flex justify-center gap-4 mt-8">
-          <button
-            onClick={loadQuestions}
-            className="flex items-center gap-2 text-white text-sm hover:text-indigo-200 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh Questions
-          </button>
-        </div>
-
-        {/* Keyboard Hint */}
-        <div className="text-center mt-4 text-indigo-200 text-sm">
-          Use ← → arrow keys to navigate
-        </div>
-      </div>
     </div>
-  );
-}
+
+    <script>
+        var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySlNsQii7TMpUPcVxVo6yNmI_0fu2f3WkkTy13nk29SKVB7sTaMVvZTGxMJHBGmHEHOA/exec';
+        var questions = [];
+        var currentIndex = 0;
+
+        function showElement(id) {
+            var elements = document.querySelectorAll('.loading, .error, .no-questions, #main-content');
+            for (var i = 0; i < elements.length; i++) {
+                elements[i].classList.add('hidden');
+            }
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function loadQuestions() {
+            showElement('loading');
+
+            fetch(SCRIPT_URL)
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.questions && data.questions.length > 0) {
+                        questions = data.questions;
+                        currentIndex = 0;
+                        displayQuestion();
+                        showElement('main-content');
+                    } else {
+                        showElement('no-questions');
+                    }
+                })
+                .catch(function(err) {
+                    document.getElementById('error-message').textContent = 'Failed to load questions. Please check your internet connection.';
+                    showElement('error');
+                });
+        }
+
+        function displayQuestion() {
+            if (questions.length === 0) return;
+
+            var q = questions[currentIndex];
+            document.getElementById('question-name').textContent = q.name || '';
+            document.getElementById('question-class').textContent = q.class || '';
+            document.getElementById('question-text').textContent = q.question || '';
+            document.getElementById('current-index').textContent = currentIndex + 1;
+            document.getElementById('total-questions').textContent = questions.length;
+
+            document.getElementById('prev-btn').disabled = currentIndex === 0;
+            document.getElementById('next-btn').disabled = currentIndex === questions.length - 1;
+        }
+
+        function previousQuestion() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                displayQuestion();
+            }
+        }
+
+        function nextQuestion() {
+            if (currentIndex < questions.length - 1) {
+                currentIndex++;
+                displayQuestion();
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                previousQuestion();
+            } else if (e.key === 'ArrowRight') {
+                nextQuestion();
+            }
+        });
+
+        loadQuestions();
+    </script>
+</body>
+</html>
