@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg2:#4338ca; --card:#ffffff; --ink:#0f172a;
-    --muted:#64748b; --brand:#4f46e5; --brand-700:#4338ca;
+    --muted:#64748b; --brand:#4f46e5; --brand-700:#3730a3;
     --shadow:0 25px 50px -12px rgba(0,0,0,.25); --radius:20px;
   }
   *{box-sizing:border-box} html,body{height:100%}
@@ -30,6 +30,7 @@
   .badge{font:600 12px/1 system-ui;padding:6px 10px;border-radius:999px;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.35)}
   .title h1{margin:0;font:700 clamp(16px,2.2vw,20px)/1.2 system-ui}
   .actions{display:flex;gap:8px;flex-wrap:wrap}
+
   .btn{
     display:inline-flex;align-items:center;gap:8px;
     padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
@@ -40,8 +41,18 @@
   .btn.primary{background:#fff;color:var(--brand);border-color:transparent}
   .btn.warning{background:#fee2e2;color:#991b1b;border-color:#fecaca}
   .btn[disabled]{opacity:.55;cursor:not-allowed}
-  .btn.icon-only{padding:8px 10px}
+  .btn.icon-only{padding:8px 10px;min-width:40px;min-height:40px;justify-content:center}
   .icon{width:18px;height:18px}
+
+  /* NEW: strong, filled brand buttons (high contrast on white card) */
+  .btn.brand-fill{
+    background:var(--brand);
+    color:#fff;
+    border-color:var(--brand);
+    box-shadow:0 12px 26px rgba(79,70,229,.32);
+  }
+  .btn.brand-fill:hover{ background:var(--brand-700); box-shadow:0 14px 28px rgba(55,48,163,.35) }
+  .btn.brand-fill.selected{ background:var(--brand-700); }
 
   /* Progress */
   .progress-wrap{height:8px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.16);
@@ -165,7 +176,7 @@
         <!-- Question text + copy + bookmark -->
         <div class="q" id="question-text">—</div>
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <button class="btn icon-only" id="btnCopy" onclick="copyQuestion()" title="Copy question text">
+          <button class="btn icon-only brand-fill" id="btnCopy" onclick="copyQuestion()" title="Copy question text">
             <!-- clipboard icon -->
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <rect x="9" y="3" width="13" height="18" rx="2" ry="2"/>
@@ -174,7 +185,7 @@
             </svg>
           </button>
 
-          <button class="btn" id="btnBookmark" onclick="toggleBookmark()" title="Bookmark (B)">
+          <button class="btn brand-fill" id="btnBookmark" onclick="toggleBookmark()" title="Bookmark (B)">
             <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2z"/></svg>
             <span id="bookmark-label">Bookmark</span>
           </button>
@@ -270,7 +281,7 @@
     var label = document.getElementById('bookmark-label');
     if (label) label.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
     var btn = document.getElementById('btnBookmark');
-    if (btn) btn.classList.toggle('primary', bookmarked);
+    if (btn) btn.classList.toggle('selected', bookmarked);
     var count = document.getElementById('bookmark-count');
     if (count) count.textContent = (orderBookmarks.length || 0) + ' saved';
 
@@ -429,11 +440,10 @@
     var originalHTML = btn.innerHTML;
 
     function flashOK(){
-      // swap icon to a check briefly
-      btn.classList.add('primary');
+      btn.classList.add('selected');
       btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg>';
       setTimeout(function(){
-        btn.classList.remove('primary');
+        btn.classList.remove('selected');
         btn.innerHTML = originalHTML;
       }, 1200);
     }
