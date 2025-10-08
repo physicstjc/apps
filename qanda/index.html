@@ -40,6 +40,7 @@
   .btn.primary{background:#fff;color:var(--brand);border-color:transparent}
   .btn.warning{background:#fee2e2;color:#991b1b;border-color:#fecaca}
   .btn[disabled]{opacity:.55;cursor:not-allowed}
+  .btn.icon-only{padding:8px 10px}
   .icon{width:18px;height:18px}
 
   /* Progress */
@@ -161,9 +162,18 @@
         </div>
         <div class="underline" aria-hidden="true"></div>
 
-        <!-- Question text + bookmark toggle -->
+        <!-- Question text + copy + bookmark -->
         <div class="q" id="question-text">—</div>
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn icon-only" id="btnCopy" onclick="copyQuestion()" title="Copy question text">
+            <!-- clipboard icon -->
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="9" y="3" width="13" height="18" rx="2" ry="2"/>
+              <path d="M5 7H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-1"/>
+              <rect x="9" y="3" width="5" height="4" rx="1"/>
+            </svg>
+          </button>
+
           <button class="btn" id="btnBookmark" onclick="toggleBookmark()" title="Bookmark (B)">
             <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2z"/></svg>
             <span id="bookmark-label">Bookmark</span>
@@ -186,7 +196,6 @@
         <div class="counter" id="counter-text">Question <span id="current-index">1</span> of <span id="total-questions">0</span></div>
         <div class="group">
           <button class="btn" onclick="loadQuestions()">Refresh</button>
-          <!-- (Anonymise button removed here as requested) -->
         </div>
       </div>
 
@@ -411,6 +420,44 @@
     else { document.exitFullscreen?.(); }
   }
 
+  // ====== Copy question text ======
+  function copyQuestion(){
+    var text = (document.getElementById('question-text').textContent || '').trim();
+    if(!text) return;
+
+    var btn = document.getElementById('btnCopy');
+    var originalHTML = btn.innerHTML;
+
+    function flashOK(){
+      // swap icon to a check briefly
+      btn.classList.add('primary');
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg>';
+      setTimeout(function(){
+        btn.classList.remove('primary');
+        btn.innerHTML = originalHTML;
+      }, 1200);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(flashOK).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+
+    function fallbackCopy(){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly','');
+        ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
+        document.body.appendChild(ta);
+        ta.select(); ta.setSelectionRange(0, ta.value.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) flashOK();
+      }catch(e){}
+    }
+  }
+
   // Keyboard shortcuts
   document.addEventListener('keydown', function(e){
     if(e.key==='ArrowLeft') previousQuestion();
@@ -419,7 +466,7 @@
     else if(e.key.toLowerCase()==='f') toggleFullscreen();
     else if(e.key.toLowerCase()==='b') toggleBookmark();
     else if(e.key.toLowerCase()==='v') toggleBookmarksView();
-    else if(e.key.toLowerCase()==='c') clearBookmarks();
+    else if(e.key.toLowerCase()==='c' && (e.ctrlKey || e.metaKey)) { /* let system copy run */ }
   });
 
   // Boot
