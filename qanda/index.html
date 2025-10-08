@@ -231,7 +231,24 @@
   var viewBookmarksOnly = false;
   var LS_KEY = 'panel_qna_bookmarks_v1';
 
-  // ====== Utilities ======
+
+  var BC_NAME = 'panel_qna_channel_v1';
+var SYNC_KEY = 'panel_qna_sync_v1';
+var bc = ('BroadcastChannel' in window) ? new BroadcastChannel(BC_NAME) : null;
+
+function publishState(reason){
+  var state = {
+    reason: reason || '',
+    ts: Date.now(),
+    currentId: activeOrder()[currentIndex] || null,
+    viewBookmarksOnly: viewBookmarksOnly,
+    anonymise: anonymise,
+    bookmarks: orderBookmarks.slice()
+  };
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); } catch(e){}
+  try { bc && bc.postMessage(state); } catch(e){}
+}
+    // ====== Utilities ======
   function hashId(q){
     // simple stable hash of name|class|question
     var s = (q.name||'') + '|' + (q.class||'') + '|' + (q.question||'');
@@ -338,6 +355,7 @@
     document.getElementById('question-text').textContent = q.question || '—';
     setCounter();
     updateBookmarkUI();
+    publishState('render');
   }
 
   // ====== Data loading ======
