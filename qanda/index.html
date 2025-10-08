@@ -79,6 +79,34 @@
   .qr-caption{color:#e5e7eb;font-size:clamp(14px,2.2vw,16px)}
   .qr-caption a{color:#c7d2fe;text-decoration:underline}
 
+  /* Accordion embed */
+  .accordion{ margin-top:12px; }
+  details.accordion{
+    background:var(--card); color:var(--ink);
+    border-radius:16px; box-shadow:var(--shadow); overflow:hidden;
+    border:1px solid rgba(0,0,0,.06);
+  }
+  details.accordion summary{
+    list-style:none; cursor:pointer; user-select:none;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px; font-weight:700;
+  }
+  details.accordion summary::-webkit-details-marker{ display:none; }
+  .accordion .chev{ transition:transform .15s ease; margin-right:6px; }
+  details[open] .chev{ transform:rotate(90deg); }
+  .embed-actions{ display:flex; gap:8px; align-items:center; }
+  .embed-actions .btn{ padding:8px 12px; }
+
+  .iframe-wrap{ display:grid; }
+  .embed-frame{
+    width:100%; height:clamp(420px, 55vh, 760px);
+    border:0; background:#fff; border-top:1px solid rgba(0,0,0,.06);
+  }
+  .embed-fallback{
+    padding:12px; text-align:center; color:#6b7280; background:#fafafa;
+    border-top:1px solid rgba(0,0,0,.06);
+  }
+
   /* Responsive */
   @media (max-width:740px){
     .controls{justify-content:center}
@@ -107,11 +135,11 @@
         </button>
         <button class="btn" id="btnViewBookmarks" onclick="toggleBookmarksView()" title="View Bookmarks (V)">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2z"/></svg>
-          Bookmarks Only
+          <span id="bookmarks-view-label">Bookmarks Only</span>
         </button>
         <button class="btn warning" onclick="clearBookmarks()" title="Clear Bookmarks (C)">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-          Clear Bookmarks
+          Clear
         </button>
         <button class="btn primary" onclick="toggleFullscreen()" title="Fullscreen (F)">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M9 21H5a2 2 0 0 1-2-2v-4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/></svg>
@@ -190,6 +218,35 @@
         </div>
       </div>
 
+      <!-- Accordion + lazy-loaded iframe -->
+      <details id="tools-embed" class="accordion" data-embed-url="https://aibots.gov.sg/chats/learning-for-the-future-ai-panelist">
+        <summary>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="chev">▶</span>
+            <span>Open panelist tools</span>
+          </div>
+          <div class="embed-actions">
+            <a class="btn" href="https://aibots.gov.sg/chats/learning-for-the-future-ai-panelist" target="_blank" rel="noopener">
+              Open in new tab
+            </a>
+          </div>
+        </summary>
+
+        <div class="iframe-wrap">
+          <iframe id="panelist-iframe"
+                  class="embed-frame"
+                  title="Panelist tools"
+                  src=""
+                  loading="lazy"
+                  allow="clipboard-write; fullscreen"
+                  referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+          <div id="embed-fallback" class="embed-fallback hidden">
+            Can’t load the panelist tools here (site may block embedding). Use “Open in new tab”.
+          </div>
+        </div>
+      </details>
+
       <!-- Big, centered QR -->
       <div class="qr-block" aria-label="QR code to submit questions">
         <img class="qr-img" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda">
@@ -207,7 +264,7 @@
   var orderAll = [];               // array of IDs in full order
   var orderBookmarks = [];         // array of IDs bookmarked (order saved)
   var currentIndex = 0;            // index within the ACTIVE list
-  var anonymise = true;
+  var anonymise = false;
   var viewBookmarksOnly = false;
   var LS_KEY = 'panel_qna_bookmarks_v1';
 
@@ -243,58 +300,66 @@
   function activeOrder(){ return viewBookmarksOnly ? orderBookmarks : orderAll; }
 
   function saveBookmarks(){
-    // persist only IDs, in current order
     try { localStorage.setItem(LS_KEY, JSON.stringify(orderBookmarks)); } catch(e){}
   }
-
   function loadBookmarksFromStorage(){
     try {
       var raw = localStorage.getItem(LS_KEY);
       var arr = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
       orderBookmarks = arr;
-    } catch(e){ orderBookmarks = []; }
+    }catch(e){ orderBookmarks = []; }
   }
-
   function isBookmarked(id){ return orderBookmarks.indexOf(id) !== -1; }
 
   function updateBookmarkUI(){
-    var id = activeOrder()[currentIndex];
+    var list = activeOrder();
+    var id = list[currentIndex];
     var bookmarked = isBookmarked(id);
-    document.getElementById('bookmark-label').textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
-    document.getElementById('btnBookmark').classList.toggle('primary', bookmarked);
-    document.getElementById('bookmark-count').textContent = (orderBookmarks.length || 0) + ' saved';
+    var label = document.getElementById('bookmark-label');
+    if (label) label.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+    var btn = document.getElementById('btnBookmark');
+    if (btn) btn.classList.toggle('primary', bookmarked);
+    var count = document.getElementById('bookmark-count');
+    if (count) count.textContent = (orderBookmarks.length || 0) + ' saved';
 
     var btnView = document.getElementById('btnViewBookmarks');
-    btnView.classList.toggle('primary', viewBookmarksOnly);
-    btnView.textContent = viewBookmarksOnly ? 'Viewing Bookmarks' : 'Bookmarks Only';
+    var viewLabel = document.getElementById('bookmarks-view-label');
+    if (btnView) btnView.classList.toggle('primary', viewBookmarksOnly);
+    if (viewLabel) viewLabel.textContent = viewBookmarksOnly ? 'Viewing Bookmarks' : 'Bookmarks Only';
   }
 
   function setCounter(){
     var total = Math.max(activeOrder().length, 1);
     var pct = Math.min(100, ((currentIndex+1)/total)*100);
     document.getElementById('progress').style.width = pct + '%';
-    document.getElementById('current-index').textContent = Math.min(currentIndex+1,total);
-    document.getElementById('total-questions').textContent = total;
+
+    var idxEl = document.getElementById('current-index');
+    var totEl = document.getElementById('total-questions');
+    if (idxEl) idxEl.textContent = Math.min(currentIndex+1,total);
+    if (totEl) totEl.textContent = total;
 
     var mode = viewBookmarksOnly ? 'Bookmarked' : 'Question';
-    document.getElementById('counter-text').innerHTML = mode + ' <span id="current-index">'+(Math.min(currentIndex+1,total))+'</span> of <span id="total-questions">'+total+'</span>';
+    var counterText = document.getElementById('counter-text');
+    if (counterText) counterText.innerHTML = mode + ' <span id="current-index">'+(Math.min(currentIndex+1,total))+'</span> of <span id="total-questions">'+total+'</span>';
 
-    document.getElementById('prev-btn').disabled = currentIndex===0;
-    document.getElementById('next-btn').disabled = currentIndex>=total-1;
+    var prevBtn = document.getElementById('prev-btn');
+    var nextBtn = document.getElementById('next-btn');
+    if (prevBtn) prevBtn.disabled = currentIndex===0;
+    if (nextBtn) nextBtn.disabled = currentIndex>=total-1;
   }
 
   function showOnly(id){
     ['loading','error','no-questions','main-content'].forEach(function(x){
-      document.getElementById(x).classList.toggle('hidden', x!==id);
+      var el = document.getElementById(x);
+      if (el) el.classList.toggle('hidden', x!==id);
     });
   }
 
   // ====== Rendering ======
   function render(){
-    if (!activeOrder().length){
-      // no questions (or no bookmarks in bookmark view)
+    var list = activeOrder();
+    if (!list.length){
       if (viewBookmarksOnly){
-        // Show a friendly empty state within main screen
         document.getElementById('question-name').textContent = '';
         document.getElementById('question-class').textContent = '';
         document.getElementById('question-text').textContent = 'No bookmarked questions yet.';
@@ -303,7 +368,7 @@
       updateBookmarkUI();
       return;
     }
-    var id = activeOrder()[currentIndex];
+    var id = list[currentIndex];
     var q = questions.find(function(x){ return x._id===id; }) || {};
     document.getElementById('question-name').textContent = anonymise ? 'Anonymous' : (q.name||'');
     document.getElementById('question-class').textContent = anonymise ? '' : (q.class||'');
@@ -326,7 +391,7 @@
         questions = arr.map(normalise).filter(function(x){return x.question;});
         orderAll = questions.map(function(q){ return q._id; });
 
-        // Remove bookmarks for IDs no longer present
+        // Remove bookmarks not in the new list
         loadBookmarksFromStorage();
         orderBookmarks = orderBookmarks.filter(function(id){ return orderAll.indexOf(id) !== -1; });
         saveBookmarks();
@@ -340,7 +405,8 @@
         }
       })
       .catch(function(err){
-        document.getElementById('error-message').textContent = 'Failed to load questions. ' + (err && err.message || '');
+        var em = document.getElementById('error-message');
+        if (em) em.textContent = 'Failed to load questions. ' + (err && err.message || '');
         showOnly('error');
       });
   }
@@ -348,40 +414,36 @@
   // ====== Controls ======
   function previousQuestion(){ if(currentIndex>0){ currentIndex--; render(); } }
   function nextQuestion(){ if(currentIndex < activeOrder().length-1){ currentIndex++; render(); } }
-  function toggleAnon(){ anonymise = !anonymise; document.getElementById('btnAnon')?.classList.toggle('primary', anonymise); render(); }
+  function toggleAnon(){ anonymise = !anonymise; var a=document.getElementById('btnAnon'); if(a) a.classList.toggle('primary', anonymise); render(); }
 
   function toggleBookmark(){
-    if (!activeOrder().length) return;
-    var id = activeOrder()[currentIndex];
+    var list = activeOrder();
+    if (!list.length) return;
+    var id = list[currentIndex];
     var i = orderBookmarks.indexOf(id);
     if (i === -1){ orderBookmarks.push(id); }
     else { orderBookmarks.splice(i,1); }
     saveBookmarks();
 
-    // If we're in bookmarked view and we removed the current one, adjust index
     if (viewBookmarksOnly){
-      var list = activeOrder();
-      if (currentIndex >= list.length) currentIndex = Math.max(0, list.length-1);
+      if (currentIndex >= orderBookmarks.length) currentIndex = Math.max(0, orderBookmarks.length-1);
     }
     render();
   }
 
   function toggleBookmarksView(){
     viewBookmarksOnly = !viewBookmarksOnly;
-    // Snap currentIndex to equivalent question if possible
+
     if (viewBookmarksOnly){
-      // focus nearest bookmarked item to current question
       var curId = orderAll[currentIndex] || null;
       var idx = curId ? orderBookmarks.indexOf(curId) : -1;
       currentIndex = (idx !== -1) ? idx : 0;
     } else {
-      // returning to all: map current bookmarked id back to full list position
       var curId2 = orderBookmarks[currentIndex] || orderAll[0];
       var idx2 = orderAll.indexOf(curId2);
       currentIndex = (idx2 !== -1) ? idx2 : 0;
     }
 
-    // If no bookmarks, keep main screen and show message
     if (viewBookmarksOnly && orderBookmarks.length === 0){
       showOnly('main-content');
     }
@@ -395,7 +457,6 @@
     orderBookmarks = [];
     saveBookmarks();
     if (viewBookmarksOnly){
-      // switch back to all if bookmarks empty
       viewBookmarksOnly = false;
       currentIndex = Math.min(currentIndex, orderAll.length-1);
     }
@@ -405,6 +466,45 @@
   function toggleFullscreen(){
     if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); }
     else { document.exitFullscreen?.(); }
+  }
+
+  // ====== Accordion + iframe lazy-load ======
+  function setupEmbedAccordion(){
+    var details = document.getElementById('tools-embed');
+    if(!details) return;
+
+    var frame = document.getElementById('panelist-iframe');
+    var fallback = document.getElementById('embed-fallback');
+    var url = details.getAttribute('data-embed-url');
+    var LS_OPEN = 'panel_embed_open_v1';
+
+    // restore open state
+    try{
+      if(localStorage.getItem(LS_OPEN) === '1'){
+        details.open = true;
+        if(frame && !frame.src) frame.src = url;
+      }
+    }catch(e){}
+
+    var loadTimer;
+    details.addEventListener('toggle', function(){
+      if(details.open && frame && !frame.src){
+        frame.src = url;
+        if (fallback) fallback.classList.add('hidden');
+        clearTimeout(loadTimer);
+        loadTimer = setTimeout(function(){
+          if (fallback) fallback.classList.remove('hidden');
+        }, 4000);
+      }
+      try{ localStorage.setItem(LS_OPEN, details.open ? '1' : '0'); }catch(e){}
+    });
+
+    if (frame){
+      frame.addEventListener('load', function(){
+        if (fallback) fallback.classList.add('hidden');
+        clearTimeout(loadTimer);
+      });
+    }
   }
 
   // Keyboard shortcuts
@@ -420,6 +520,7 @@
 
   // Boot
   loadBookmarksFromStorage();
+  setupEmbedAccordion();
   loadQuestions();
 </script>
 </body>
