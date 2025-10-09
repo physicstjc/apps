@@ -1,169 +1,771 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TJC Staff Productivity Tools</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        .header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 2px solid #2c3e50;
-            margin-bottom: 30px;
-        }
-        .app-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            padding: 20px 0;
-        }
-        .app-card {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            transition: transform 0.2s;
-        }
-        .app-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .app-card h2 {
-            color: #2c3e50;
-            margin-top: 0;
-        }
-        .app-card p {
-            color: #666;
-        }
-        .app-card a {
-            display: inline-block;
-            text-decoration: none;
-            color: #3498db;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        .app-card a:hover {
-            text-decoration: underline;
-        }
-        .contact-email {
-            text-decoration: none;
-            color: #3498db;
-            padding: 5px 10px;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-        }
-        .contact-email:hover {
-            background-color: #3498db;
-            color: white;
-            text-decoration: none;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Panel Q&A Navigator</title>
+<style>
+  :root{
+    --bg2:#4338ca; --card:#ffffff; --ink:#0f172a;
+    --muted:#64748b; --brand:#4f46e5; --brand-700:#3730a3;
+    --shadow:0 25px 50px -12px rgba(0,0,0,.25); --radius:20px;
+  }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(900px 560px at 110% 10%, rgba(67,56,202,.55) 0%, transparent 60%),
+      linear-gradient(135deg, #1e293b 0%, var(--bg2) 100%);
+    color:#fff; padding:clamp(12px,2.5vw,24px);
+  }
+  .container{max-width:1100px;margin-inline:auto}
+
+  /* Top bar */
+  .appbar{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+    border-radius:14px; padding:10px 14px; backdrop-filter:blur(8px); margin-bottom:10px;
+  }
+  .title{display:flex;align-items:center;gap:10px}
+  .badge{font:600 12px/1 system-ui;padding:6px 10px;border-radius:999px;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.35)}
+  .title h1{margin:0;font:700 clamp(16px,2.2vw,20px)/1.2 system-ui}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.06);color:#e5e7eb;cursor:pointer;
+    transition:transform .12s ease, background .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.22)}
+  .btn.primary{background:#fff;color:var(--brand);border-color:transparent}
+  .btn.warning{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+  .btn[disabled]{opacity:.55;cursor:not-allowed}
+  .btn.icon-only{padding:8px 10px;min-width:40px;min-height:40px;justify-content:center}
+  .icon{width:18px;height:18px}
+
+  /* NEW: strong, filled brand buttons (high contrast on white card) */
+  .btn.brand-fill{
+    background:var(--brand);
+    color:#fff;
+    border-color:var(--brand);
+    box-shadow:0 12px 26px rgba(79,70,229,.32);
+  }
+  .btn.brand-fill:hover{ background:var(--brand-700); box-shadow:0 14px 28px rgba(55,48,163,.35) }
+  .btn.brand-fill.selected{ background:var(--brand-700); }
+
+  /* Progress */
+  .progress-wrap{height:8px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.16);
+    border-radius:999px;overflow:hidden;margin:10px 0}
+  .progress{height:100%;width:0;background:linear-gradient(90deg,#a5b4fc,#4f46e5);transition:width .25s ease}
+
+  /* States */
+  .state{
+    background:var(--card);color:var(--ink);border-radius:var(--radius);
+    padding:clamp(20px,3.5vw,32px);box-shadow:var(--shadow);text-align:center;
+  }
+  .spinner{
+    border:4px solid #e5e7eb;border-top:4px solid var(--brand);
+    width:54px;height:54px;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Question card */
+  .card{
+    background:var(--card);color:var(--ink);border-radius:24px;box-shadow:var(--shadow);
+    padding:clamp(18px,3vw,28px);margin-top:10px;margin-bottom:16px;
+  }
+  .meta{display:flex;gap:10px;align-items:baseline;color:var(--muted);flex-wrap:wrap}
+  .name{color:var(--brand-700);font-weight:700}
+  .underline{height:4px;width:80px;background:var(--brand);border-radius:2px;margin:10px 0 16px}
+  .q{font-size:clamp(20px,3.6vw,40px);line-height:1.45;letter-spacing:.2px}
+
+  /* Presenter controls */
+  .controls{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .controls .group{display:flex;gap:10px;flex-wrap:wrap}
+  .counter{color:#e5e7eb;font-weight:700}
+
+  /* QR below questions */
+  .qr-block{display:grid;place-items:center;gap:8px;margin-top:clamp(14px,3vw,22px);text-align:center}
+  .qr-img{width:clamp(220px,42vw,420px);height:auto;border-radius:12px;background:#fff;box-shadow:0 14px 28px rgba(0,0,0,.25)}
+  .qr-caption{color:#e5e7eb;font-size:clamp(14px,2.2vw,16px)}
+  .qr-caption a{color:#c7d2fe;text-decoration:underline}
+
+  /* Responsive */
+  @media (max-width:740px){
+    .controls{justify-content:center}
+    .counter{order:3;width:100%;text-align:center}
+  }
+
+  .hidden{display:none}
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>TJC Staff Productivity Tools</h1>
-        <p>A collection of web applications designed to enhance productivity for Temasek Junior College staff</p>
+  <div class="container">
+    <!-- Top bar -->
+    <!-- Top bar -->
+    <div class="appbar">
+      <div class="title">
+        <span class="badge">Panel</span>
+        <h1>Learning for the Future — Q&amp;A</h1>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btnAnon" onclick="toggleAnon()" title="Hide/show student identity">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
+          Anonymise
+        </button>
+        <button class="btn" onclick="loadQuestions()" title="Reload">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+          Refresh
+        </button>
+        <button class="btn primary" id="btnPush" onclick="pushToDisplay()" title="Push current question to Display">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h18"/><path d="M12 3v18"/></svg>
+          Push to Display
+        </button>
+        <button class="btn" id="btnViewBookmarks" onclick="toggleBookmarksView()" title="View Bookmarks (V)">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2z"/></svg>
+          <span id="bookmarks-view-label">Bookmarks Only</span>
+        </button>
+        <button class="btn warning" onclick="clearBookmarks()" title="Clear Bookmarks (C)">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Clear Bookmarks
+        </button>
+        <!-- Clear and Fullscreen buttons removed -->
+      </div>
     </div>
 
-    <div class="app-grid">
-        <div class="app-card">
-            <h2>MarksCan!</h2>
-            <p>Use this to mark scanned optical mark sheets for exams. Personalised and aggregated reports can be generated.</p>
-            <a href="https://physicstjc.github.io/apps/scanner/scanner_with_sample_data.html" target="_blank">Launch MarksCan! →</a>
-        </div>
-        
-        <div class="app-card">
-            <h2>iCalendar Generator</h2>
-            <p>View and manage class timetables efficiently using your personal calendar app by importing your timetable.</p>
-            <a href="https://physicstjc.github.io/timetable/index.html" target="_blank">Launch Timetable Viewer →</a>
-        </div>
+    <!-- Progress -->
+    <div class="progress-wrap" aria-hidden="true"><div id="progress" class="progress"></div></div>
 
-        <div class="app-card">
-            <h2>Timetable Comparison</h2>
-            <p>Compare multiple timetables side by side to identify common free periods and scheduling conflicts.</p>
-            <a href="https://physicstjc.github.io/timetable/compare.html" target="_blank">Launch Comparison Tool →</a>
-        </div>
+    <!-- LOADING -->
+    <section id="loading" class="state">
+      <div class="spinner" role="status" aria-label="Loading"></div>
+      <p style="color:#334155">Loading questions…</p>
+      <h2 style="margin-top:6px">Learning for the Future. Panel Discussion.</h2>
+      <div class="qr-block" style="margin-top:12px">
+        <img class="qr-img" style="width:clamp(160px,30vw,260px)" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda"/>
+        <div class="qr-caption" style="color:#374151">Ask your question: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a></div>
+      </div>
+    </section>
 
-        <div class="app-card">
-            <h2>Class Timetables</h2>
-            <p>View the class timetable anytime, anywhere.</p>
-            <a href="https://physicstjc.github.io/timetable/class-view.html" target="_blank">Launch Class Timetable Viewer →</a>
-        </div>
+    <!-- ERROR -->
+    <section id="error" class="state hidden">
+      <h2 style="color:#dc2626;margin-bottom:6px">Error</h2>
+      <p id="error-message" style="color:#4b5563;margin-bottom:14px"></p>
+      <button class="btn primary" onclick="loadQuestions()">Try Again</button>
+    </section>
 
-        <div class="app-card">
-            <h2>SLS Tools</h2>
-            <p>Access Student Learning Space (SLS) related tools and resources to enhance your teaching experience.</p>
-            <a href="https://physicstjc.github.io/sls/" target="_blank">Access SLS Tools →</a>
-        </div>
+    <!-- NO QUESTIONS -->
+    <section id="no-questions" class="state hidden">
+      <h2>No Questions Yet</h2>
+      <p style="color:#6b7280;margin:6px 0 14px">Waiting for responses…</p>
+      <button class="btn primary" onclick="loadQuestions()">Refresh</button>
+      <div class="qr-block">
+        <img class="qr-img" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda"/>
+        <div class="qr-caption">Students: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a></div>
+      </div>
+    </section>
 
-        <div class="app-card">
-            <h2>Park Near TJC</h2>
-            <p>Find available HDB parking lots near Temasek Junior College with real-time availability updates, in the event our carpark is full.</p>
-            <a href="https://parkneartjc.streamlit.app/" target="_blank">Check Parking Availability →</a>
+    <!-- MAIN -->
+    <section id="main-content" class="hidden" aria-live="polite" aria-atomic="true">
+      <div class="card">
+        <div class="meta">
+          <div class="name" id="question-name"></div>
+          <div id="question-class"></div>
         </div>
+        <div class="underline" aria-hidden="true"></div>
 
-        <div class="app-card">
-            <h2>PG Automation</h2>
-            <p>Automatically select students to form a group for Parent Gateway.</p>
-            <a href="https://physicstjc.github.io/timetable/pg-automation.html" target="_blank">Launch PG Automation →</a>
-        </div>
+        <!-- Question text + copy + bookmark -->
+        <div class="q" id="question-text">—</div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn icon-only brand-fill" id="btnCopy" onclick="copyQuestion()" title="Copy question text">
+            <!-- clipboard icon -->
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="9" y="3" width="13" height="18" rx="2" ry="2"/>
+              <path d="M5 7H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-1"/>
+              <rect x="9" y="3" width="5" height="4" rx="1"/>
+            </svg>
+          </button>
 
-        <div class="app-card">
-            <h2>SLS Group Automation</h2>
-            <p>Automatically select teachers from any school to form a professional development group for SLS.</p>
-            <a href="https://physicstjc.github.io/apps/sls-group/index.html" target="_blank">Launch SLS Group Automation →</a>
+          <button class="btn brand-fill" id="btnBookmark" onclick="toggleBookmark()" title="Bookmark (B)">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2z"/></svg>
+            <span id="bookmark-label">Bookmark</span>
+          </button>
+          <span style="color:#64748b" id="bookmark-count">0 saved</span>
         </div>
+      </div>
 
-        <div class="app-card">
-            <h2>PDF Compressor</h2>
-            <p>Compresses a pdf file for a smaller file size.</p>
-            <a href="https://physicstjc.github.io/apps/pdfcompress/index.html" target="_blank">Launch App →</a>
+      <div class="controls">
+        <div class="group">
+          <button class="btn" id="prev-btn" onclick="previousQuestion()">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 18-6-6 6-6"/></svg>
+            Previous
+          </button>
+          <button class="btn" id="next-btn" onclick="nextQuestion()">
+            Next
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
         </div>
+        <div class="counter" id="counter-text">Question <span id="current-index">1</span> of <span id="total-questions">0</span></div>
+        <div class="group">
+          <button class="btn" onclick="loadQuestions()">Refresh</button>
+        </div>
+      </div>
 
-        <div class="app-card">
-            <h2>Go Green Day 2025 Block Allocation</h2>
-            <p>Shows details of the blocks allocated for Go Green Day.</p>
-            <a href="https://gogreenday.streamlit.app/" target="_blank">Launch App →</a>
+      <!-- Big, centered QR -->
+      <div class="qr-block" aria-label="QR code to submit questions">
+        <img class="qr-img" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda">
+        <div class="qr-caption">
+          Ask your question: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a>
         </div>
+      </div>
+    </section>
+  </div>
 
-        <div class="app-card">
-            <h2>Bluetooth Mic to Venue Speaker</h2>
-            <p>Microphone in the Lecture Theatre not working? Connect a bluetooth or wired microphone to your computer as input and use the venue's speakers for output. There is a slight lag though. Recording function available.</p>
-            <a href="https://physicstjc.github.io/apps/audio/index.html" target="_blank">Launch App →</a>
-        </div>
-        
-        <div class="app-card">
-            <h2>Webcam</h2>
-            <p>Use the webcam of your device to project something in class.</p>
-            <a href="https://physicstjc.github.io/apps/webcam/index.html" target="_blank">Launch App →</a>
-        </div>
+<script>
+  // ====== Config & State ======
+  var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySlNsQii7TMpUPcVxVo6yNmI_0fu2f3WkkTy13nk29SKVB7sTaMVvZTGxMJHBGmHEHOA/exec';
+  var questions = [];              // normalized questions
+  var orderAll = [];               // array of IDs in full order
+  var orderBookmarks = [];         // array of IDs bookmarked (order saved)
+  var currentIndex = 0;            // index within the ACTIVE list
+  var anonymise = true;
+  var viewBookmarksOnly = false;
+  var LS_KEY = 'panel_qna_bookmarks_v1';
 
-        <div class="app-card">
-            <h2>Code Editor</h2>
-            <p>Trying out vibe coding and now you have some html / javascript codes that you want to preview? Use this code editor to preview and download your newly created web app!</p>
-            <a href="https://physicstjc.github.io/apps/code-editor/index.html" target="_blank">Launch App →</a>
-        </div>
-        <!--
-        <div class="app-card">
-            <h2>HEIC to JPG Converter</h2>
-            <p>Convert iPhone's HEIC photos to standard JPG format. A simple web tool that helps you batch convert Apple's high-efficiency image format (HEIC) to widely-compatible JPG files.</p>
-            <a href="./heic-converter/index.html" target="_blank">Convert Photos →</a>
-        </div>
-        -->
-        
-    </div>
 
-    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #666;">
-        <p>These applications were created for teachers of Temasek Junior College. Other users are free to adapt the codes for their own use.<br>
-        For any suggestions on how work can be made more efficient with technology, feel free to email:<br>
-        <a href="mailto:tan_seng_kwang@moe.edu.sg" class="contact-email">tan_seng_kwang@moe.edu.sg</a></p>
-    </div>
+  var BC_NAME = 'panel_qna_channel_v1';
+var SYNC_KEY = 'panel_qna_sync_v1';
+var bc = ('BroadcastChannel' in window) ? new BroadcastChannel(BC_NAME) : null;
+
+function publishState(reason){
+  var state = {
+    reason: reason || '',
+    ts: Date.now(),
+    currentId: activeOrder()[currentIndex] || null,
+    viewBookmarksOnly: viewBookmarksOnly,
+    anonymise: anonymise,
+    bookmarks: orderBookmarks.slice()
+  };
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); } catch(e){}
+  try { bc && bc.postMessage(state); } catch(e){}
+}
+    // ====== Utilities ======
+  function hashId(q){
+    // simple stable hash of name|class|question
+    var s = (q.name||'') + '|' + (q.class||'') + '|' + (q.question||'');
+    var h = 0;
+    for (var i=0;i<s.length;i++){ h = ((h<<5)-h) + s.charCodeAt(i); h |= 0; }
+    return 'q_' + (h>>>0).toString(36);
+  }
+
+  function pick(obj, keys){
+    for (var i=0;i<keys.length;i++){
+      var k = keys[i];
+      if (obj[k]!=null) return String(obj[k]);
+      var f = Object.keys(obj).find(function(key){return key.toLowerCase()===k.toLowerCase();});
+      if (f) return String(obj[f]);
+    }
+    return '';
+  }
+
+  function normalise(it){
+    var q = {
+      name: pick(it, ['name','student','displayName']),
+      class: pick(it, ['class','className','group','formClass']),
+      question: pick(it, ['question','q','text','message'])
+    };
+    q._id = hashId(q);
+    return q;
+  }
+
+  function activeOrder(){ return viewBookmarksOnly ? orderBookmarks : orderAll; }
+
+  function saveBookmarks(){
+    try { localStorage.setItem(LS_KEY, JSON.stringify(orderBookmarks)); } catch(e){}
+  }
+  function loadBookmarksFromStorage(){
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      var arr = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+      orderBookmarks = arr;
+    }catch(e){ orderBookmarks = []; }
+  }
+  function isBookmarked(id){ return orderBookmarks.indexOf(id) !== -1; }
+
+  function updateBookmarkUI(){
+    var list = activeOrder();
+    var id = list[currentIndex];
+    var bookmarked = isBookmarked(id);
+    var label = document.getElementById('bookmark-label');
+    if (label) label.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+    var btn = document.getElementById('btnBookmark');
+    if (btn) btn.classList.toggle('selected', bookmarked);
+    var count = document.getElementById('bookmark-count');
+    if (count) count.textContent = (orderBookmarks.length || 0) + ' saved';
+
+    var btnView = document.getElementById('btnViewBookmarks');
+    var viewLabel = document.getElementById('bookmarks-view-label');
+    if (btnView) btnView.classList.toggle('primary', viewBookmarksOnly);
+    if (viewLabel) viewLabel.textContent = viewBookmarksOnly ? 'Viewing Bookmarks' : 'Bookmarks Only';
+  }
+
+  function setCounter(){
+    var total = Math.max(activeOrder().length, 1);
+    var pct = Math.min(100, ((currentIndex+1)/total)*100);
+    document.getElementById('progress').style.width = pct + '%';
+
+    var idxEl = document.getElementById('current-index');
+    var totEl = document.getElementById('total-questions');
+    if (idxEl) idxEl.textContent = Math.min(currentIndex+1,total);
+    if (totEl) totEl.textContent = total;
+
+    var mode = viewBookmarksOnly ? 'Bookmarked' : 'Question';
+    var counterText = document.getElementById('counter-text');
+    if (counterText) counterText.innerHTML = mode + ' <span id="current-index">'+(Math.min(currentIndex+1,total))+'</span> of <span id="total-questions">'+total+'</span>';
+
+    var prevBtn = document.getElementById('prev-btn');
+    var nextBtn = document.getElementById('next-btn');
+    if (prevBtn) prevBtn.disabled = currentIndex===0;
+    if (nextBtn) nextBtn.disabled = currentIndex>=total-1;
+  }
+
+  function showOnly(id){
+    ['loading','error','no-questions','main-content'].forEach(function(x){
+      var el = document.getElementById(x);
+      if (el) el.classList.toggle('hidden', x!==id);
+    });
+  }
+
+  // ====== Rendering ======
+  function render(){
+    var list = activeOrder();
+    if (!list.length){
+      if (viewBookmarksOnly){
+        document.getElementById('question-name').textContent = '';
+        document.getElementById('question-class').textContent = '';
+        document.getElementById('question-text').textContent = 'No bookmarked questions yet.';
+      }
+      setCounter();
+      updateBookmarkUI();
+      return;
+    }
+    var id = list[currentIndex];
+    var q = questions.find(function(x){ return x._id===id; }) || {};
+    document.getElementById('question-name').textContent = anonymise ? 'Anonymous' : (q.name||'');
+    document.getElementById('question-class').textContent = anonymise ? '' : (q.class||'');
+    document.getElementById('question-text').textContent = q.question || '—';
+    setCounter();
+    updateBookmarkUI();
+    publishState('render');
+  }
+
+  // ====== Data loading ======
+  function loadQuestions(){
+    showOnly('loading');
+    fetch(SCRIPT_URL + '?t=' + Date.now(), { cache:'no-store' })
+      .then(function(res){
+        var ct = res.headers.get('content-type')||'';
+        if(ct.includes('application/json')) return res.json();
+        return res.text().then(function(t){ try{return JSON.parse(t);}catch{throw new Error('Non-JSON response');} });
+      })
+      .then(function(data){
+        var arr = Array.isArray(data) ? data : (Array.isArray(data && data.questions) ? data.questions : []);
+        questions = arr.map(normalise).filter(function(x){return x.question;});
+        orderAll = questions.map(function(q){ return q._id; });
+
+        // Remove bookmarks not in the new list
+        loadBookmarksFromStorage();
+        orderBookmarks = orderBookmarks.filter(function(id){ return orderAll.indexOf(id) !== -1; });
+        saveBookmarks();
+
+        if (orderAll.length){
+          currentIndex = 0;
+          showOnly('main-content');
+          render();
+        } else {
+          showOnly('no-questions');
+        }
+      })
+      .catch(function(err){
+        var em = document.getElementById('error-message');
+        if (em) em.textContent = 'Failed to load questions. ' + (err && err.message || '');
+        showOnly('error');
+      });
+  }
+
+  // ====== Controls ======
+  function previousQuestion(){ if(currentIndex>0){ currentIndex--; render(); } }
+  function nextQuestion(){ if(currentIndex < activeOrder().length-1){ currentIndex++; render(); } }
+  function toggleAnon(){ anonymise = !anonymise; var a=document.getElementById('btnAnon'); if(a) a.classList.toggle('primary', anonymise); render(); }
+
+  function toggleBookmark(){
+    var list = activeOrder();
+    if (!list.length) return;
+    var id = list[currentIndex];
+    var i = orderBookmarks.indexOf(id);
+    if (i === -1){ orderBookmarks.push(id); }
+    else { orderBookmarks.splice(i,1); }
+    saveBookmarks();
+
+    if (viewBookmarksOnly){
+      if (currentIndex >= orderBookmarks.length) currentIndex = Math.max(0, orderBookmarks.length-1);
+    }
+    render();
+  }
+
+  function toggleBookmarksView(){
+    viewBookmarksOnly = !viewBookmarksOnly;
+
+    if (viewBookmarksOnly){
+      var curId = orderAll[currentIndex] || null;
+      var idx = curId ? orderBookmarks.indexOf(curId) : -1;
+      currentIndex = (idx !== -1) ? idx : 0;
+    } else {
+      var curId2 = orderBookmarks[currentIndex] || orderAll[0];
+      var idx2 = orderAll.indexOf(curId2);
+      currentIndex = (idx2 !== -1) ? idx2 : 0;
+    }
+
+    if (viewBookmarksOnly && orderBookmarks.length === 0){
+      showOnly('main-content');
+    }
+    render();
+  }
+
+  function clearBookmarks(){
+    if (!orderBookmarks.length) return;
+    var ok = confirm('Clear all bookmarks?');
+    if (!ok) return;
+    orderBookmarks = [];
+    saveBookmarks();
+    if (viewBookmarksOnly){
+      viewBookmarksOnly = false;
+      currentIndex = Math.min(currentIndex, orderAll.length-1);
+    }
+    render();
+  }
+
+  function toggleFullscreen(){
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); }
+    else { document.exitFullscreen?.(); }
+  }
+
+  // ====== Copy question text ======
+  function copyQuestion(){
+    var text = (document.getElementById('question-text').textContent || '').trim();
+    if(!text) return;
+
+    var btn = document.getElementById('btnCopy');
+    var originalHTML = btn.innerHTML;
+
+    function flashOK(){
+      btn.classList.add('selected');
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg>';
+      setTimeout(function(){
+        btn.classList.remove('selected');
+        btn.innerHTML = originalHTML;
+      }, 1200);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(flashOK).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+
+    function fallbackCopy(){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly','');
+        ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
+        document.body.appendChild(ta);
+        ta.select(); ta.setSelectionRange(0, ta.value.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) flashOK();
+      }catch(e){}
+    }
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e){
+    if(e.key==='ArrowLeft') previousQuestion();
+    else if(e.key==='ArrowRight') nextQuestion();
+    else if(e.key.toLowerCase()==='a') toggleAnon();
+    // removed: else if(e.key.toLowerCase()==='f') toggleFullscreen();
+    else if(e.key.toLowerCase()==='b') toggleBookmark();
+    else if(e.key.toLowerCase()==='v') toggleBookmarksView();
+    else if(e.key.toLowerCase()==='c' && (e.ctrlKey || e.metaKey)) { /* let system copy run */ }
+  });
+
+  // Boot
+  loadBookmarksFromStorage();
+  loadQuestions();
+
+  // Register Service Worker for instant cross-tab messaging
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  }
+
+  // Push-to-display helpers
+  function currentQuestionObject(){
+    var list = activeOrder();
+    var id = list[currentIndex];
+    return questions.find(function(x){ return x._id===id; }) || null;
+  }
+
+  function pushToDisplay(){
+    var btn = document.getElementById('btnPush');
+    var originalHTML = btn ? btn.innerHTML : null;
+
+    function flash(ok){
+      if (!btn) return;
+      btn.disabled = true;
+      if (ok){
+        btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg> Pushed';
+      } else {
+        btn.textContent = 'No question';
+      }
+      setTimeout(function(){
+        btn.disabled = false;
+        if (originalHTML) btn.innerHTML = originalHTML;
+      }, 1000);
+    }
+
+    var q = currentQuestionObject();
+    if (!q){ flash(false); return; }
+
+    var payload = {
+      reason: 'push',
+      ts: Date.now(),
+      anonymise: anonymise,
+      q: { name: q.name, class: q.class, question: q.question }
+    };
+
+    // Prefer Service Worker messaging (instant), with fallbacks
+    var sent = false;
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage(payload);
+        sent = true;
+      }
+    } catch(_){}
+
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(payload)); } catch(_){}
+    try { bc && bc.postMessage(payload); } catch(_){}
+
+    flash(sent);
+  }
+  function updateBookmarkUI(){
+    var list = activeOrder();
+    var id = list[currentIndex];
+    var bookmarked = isBookmarked(id);
+    var label = document.getElementById('bookmark-label');
+    if (label) label.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+    var btn = document.getElementById('btnBookmark');
+    if (btn) btn.classList.toggle('selected', bookmarked);
+    var count = document.getElementById('bookmark-count');
+    if (count) count.textContent = (orderBookmarks.length || 0) + ' saved';
+
+    var btnView = document.getElementById('btnViewBookmarks');
+    var viewLabel = document.getElementById('bookmarks-view-label');
+    if (btnView) btnView.classList.toggle('primary', viewBookmarksOnly);
+    if (viewLabel) viewLabel.textContent = viewBookmarksOnly ? 'Viewing Bookmarks' : 'Bookmarks Only';
+  }
+
+  function setCounter(){
+    var total = Math.max(activeOrder().length, 1);
+    var pct = Math.min(100, ((currentIndex+1)/total)*100);
+    document.getElementById('progress').style.width = pct + '%';
+
+    var idxEl = document.getElementById('current-index');
+    var totEl = document.getElementById('total-questions');
+    if (idxEl) idxEl.textContent = Math.min(currentIndex+1,total);
+    if (totEl) totEl.textContent = total;
+
+    var mode = viewBookmarksOnly ? 'Bookmarked' : 'Question';
+    var counterText = document.getElementById('counter-text');
+    if (counterText) counterText.innerHTML = mode + ' <span id="current-index">'+(Math.min(currentIndex+1,total))+'</span> of <span id="total-questions">'+total+'</span>';
+
+    var prevBtn = document.getElementById('prev-btn');
+    var nextBtn = document.getElementById('next-btn');
+    if (prevBtn) prevBtn.disabled = currentIndex===0;
+    if (nextBtn) nextBtn.disabled = currentIndex>=total-1;
+  }
+
+  function showOnly(id){
+    ['loading','error','no-questions','main-content'].forEach(function(x){
+      var el = document.getElementById(x);
+      if (el) el.classList.toggle('hidden', x!==id);
+    });
+  }
+
+  // ====== Rendering ======
+  function render(){
+    var list = activeOrder();
+    if (!list.length){
+      if (viewBookmarksOnly){
+        document.getElementById('question-name').textContent = '';
+        document.getElementById('question-class').textContent = '';
+        document.getElementById('question-text').textContent = 'No bookmarked questions yet.';
+      }
+      setCounter();
+      updateBookmarkUI();
+      return;
+    }
+    var id = list[currentIndex];
+    var q = questions.find(function(x){ return x._id===id; }) || {};
+    document.getElementById('question-name').textContent = anonymise ? 'Anonymous' : (q.name||'');
+    document.getElementById('question-class').textContent = anonymise ? '' : (q.class||'');
+    document.getElementById('question-text').textContent = q.question || '—';
+    setCounter();
+    updateBookmarkUI();
+    publishState('render');
+  }
+
+  // ====== Data loading ======
+  function loadQuestions(){
+    showOnly('loading');
+    fetch(SCRIPT_URL + '?t=' + Date.now(), { cache:'no-store' })
+      .then(function(res){
+        var ct = res.headers.get('content-type')||'';
+        if(ct.includes('application/json')) return res.json();
+        return res.text().then(function(t){ try{return JSON.parse(t);}catch{throw new Error('Non-JSON response');} });
+      })
+      .then(function(data){
+        var arr = Array.isArray(data) ? data : (Array.isArray(data && data.questions) ? data.questions : []);
+        questions = arr.map(normalise).filter(function(x){return x.question;});
+        orderAll = questions.map(function(q){ return q._id; });
+
+        // Remove bookmarks not in the new list
+        loadBookmarksFromStorage();
+        orderBookmarks = orderBookmarks.filter(function(id){ return orderAll.indexOf(id) !== -1; });
+        saveBookmarks();
+
+        if (orderAll.length){
+          currentIndex = 0;
+          showOnly('main-content');
+          render();
+        } else {
+          showOnly('no-questions');
+        }
+      })
+      .catch(function(err){
+        var em = document.getElementById('error-message');
+        if (em) em.textContent = 'Failed to load questions. ' + (err && err.message || '');
+        showOnly('error');
+      });
+  }
+
+  // ====== Controls ======
+  function previousQuestion(){ if(currentIndex>0){ currentIndex--; render(); } }
+  function nextQuestion(){ if(currentIndex < activeOrder().length-1){ currentIndex++; render(); } }
+  function toggleAnon(){ anonymise = !anonymise; var a=document.getElementById('btnAnon'); if(a) a.classList.toggle('primary', anonymise); render(); }
+
+  function toggleBookmark(){
+    var list = activeOrder();
+    if (!list.length) return;
+    var id = list[currentIndex];
+    var i = orderBookmarks.indexOf(id);
+    if (i === -1){ orderBookmarks.push(id); }
+    else { orderBookmarks.splice(i,1); }
+    saveBookmarks();
+
+    if (viewBookmarksOnly){
+      if (currentIndex >= orderBookmarks.length) currentIndex = Math.max(0, orderBookmarks.length-1);
+    }
+    render();
+  }
+
+  function toggleBookmarksView(){
+    viewBookmarksOnly = !viewBookmarksOnly;
+
+    if (viewBookmarksOnly){
+      var curId = orderAll[currentIndex] || null;
+      var idx = curId ? orderBookmarks.indexOf(curId) : -1;
+      currentIndex = (idx !== -1) ? idx : 0;
+    } else {
+      var curId2 = orderBookmarks[currentIndex] || orderAll[0];
+      var idx2 = orderAll.indexOf(curId2);
+      currentIndex = (idx2 !== -1) ? idx2 : 0;
+    }
+
+    if (viewBookmarksOnly && orderBookmarks.length === 0){
+      showOnly('main-content');
+    }
+    render();
+  }
+
+  function clearBookmarks(){
+    if (!orderBookmarks.length) return;
+    var ok = confirm('Clear all bookmarks?');
+    if (!ok) return;
+    orderBookmarks = [];
+    saveBookmarks();
+    if (viewBookmarksOnly){
+      viewBookmarksOnly = false;
+      currentIndex = Math.min(currentIndex, orderAll.length-1);
+    }
+    render();
+  }
+
+  function toggleFullscreen(){
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); }
+    else { document.exitFullscreen?.(); }
+  }
+
+  // ====== Copy question text ======
+  function copyQuestion(){
+    var text = (document.getElementById('question-text').textContent || '').trim();
+    if(!text) return;
+
+    var btn = document.getElementById('btnCopy');
+    var originalHTML = btn.innerHTML;
+
+    function flashOK(){
+      btn.classList.add('selected');
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg>';
+      setTimeout(function(){
+        btn.classList.remove('selected');
+        btn.innerHTML = originalHTML;
+      }, 1200);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(flashOK).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+
+    function fallbackCopy(){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly','');
+        ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
+        document.body.appendChild(ta);
+        ta.select(); ta.setSelectionRange(0, ta.value.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) flashOK();
+      }catch(e){}
+    }
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e){
+    if(e.key==='ArrowLeft') previousQuestion();
+    else if(e.key==='ArrowRight') nextQuestion();
+    else if(e.key.toLowerCase()==='a') toggleAnon();
+    else if(e.key.toLowerCase()==='f') toggleFullscreen();
+    else if(e.key.toLowerCase()==='b') toggleBookmark();
+    else if(e.key.toLowerCase()==='v') toggleBookmarksView();
+    else if(e.key.toLowerCase()==='c' && (e.ctrlKey || e.metaKey)) { /* let system copy run */ }
+  });
+
+  // Boot
+  loadBookmarksFromStorage();
+  loadQuestions();
+</script>
 </body>
 </html>
