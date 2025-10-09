@@ -31,6 +31,18 @@
   .status{display:flex;align-items:center;gap:10px;font-size:14px;color:#e5e7eb}
   .dot{width:10px;height:10px;border-radius:999px;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.2)}
   .dot.ok{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2)}
+  .fs-btn{
+    font:600 12px/1 system-ui;
+    padding:8px 12px;
+    border-radius:10px;
+    background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.22);
+    color:#fff;
+    cursor:pointer;
+    transition:background .2s ease, border-color .2s ease;
+  }
+  .fs-btn:hover{ background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.32); }
+  .fs-btn[aria-pressed="true"]{ background:rgba(34,197,94,.25); border-color:rgba(34,197,94,.45); }
 
   .card{
     background:var(--card);color:var(--ink);border-radius:24px;box-shadow:var(--shadow);
@@ -42,7 +54,12 @@
   .q{font-size:clamp(22px,4vw,44px);line-height:1.45;letter-spacing:.2px;min-height:3lh}
 
   .qr-block{display:grid;place-items:center;gap:8px;margin-top:clamp(14px,3vw,22px);text-align:center}
-  .qr-img{width:clamp(220px,42vw,420px);height:auto;border-radius:12px;background:#fff;box-shadow:0 14px 28px rgba(0,0,0,.25)}
+  .qr-img{
+    width:clamp(220px,42vw,420px);
+    height:auto;
+    aspect-ratio:1/1;
+    border-radius:12px;background:#fff;box-shadow:0 14px 28px rgba(0,0,0,.25)
+  }
   .qr-caption{color:#e5e7eb;font-size:clamp(14px,2.2vw,16px)}
   .qr-caption a{color:#c7d2fe;text-decoration:underline}
 
@@ -60,6 +77,7 @@
         <span class="dot" id="dot"></span>
         <span id="status-text">Waiting for main page…</span>
       </div>
+      <button id="fs-btn" class="fs-btn" type="button" aria-pressed="false" title="Toggle full screen">Full Screen</button>
     </div>
 
     <section class="card">
@@ -68,12 +86,12 @@
         <div id="klass"></div>
       </div>
       <div class="underline" aria-hidden="true"></div>
-      <div class="q" id="question">Open the main panelist page to begin.</div>
-      <div class="hint">This view updates automatically when you navigate/bookmark on the main page.</div>
+      <div class="q" id="question">Waiting for moderator push…</div>
+      <div class="hint">This view updates when the moderator pushes a question from the main page.</div>
     </section>
 
     <div class="qr-block">
-      <img class="qr-img" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda">
+      <img class="qr-img" src="https___for.edu.sg_qanda.png" alt="Scan to ask a question at for.edu.sg/qanda" loading="lazy" decoding="async">
       <div class="qr-caption">
         Ask your question: <a href="https://for.edu.sg/qanda" target="_blank" rel="noopener">for.edu.sg/qanda</a>
       </div>
@@ -81,15 +99,17 @@
   </div>
 
 <script>
-  // ===== Config =====
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySlNsQii7TMpUPcVxVo6yNmI_0fu2f3WkkTy13nk29SKVB7sTaMVvZTGxMJHBGmHEHOA/exec';
+  // ===== Channel config =====
   const BC_NAME = 'panel_qna_channel_v1';
   const SYNC_KEY = 'panel_qna_sync_v1';
 
+  // ===== Optional pool config (used only for currentId selection fallback) =====
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySlNsQii7TMpUPcVxVo6yNmI_0fu2f3WkkTy13nk29SKVB7sTaMVvZTGxMJHBGmHEHOA/exec';
+
   // ===== State =====
-  let questions = [];   // normalized
+  let questions = [];   // normalized pool
   let qMap = {};        // id -> question
-  let lastState = null; // latest state from main page
+  let lastState = null; // latest received state
 
   // ===== Normalisation (matches main page) =====
   function pick(obj, keys){
@@ -115,54 +135,76 @@
     return q;
   }
 
-  // ===== Data load =====
-  function loadQuestions(){
-    return fetch(SCRIPT_URL + '?t=' + Date.now(), { cache:'no-store' })
-      .then(res => res.headers.get('content-type')?.includes('application/json') ? res.json() : res.text().then(t=>JSON.parse(t)))
-      .then(data=>{
-        const arr = Array.isArray(data) ? data : (Array.isArray(data?.questions) ? data.questions : []);
-        questions = arr.map(normalise).filter(x=>x.question);
-        qMap = Object.fromEntries(questions.map(q=>[q._id,q]));
-        // try apply last state once data is ready
-        if (lastState) applyState(lastState);
-      })
-      .catch(()=>{});
-  }
-
   // ===== Rendering =====
-  function render(q, anonymise){
+  function setLive(){
     const dot = document.getElementById('dot');
     const st  = document.getElementById('status-text');
     dot.classList.add('ok');
     st.textContent = 'Live';
-
+  }
+  function render(q, anonymise){
+    setLive();
     document.getElementById('name').textContent  = anonymise ? 'Anonymous' : (q.name || '');
     document.getElementById('klass').textContent = anonymise ? '' : (q.class || '');
     document.getElementById('question').textContent = q.question || '—';
   }
 
-  function applyState(state){
-    lastState = state;
-    const dot = document.getElementById('dot');
-    const st  = document.getElementById('status-text');
-    dot.classList.toggle('ok', true);
-    st.textContent = 'Live';
-
-    if (!state || !state.currentId){
-      document.getElementById('question').textContent = 'No question selected.';
-      return;
-    }
-    const q = qMap[state.currentId];
-    if (q) {
-      render(q, !!state.anonymise);
-    } else {
-      // We have state but not the matching data yet; ensure data is loading
-      if (!questions.length) loadQuestions();
-      document.getElementById('question').textContent = 'Loading question…';
-    }
+  // ===== Pool load (only if needed for currentId) =====
+  function loadQuestions(){
+    return fetch(SCRIPT_URL + '?t=' + Date.now(), { cache:'no-store' })
+      .then(res => res.headers.get('content-type')?.toLowerCase().includes('application/json') ? res.json() : res.text().then(t=>{
+        try { return JSON.parse(t); } catch(_){
+          // Try stripping common XSSI prefix or extracting JSON slice
+          try { return JSON.parse(String(t).replace(/^\)\\]\\}'\\s*/, '')); } catch(__){}
+          const sObj = t.indexOf('{'), sArr = t.indexOf('[');
+          const start = Math.min(...[sObj, sArr].filter(i=>i>=0));
+          const end = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
+          if (start >= 0 && end > start){
+            const slice = t.slice(start, end+1);
+            try { return JSON.parse(slice); } catch(__){}
+          }
+          throw new Error('Non-JSON response');
+        }
+      }))
+      .then(data=>{
+        const arr = Array.isArray(data) ? data : (Array.isArray(data?.questions) ? data.questions : []);
+        questions = arr.map(normalise).filter(x=>x.question);
+        qMap = Object.fromEntries(questions.map(q=>[q._id,q]));
+        if (lastState) applyState(lastState);
+      })
+      .catch(()=>{ /* silent */ });
   }
 
-  // ===== Subscribe (BroadcastChannel + localStorage fallback) =====
+  // ===== State application =====
+  function applyState(state){
+    lastState = state;
+    setLive();
+
+    // Fast path: moderator push includes full question payload
+    if (state && state.q){
+      const qNorm = normalise(state.q);
+      render(qNorm, !!state.anonymise);
+      return;
+    }
+
+    // Fallback path: resolve a selection by ID from the loaded pool
+    if (state && state.currentId){
+      const q = qMap[state.currentId];
+      if (q) {
+        render(q, !!state.anonymise);
+        return;
+      }
+      // We have a selection but not the pool yet — load and show a hint
+      if (!questions.length) loadQuestions();
+      document.getElementById('question').textContent = 'Loading question…';
+      return;
+    }
+
+    // No push or selection — wait
+    document.getElementById('question').textContent = 'Waiting for moderator push…';
+  }
+
+  // ===== Subscribe (BroadcastChannel + localStorage + Service Worker) =====
   const bc = ('BroadcastChannel' in window) ? new BroadcastChannel(BC_NAME) : null;
   if (bc) bc.onmessage = (ev)=>applyState(ev.data);
 
@@ -172,15 +214,64 @@
     }
   });
 
+  // Register Service Worker and listen for messages
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    navigator.serviceWorker.addEventListener('message', function(ev){
+      const data = ev.data || {};
+      // Accept either direct payloads or wrapped broadcasts
+      if (data && (data.reason === 'push' || data.type === 'broadcast')){
+        applyState(data.payload ? data.payload : data);
+      }
+    });
+  }
+
   // Initial sync from stored state (if main page already ran)
   try {
     const boot = localStorage.getItem(SYNC_KEY);
     if (boot) applyState(JSON.parse(boot));
   } catch(_){}
 
-  // Load data and keep fresh occasionally (optional)
-  loadQuestions();
-  // setInterval(loadQuestions, 30000); // uncomment to refresh the pool
+  // ===== Fullscreen Toggle =====
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  }
+  function enterFullscreen(el){
+    if (el.requestFullscreen) return el.requestFullscreen();
+    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+    if (el.msRequestFullscreen) return el.msRequestFullscreen();
+    return Promise.reject();
+  }
+  function exitFullscreen(){
+    if (document.exitFullscreen) return document.exitFullscreen();
+    if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+    if (document.msExitFullscreen) return document.msExitFullscreen();
+    return Promise.reject();
+  }
+  function updateFSButton(){
+    const btn = document.getElementById('fs-btn');
+    if (!btn) return;
+    const active = isFullscreen();
+    btn.setAttribute('aria-pressed', String(active));
+    btn.textContent = active ? 'Exit Full Screen' : 'Full Screen';
+  }
+
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const btn = document.getElementById('fs-btn');
+    if (!btn) return;
+    btn.addEventListener('click', ()=>{
+      if (isFullscreen()){
+        exitFullscreen().catch(()=>{});
+      } else {
+        enterFullscreen(document.documentElement).catch(()=>{});
+      }
+    });
+    updateFSButton();
+  });
+
+  document.addEventListener('fullscreenchange', updateFSButton);
+  document.addEventListener('webkitfullscreenchange', updateFSButton);
+  document.addEventListener('msfullscreenchange', updateFSButton);
 </script>
 </body>
 </html>
