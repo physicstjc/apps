@@ -178,30 +178,16 @@
   // ===== State application =====
   function applyState(state){
     lastState = state;
-    setLive();
 
-    // Fast path: moderator push includes full question payload
+    // Only act when a full question payload is provided by the main page push
     if (state && state.q){
       const qNorm = normalise(state.q);
       render(qNorm, !!state.anonymise);
       return;
     }
 
-    // Fallback path: resolve a selection by ID from the loaded pool
-    if (state && state.currentId){
-      const q = qMap[state.currentId];
-      if (q) {
-        render(q, !!state.anonymise);
-        return;
-      }
-      // We have a selection but not the pool yet — load and show a hint
-      if (!questions.length) loadQuestions();
-      document.getElementById('question').textContent = 'Loading question…';
-      return;
-    }
-
-    // No push or selection — wait
-    document.getElementById('question').textContent = 'Waiting for moderator push…';
+    // Ignore selection-only broadcasts (currentId, render signals) — display will wait for a push
+    document.getElementById('question').textContent = 'Waiting for question';
   }
 
   // ===== Subscribe (BroadcastChannel + localStorage + Service Worker) =====
@@ -214,22 +200,23 @@
     }
   });
 
-  // Register Service Worker and listen for messages
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
     navigator.serviceWorker.addEventListener('message', function(ev){
       const data = ev.data || {};
-      // Accept either direct payloads or wrapped broadcasts
       if (data && (data.reason === 'push' || data.type === 'broadcast')){
         applyState(data.payload ? data.payload : data);
       }
     });
   }
 
-  // Initial sync from stored state (if main page already ran)
+  // Initial sync only if a push payload already exists
   try {
     const boot = localStorage.getItem(SYNC_KEY);
-    if (boot) applyState(JSON.parse(boot));
+    if (boot) {
+      const parsed = JSON.parse(boot);
+      if (parsed && parsed.q) applyState(parsed);
+    }
   } catch(_){}
 
   // ===== Fullscreen Toggle =====
