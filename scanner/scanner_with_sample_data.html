@@ -116,7 +116,12 @@ document.addEventListener('DOMContentLoaded', () => {
 <h1>Optical Mark Sheet Scanner</h1><details id="usageHelp" style="margin: 0;">
           <summary style="cursor: pointer; color: orange;">Instructions</summary>
           <div style="padding: 8px 0 0 0;">
-             (<i>For admin</i>: Make copies of the optical mark sheets (OMS) using <a href="OMS template.pdf" target="_blank" style="color: orange;">this soft copy</a> for the exam. Edit the code of this file to include the comma-separated list of student data in the format "Class, Student Name, 4-character Index").
+             <i>For admin</i>: 
+            <ol style="margin: 0; padding-left: 18px;">
+              <li>Make copies of the optical mark sheets (OMS) using <a href="OMS template.pdf" target="_blank" style="color: orange;">this soft copy</a> for the exam.</li>
+              <li>Edit the code of this file to include the comma-separated list of student data in the format "Class, Student Name, 4-character Index".</li>
+            <li>If you would like to use your own template, update the template JSON (found in the codes), after adjusting the areas to scan using <a href="calibration.html">the calibration page</a></li></ol>
+            <i>For markers</i>:
             <ol style="margin: 0; padding-left: 18px;">
               <li>Scan students' optical mark sheets (OMS) into a single pdf.</li>
               <li>Key in the answer key, indicating the number of MCQs. Click "Save answer key"</li>
@@ -2316,4 +2321,5 @@ if (btnPrint) btnPrint.onclick = () => {
 
 
 </body></html>
+
 
