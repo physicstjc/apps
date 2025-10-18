@@ -40,11 +40,13 @@
 <div class="row">
   <div class="card" style="flex: 1 1 380px; min-width: 340px">
     <div class="grid">
+      <!-- Input section markup -->
       <div>
-        <strong>Input</strong>
+        <!-- Input section -->
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input id="filePdf" type="file" accept="application/pdf" />
-          <input id="fileImg" type="file" accept="image/*" />
+          <!-- REMOVED: image input, PDF-only calibration -->
+          <!-- <input id="fileImg" type="file" accept="image/*" /> -->
         </div>
         <div class="small" style="margin-top:6px">Upload a PDF (preferred) or an image. The page will auto-rectify using the four corner squares.</div>
         <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
@@ -128,7 +130,8 @@
 const FID_W = 2100, FID_H = 2970;
 let PDF = null, currentPage = 1, cvReady = false;
 
-const DEFAULT_TEMPLATE = \{
+
+const DEFAULT_TEMPLATE = {
   "fiducial_frame": {
     "width": 2100,
     "height": 2970
@@ -277,13 +280,17 @@ let activeBlock = "index"; // index | mcq0 | mcq1 | mcq2
 let drag = { block:null, cornerIdx:-1, on:false };
 
 // OpenCV gate
-(function waitCV(){ if(typeof cv==="undefined"||!cv.imread){ setTimeout(waitCV,150); return; } cvReady=true; setStatus("Ready. Upload a PDF or image."); })();
+(function waitCV(){
+  if(typeof cv==="undefined"||!cv.imread){ setTimeout(waitCV,150); return; }
+  cvReady=true;
+  setStatus("Ready. Upload a PDF."); // updated status text
+})();
 
 // UI elements
 const statusEl = document.getElementById("status");
 function setStatus(s){ statusEl.textContent=s; }
 const filePdf = document.getElementById("filePdf");
-const fileImg = document.getElementById("fileImg");
+
 document.getElementById("prevBtn").onclick = async ()=>{ if(PDF && currentPage>1){ currentPage--; await renderAndWarpCurrent(); } };
 document.getElementById("nextBtn").onclick = async ()=>{ if(PDF && currentPage<PDF.numPages){ currentPage++; await renderAndWarpCurrent(); } };
 document.getElementById("pageNum").textContent = "0";
@@ -392,33 +399,29 @@ function syncJson(){
 
 // PDF/image input handling
 filePdf.addEventListener("change", async e=>{
-  const f=e.target.files?.[0]; if(!f) return;
+  const f = e.target.files?.[0]; if(!f) return;
+  const isPdfMime = (f.type || "").toLowerCase() === "application/pdf";
+  const isPdfExt  = /\.pdf$/i.test(f.name || "");
+  if (!(isPdfMime || isPdfExt)) {
+    setStatus("Only PDF files are accepted.");
+    alert("Only PDF files are accepted for calibration.");
+    e.target.value = "";
+    return;
+  }
   setStatus("Loading PDF…");
-  try{
-    const buf=await f.arrayBuffer();
-    PDF=await pdfjsLib.getDocument({data:buf}).promise;
+  try {
+    const buf = await f.arrayBuffer();
+    PDF = await pdfjsLib.getDocument({ data: buf }).promise;
     document.getElementById("pageCount").textContent = PDF.numPages;
-    currentPage=1;
+    currentPage = 1;
     await renderAndWarpCurrent();
     setStatus("PDF loaded.");
-  }catch(err){ console.error(err); setStatus("Failed to load PDF."); }
+  } catch(err) {
+    console.error(err);
+    setStatus("Failed to load PDF.");
+  }
 });
-fileImg.addEventListener("change", async e=>{
-  const f=e.target.files?.[0]; if(!f) return;
-  setStatus("Loading image…");
-  try{
-    const img=new Image();
-    img.onload=async ()=>{
-      const c=document.createElement("canvas");
-      c.width=img.width; c.height=img.height;
-      const ic=c.getContext("2d");
-      ic.drawImage(img,0,0);
-      await warpFromCanvas(c);
-      setStatus("Image loaded.");
-    };
-    img.src=URL.createObjectURL(f);
-  }catch(err){ console.error(err); setStatus("Failed to load image."); }
-});
+
 
 async function renderAndWarpCurrent(){
   if(!PDF) return;
