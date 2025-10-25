@@ -75,12 +75,32 @@
     padding: 0 2px;
   }
   .empty td { text-align: center; color: #94a3b8; }
+  /* Top actions */
+  .top-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .cta-link {
+    font-size: .9rem;
+    color: #38bdf8;
+    text-decoration: none;
+    border: 1px solid rgba(56,189,248,0.3);
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(56,189,248,0.08);
+  }
+  .cta-link:hover { background: rgba(56,189,248,0.18); border-color: rgba(56,189,248,0.5); }
 </style>
 </head>
 <body>
 <div class="app-shell">
   <h1>TJC Acronym Finder</h1>
-  <p>Type an acronym (e.g. <b>CCE</b>, <b>DLTS</b>) to search its full meaning, scope, and remarks.</p>
+  <div class="top-actions">
+    <a class="cta-link" href="https://docs.google.com/spreadsheets/d/1KnJO8LsNjwXAMdzu4HNT9PfkaFiOgA1wkn5zwORZfSk/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer">
+      Contribute to the list
+    </a>
+  </div>
   <!-- Removed the duplicate search input -->
   <!-- <input id="searchInput" placeholder="Search acronym..." autocomplete="off"> -->
   <div class="input-wrap">
@@ -104,8 +124,12 @@
   </div>
   <footer>
     Source: 
-    <a href="https://docs.google.com/spreadsheets/d/1KnJO8LsNjwXAMdzu4HNT9PfkaFiOgA1wkn5zwORZfSk/edit?gid=0#gid=0" target="_blank">
+    <a href="https://docs.google.com/spreadsheets/d/1KnJO8LsNjwXAMdzu4HNT9PfkaFiOgA1wkn5zwORZfSk/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer">
       TJC Acronym Google Sheet
+    </a>
+    ·
+    <a href="https://docs.google.com/spreadsheets/d/1KnJO8LsNjwXAMdzu4HNT9PfkaFiOgA1wkn5zwORZfSk/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer">
+      Contribute to the list
     </a>
   </footer>
 </div>
