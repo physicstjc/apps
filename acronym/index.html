@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TJC Acronym Finder</title>
+<style>
+  body {
+    background: #0f172a;
+    color: #f8fafc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    margin: 0;
+    padding: 24px;
+  }
+  .app-shell { max-width: 900px; margin: auto; display: grid; gap: 16px; }
+  h1 { font-size: 1.4rem; font-weight: 600; }
+  input {
+    width: 85%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    background: #1e2539;
+    color: white;
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; table-layout: fixed; }
+  th, td { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left; }
+  th { color: #94a3b8; font-size: .8rem; text-transform: uppercase; }
+  a { color: #38bdf8; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  footer {
+    font-size: .8rem;
+    color: #94a3b8;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 8px;
+    text-align: right;
+  }
+  /* UI improvements */
+  .input-wrap { position: relative; }
+  .clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #94a3b8;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: .9rem;
+  }
+  .clear-btn:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+  input { padding-right: 72px; }
+  .count { font-size: .85rem; color: #94a3b8; }
+  .table-wrap {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    overflow: auto;
+    max-height: 70vh;
+    background: rgba(255,255,255,0.02);
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: #0f172a;
+    z-index: 1;
+  }
+  tbody tr:nth-child(odd) { background: rgba(255,255,255,0.03); }
+  tbody tr:hover { background: rgba(56,189,248,0.12); }
+  mark {
+    background: rgba(56,189,248,0.25);
+    color: #fff;
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+  .empty td { text-align: center; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <h1>TJC Acronym Finder</h1>
+  <p>Type an acronym (e.g. <b>CCE</b>, <b>DLTS</b>) to search its full meaning, scope, and remarks.</p>
+  <!-- Removed the duplicate search input -->
+  <!-- <input id="searchInput" placeholder="Search acronym..." autocomplete="off"> -->
+  <div class="input-wrap">
+    <input id="searchInput" placeholder="Search acronyms, names, scope..." autocomplete="off">
+    <button id="clearBtn" class="clear-btn" aria-label="Clear">Clear</button>
+  </div>
+  <div id="resultCount" class="count">Loading…</div>
+  <div class="table-wrap">
+    <table>
+      <colgroup>
+        <col style="width: 7%">
+        <col style="width: 45%">
+        <col style="width: 15%">
+        <col style="width: 33%">
+      </colgroup>
+      <thead>
+        <tr><th>Acronym</th><th>Full Name</th><th>Scope</th><th>Remarks / Links</th></tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+  <footer>
+    Source: 
+    <a href="https://docs.google.com/spreadsheets/d/1KnJO8LsNjwXAMdzu4HNT9PfkaFiOgA1wkn5zwORZfSk/edit?gid=0#gid=0" target="_blank">
+      TJC Acronym Google Sheet
+    </a>
+  </footer>
+</div>
+
+<script>
+const FEED_URL = "https://docs.google.com/spreadsheets/d/1KnJO8LsNjwXAMdzu4HNT9PfkaFiOgA1wkn5zwORZfSk/gviz/tq?gid=0&tqx=out:json";
+let allRows = [];
+
+function linkify(str) {
+  if (!str) return "";
+  return str.replace(/https?:\/\/[^\s)]+/g, url =>
+    `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+}
+
+function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function highlight(text, q) {
+  if (!q) return text || "";
+  const re = new RegExp(escapeRegExp(q), "gi");
+  return (text || "").replace(re, m => `<mark>${m}</mark>`);
+}
+
+function render(rows, q = "") {
+  const body = document.getElementById("resultsBody");
+  const countEl = document.getElementById("resultCount");
+  if (!rows.length) {
+    body.innerHTML = `<tr class="empty"><td colspan="4">No matches found</td></tr>`;
+    countEl.textContent = "0 results";
+    return;
+  }
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td><b>${highlight(r.acronym || "", q)}</b></td>
+      <td>${highlight(r.full || "", q)}</td>
+      <td>${highlight(r.scope || "", q)}</td>
+      <td>${linkify(r.remarks || "")}</td>
+    </tr>`).join("");
+  countEl.textContent = `${rows.length} ${rows.length === 1 ? "result" : "results"}`;
+}
+
+document.getElementById("searchInput").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  const filtered = q
+    ? allRows.filter(r => `${r.acronym} ${r.full} ${r.scope}`.toLowerCase().includes(q))
+    : allRows;
+  render(filtered, q);
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  const input = document.getElementById("searchInput");
+  input.value = "";
+  render(allRows, "");
+  input.focus();
+});
+
+async function loadSheet() {
+  const bodyEl = document.getElementById("resultsBody");
+  bodyEl.innerHTML = `<tr class="empty"><td colspan="4">Loading…</td></tr>`;
+  document.getElementById("resultCount").textContent = "Loading…";
+  try {
+    const res = await fetch(FEED_URL);
+    const txt = await res.text();
+    const jsonStr = txt.substring(txt.indexOf("{"), txt.lastIndexOf("}") + 1);
+    const data = JSON.parse(jsonStr);
+    const rows = data.table.rows.map(r => ({
+      acronym: r.c[0]?.v || "",
+      full: r.c[1]?.v || "",
+      scope: r.c[2]?.v || "",
+      remarks: r.c[3]?.v || ""
+    })).filter(r => r.acronym && r.acronym.toLowerCase() !== "acronym");
+    rows.sort((a, b) => (a.acronym || "").localeCompare(b.acronym || ""));
+    allRows = rows;
+    render(allRows, "");
+  } catch (err) {
+    console.error(err);
+    bodyEl.innerHTML = `<tr class="empty"><td colspan="4">Failed to load data</td></tr>`;
+    document.getElementById("resultCount").textContent = "—";
+  }
+}
+loadSheet();
+</script>
+</body>
+</html>
+<style>
+  /* Mobile responsiveness */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  td:nth-child(4) { word-break: break-word; overflow-wrap: anywhere; }
+
+  @media (max-width: 768px) {
+    body { padding: 16px; }
+    h1 { font-size: 1.2rem; }
+    p { font-size: .95rem; }
+    input { font-size: .95rem; padding: 9px; }
+    th { font-size: .72rem; }
+    td { font-size: .95rem; }
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 12px; }
+    h1 { font-size: 1.1rem; }
+    p { font-size: .9rem; }
+    input { font-size: .9rem; padding: 8px; }
+    th, td { padding: 8px; }
+    /* Ensure horizontal scroll if columns don’t fit */
+    table { min-width: 620px; }
+  }
+  <style>
+    /* Prominent search bar */
+    .input-wrap { position: relative; }
+    #searchInput {
+      font-size: 1.15rem;
+      padding: 14px 96px 14px 40px; /* space for icon and Clear button */
+      border: 1px solid rgba(56,189,248,0.35);
+      border-radius: 10px;
+      background: linear-gradient(180deg, #1e2539 0%, #1a2133 100%);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    #searchInput::placeholder { color: #a3aed0; }
+    #searchInput:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.35), 0 8px 24px rgba(0,0,0,0.35);
+    }
+    .input-wrap::before {
+      content: "🔍";
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
+    .clear-btn { right: 12px; padding: 8px 12px; }
+  </style>
+</style>
