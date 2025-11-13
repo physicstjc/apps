@@ -560,14 +560,34 @@
             }
             
             .cell-number {
-                width: 16px;
-                height: 16px;
-                font-size: 8px;
-                margin-bottom: 3px;
+                background: #4a90e2;
+                color: white;
+                width: 25px;
+                height: 25px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 12px;
+                margin: 0 auto 8px;
             }
             
             .cell-content {
                 padding: 3px;
+            }
+            .cell-text {
+                font-size: 11px;
+                line-height: 1.2;
+                text-align: center;
+            }
+            
+            .completed {
+                border: 3px solid #4CAF50;
+            }
+            
+            .completed .cell-number {
+                background: #4CAF50;
             }
         }
     </style>
@@ -945,10 +965,7 @@
             challenges.forEach((challenge, index) => {
                 const cell = document.createElement('div');
                 cell.className = 'bingo-cell';
-                if (index === 12) { // Center cell (0-based index)
-                    cell.className += ' center-cell';
-                }
-                
+                // ... existing code ...
                 cell.onclick = () => handleCellClick(cell, challenge.number);
                 
                 cell.innerHTML = `
