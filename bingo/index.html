@@ -52,7 +52,7 @@
         
         .bingo-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 3px;
             background: #333;
             padding: 10px;
@@ -578,7 +578,7 @@
     </div>
     
     <div class="instructions">
-        <strong>Instructions:</strong> Work together to find the items, meet the criteria, and engage with each other to mark off your bingo squares! Click on a square to take a photo or upload an image as proof of completion. <strong>The first 2 groups to complete a straight line bingo (5 tasks) will win the prize!</strong>
+        <strong>Instructions:</strong> Work together to find the items, meet the criteria, and engage with each other to mark off your bingo squares! Click on a square to take a photo or upload an image as proof of completion. <strong>The first 2 groups to complete a straight line bingo (4 tasks)</strong> will receive a prize. Have fun and bond with your teammates!
     </div>
     
     <div id="loadingMessage" class="loading">
@@ -922,8 +922,8 @@
                     }
                 }
                 
-                if (challenges.length !== 25) {
-                    throw new Error(`Expected 25 challenges, found ${challenges.length}`);
+                if (challenges.length !== 16) {
+                    throw new Error(`Expected 16 challenges, found ${challenges.length}`);
                 }
                 
                 // Sort by number to ensure correct order
@@ -1172,11 +1172,11 @@
             const cells = document.querySelectorAll('.bingo-cell');
             const grid = [];
             
-            // Convert to 5x5 grid
-            for (let i = 0; i < 5; i++) {
+            // Convert to 4x4 grid
+            for (let i = 0; i < 4; i++) {
                 grid[i] = [];
-                for (let j = 0; j < 5; j++) {
-                    const index = i * 5 + j;
+                for (let j = 0; j < 4; j++) {
+                    const index = i * 4 + j;
                     grid[i][j] = cells[index].classList.contains('completed');
                 }
             }
@@ -1185,31 +1185,30 @@
             const lines = [];
             
             // Check rows
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 4; i++) {
                 if (grid[i].every(cell => cell)) {
-                    lines.push({type: 'row', index: i, cells: Array.from({length: 5}, (_, j) => i * 5 + j)});
+                    lines.push({type: 'row', index: i, cells: Array.from({length: 4}, (_, j) => i * 4 + j)});
                 }
             }
             
             // Check columns
-            for (let j = 0; j < 5; j++) {
+            for (let j = 0; j < 4; j++) {
                 if (grid.every(row => row[j])) {
-                    lines.push({type: 'col', index: j, cells: Array.from({length: 5}, (_, i) => i * 5 + j)});
+                    lines.push({type: 'col', index: j, cells: Array.from({length: 4}, (_, i) => i * 4 + j)});
                 }
             }
             
             // Check diagonals
             if (grid.every((row, i) => row[i])) {
-                lines.push({type: 'diag1', index: 0, cells: [0, 6, 12, 18, 24]});
+                lines.push({type: 'diag1', index: 0, cells: [0, 5, 10, 15]});
             }
-            if (grid.every((row, i) => row[4-i])) {
-                lines.push({type: 'diag2', index: 0, cells: [4, 8, 12, 16, 20]});
+            if (grid.every((row, i) => row[3 - i])) {
+                lines.push({type: 'diag2', index: 0, cells: [3, 6, 9, 12]});
             }
             
             // Show bingo modal for new lines
             const newLines = lines.filter(line => !submittedLines.has(`${line.type}-${line.index}`));
             if (newLines.length > 0) {
-                // Highlight the bingo line
                 highlightBingoLine(newLines[0]);
                 showBingoModal();
             }
@@ -1348,23 +1347,23 @@
             const cells = document.querySelectorAll('.bingo-cell');
             const grid = [];
             
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 4; i++) {
                 grid[i] = [];
-                for (let j = 0; j < 5; j++) {
-                    const index = i * 5 + j;
+                for (let j = 0; j < 4; j++) {
+                    const index = i * 4 + j;
                     grid[i][j] = cells[index].classList.contains('completed');
                 }
             }
             
             // Check rows
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 4; i++) {
                 if (grid[i].every(cell => cell)) {
                     return {type: 'row', index: i};
                 }
             }
             
             // Check columns
-            for (let j = 0; j < 5; j++) {
+            for (let j = 0; j < 4; j++) {
                 if (grid.every(row => row[j])) {
                     return {type: 'col', index: j};
                 }
@@ -1374,7 +1373,7 @@
             if (grid.every((row, i) => row[i])) {
                 return {type: 'diag1', index: 0};
             }
-            if (grid.every((row, i) => row[4-i])) {
+            if (grid.every((row, i) => row[3 - i])) {
                 return {type: 'diag2', index: 0};
             }
             
