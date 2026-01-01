@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photo Slideshow Video Editor (EXIF overlay)</title>
+
+  <!-- EXIF reader (lightweight, works in browser) -->
+  <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1220; --card:#0f1a33; --muted:#93a4c7; --text:#eaf0ff;
+      --border: rgba(255,255,255,.12);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 700px at 10% 0%, #12224a, transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, #1a2e66, transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+    header{
+      padding:18px 18px 10px;
+      max-width:1100px; margin:0 auto;
+    }
+    header h1{margin:0; font-size:18px; letter-spacing:.2px}
+    header p{margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.35}
+    .wrap{
+      max-width:1100px; margin:0 auto; padding:12px 18px 24px;
+      display:grid; grid-template-columns: 420px 1fr; gap:14px;
+    }
+    .card{
+      background: rgba(15,26,51,.72);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 14px 40px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:12px 12px 10px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .hd .title{font-weight:600; font-size:13px}
+    .hd .mini{color:var(--muted); font-size:12px}
+    .card .bd{padding:12px}
+
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    label{font-size:12px; color:var(--muted)}
+    input[type="number"], input[type="text"]{
+      width:100%;
+      padding:10px 10px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(8,14,28,.6);
+      color:var(--text);
+      outline:none;
+    }
+    input[type="file"]{width:100%}
+    .btn{
+      appearance:none; border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
+    }
+    .btn:hover{background: rgba(255,255,255,.10)}
+    .btn.primary{
+      background: rgba(90,140,255,.18);
+      border-color: rgba(90,140,255,.45);
+    }
+    .btn.danger{
+      background: rgba(255,90,90,.14);
+      border-color: rgba(255,90,90,.35);
+    }
+    .btn:disabled{opacity:.5; cursor:not-allowed}
+
+    .items{
+      display:flex; flex-direction:column; gap:10px;
+      max-height: 52vh; overflow:auto; padding-right:4px;
+    }
+    .item{
+      border:1px solid var(--border);
+      border-radius: 14px;
+      padding:10px;
+      background: rgba(0,0,0,.18);
+      display:grid;
+      grid-template-columns: 68px 1fr;
+      gap:10px;
+    }
+    .thumb{
+      width:68px; height:68px; border-radius:12px;
+      object-fit:cover; border:1px solid var(--border);
+      background:#050a14;
+    }
+    .metaTop{
+      display:flex; justify-content:space-between; gap:8px; align-items:flex-start;
+    }
+    .name{font-size:12px; font-weight:700}
+    .sub{font-size:11px; color:var(--muted); margin-top:2px; line-height:1.25}
+    .smallBtns{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+    .smallBtns .btn{padding:7px 9px; font-size:12px; border-radius:10px}
+
+    .field{margin-top:8px}
+    .field label{display:block; margin-bottom:6px}
+    .grid2{
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px;
+    }
+
+    .stage{
+      display:flex; flex-direction:column; gap:12px;
+    }
+    .canvasWrap{
+      background: rgba(0,0,0,.25);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:12px;
+    }
+    canvas{
+      width:100%; height:auto;
+      border-radius: 14px;
+      background:#000;
+      border:1px solid var(--border);
+      display:block;
+    }
+    .status{
+      font-size:12px; color:var(--muted);
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    }
+    .pill{
+      border:1px solid var(--border);
+      padding:6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      font-size:12px;
+      color: var(--text);
+    }
+    .download a{color:var(--text); text-decoration:none; font-weight:700}
+    .download a:hover{text-decoration:underline}
+
+    @media (max-width: 980px){
+      .wrap{grid-template-columns: 1fr; }
+      .items{max-height: 40vh;}
+    }
+    .dropHint{color:var(--muted); font-size:12px; margin-top:6px}
+    #dropArea.dragging{
+      outline:2px dashed rgba(90,140,255,.6);
+      outline-offset:-6px;
+      background: rgba(90,140,255,.08);
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Photo Slideshow Video Editor (EXIF overlay)</h1>
+  <p>
+    Import photos, add a description, auto-read EXIF (focal length, shutter, ISO, aperture),
+    preview a 4-second-per-photo slideshow, and export a <b>WebM</b> video.
+  </p>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: LIST + SETTINGS -->
+  <section class="card">
+    <div class="hd">
+      <div class="title">Assets</div>
+      <div class="mini" id="countLabel">0 photos</div>
+    </div>
+    <div class="bd" id="dropArea">
+      <div class="field">
+        <label>Import photos</label>
+        <input id="fileInput" type="file" accept="image/*" multiple />
+        <div class="dropHint">or drag & drop images here</div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="field">
+          <label>Seconds per photo</label>
+          <input id="secPerPhoto" type="number" min="1" step="0.5" value="4" />
+        </div>
+        <div class="field">
+          <label>Output FPS</label>
+          <input id="fps" type="number" min="1" step="1" value="30" />
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="field">
+          <label>Resolution preset</label>
+          <input id="resolution" type="text" value="1920x1080" placeholder="e.g. 1920x1080" />
+        </div>
+        <div class="field">
+          <label>Font size (px)</label>
+          <input id="fontSize" type="number" min="14" step="1" value="34" />
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Background audio</label>
+        <input id="audioInput" type="file" accept="audio/*" />
+        <div id="audioName" class="sub"></div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Title page</label>
+        <input id="titleText" type="text" placeholder="e.g. My Slideshow Title" />
+        <div class="sub">Plays as first slide for 4s</div>
+        <input id="titleSubtitle" type="text" placeholder="e.g. Subtitle or tagline" style="margin-top:6px" />
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn danger" id="clearBtn" disabled>Clear</button>
+        <button class="btn" id="shuffleBtn" disabled>Shuffle</button>
+        <button class="btn" id="clearAudioBtn" disabled>Remove audio</button>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="items" id="items"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT: PREVIEW + EXPORT -->
+  <section class="stage">
+    <section class="card canvasWrap">
+      <div class="hd">
+        <div class="title">Preview</div>
+        <div class="mini">Canvas render + text overlay</div>
+      </div>
+      <div class="bd">
+        <canvas id="canvas" width="1920" height="1080"></canvas>
+
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="playBtn" disabled>Play</button>
+          <button class="btn" id="stopBtn" disabled>Stop</button>
+          <button class="btn primary" id="exportBtn" disabled>Export WebM</button>
+        </div>
+
+        <div class="status" style="margin-top:10px">
+          <span class="pill" id="timePill">00:00 / 00:00</span>
+          <span class="pill" id="slidePill">Slide 0 / 0</span>
+          <span class="pill" id="modePill">Idle</span>
+        </div>
+
+        <div class="status download" id="downloadArea" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <div class="title">Overlay format</div>
+        <div class="mini">White text at bottom</div>
+      </div>
+      <div class="bd">
+        <div style="color:var(--muted); font-size:13px; line-height:1.45">
+          Each slide draws:
+          <ul style="margin:8px 0 0 18px">
+            <li><b>Description</b> (your text)</li>
+            <li><b>EXIF line</b>: <code>f=…mm · 1/…s · ISO … · f/…</code></li>
+          </ul>
+          Tip: You can reorder slides using ↑ ↓ buttons. Edit description in each card.
+        </div>
+      </div>
+    </section>
+  </section>
+</div>
+
+<script>
+  const state = {
+    slides: [], // {id, file, url, img, desc, exif: {focal, shutter, iso, aperture}}
+    playing: false,
+    exporting: false,
+    startTs: 0,
+    rafId: null,
+    recorder: null,
+    chunks: [],
+    stream: null,
+  };
+
+  const el = {
+    fileInput: document.getElementById('fileInput'),
+    items: document.getElementById('items'),
+    countLabel: document.getElementById('countLabel'),
+    secPerPhoto: document.getElementById('secPerPhoto'),
+    fps: document.getElementById('fps'),
+    resolution: document.getElementById('resolution'),
+    fontSize: document.getElementById('fontSize'),
+    dropArea: document.getElementById('dropArea'),
+    audioInput: document.getElementById('audioInput'),
+    audioName: document.getElementById('audioName'),
+    clearAudioBtn: document.getElementById('clearAudioBtn'),
+    titleText: document.getElementById('titleText'),
+    titleSubtitle: document.getElementById('titleSubtitle'),
+
+    clearBtn: document.getElementById('clearBtn'),
+    shuffleBtn: document.getElementById('shuffleBtn'),
+    playBtn: document.getElementById('playBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+
+    timePill: document.getElementById('timePill'),
+    slidePill: document.getElementById('slidePill'),
+    modePill: document.getElementById('modePill'),
+    downloadArea: document.getElementById('downloadArea'),
+
+    canvas: document.getElementById('canvas')
+  };
+
+  const ctx = el.canvas.getContext('2d');
+
+  function parseResolution(str){
+    const m = String(str).trim().match(/^(\d+)\s*x\s*(\d+)$/i);
+    if(!m) return null;
+    const w = Math.max(320, parseInt(m[1],10));
+    const h = Math.max(240, parseInt(m[2],10));
+    return {w,h};
+  }
+
+  function setCanvasSizeFromUI(){
+    const r = parseResolution(el.resolution.value);
+    if(!r) return;
+    el.canvas.width = r.w;
+    el.canvas.height = r.h;
+  }
+
+  function fmtTime(sec){
+    sec = Math.max(0, sec);
+    const m = Math.floor(sec/60);
+    const s = Math.floor(sec%60);
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  function totalDuration(){
+    const sp = Math.max(0.5, Number(el.secPerPhoto.value) || 4);
+    const hasTitleSlide = !!((state.titleText && state.titleText.trim()) || (state.titleSubtitle && state.titleSubtitle.trim()));
+    const t = hasTitleSlide ? 4 : 0;
+    return t + state.slides.length * sp;
+  }
+
+  function updateTopUI(){ el.countLabel.textContent = `${state.slides.length} photo${state.slides.length===1?'':'s'}`; const has = state.slides.length > 0; const hasTitleSlide = !!((state.titleText && state.titleText.trim()) || (state.titleSubtitle && state.titleSubtitle.trim())); const canPlay = has || hasTitleSlide; el.clearBtn.disabled = !has || state.playing || state.exporting; el.shuffleBtn.disabled = !has || state.playing || state.exporting; el.playBtn.disabled = !canPlay || state.exporting; el.exportBtn.disabled = !canPlay || state.playing || state.exporting; el.stopBtn.disabled = !(state.playing || state.exporting); const hasAudio = !!state.bgAudioFile; el.clearAudioBtn.disabled = !hasAudio || state.playing || state.exporting; el.audioName.textContent = hasAudio ? state.bgAudioFile.name : ''; }
+
+  function drawCover(){
+    ctx.clearRect(0,0,el.canvas.width, el.canvas.height);
+
+    // subtle background
+    const g = ctx.createLinearGradient(0,0,el.canvas.width, el.canvas.height);
+    g.addColorStop(0, '#0b1220');
+    g.addColorStop(1, '#000000');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,el.canvas.width, el.canvas.height);
+
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    ctx.font = `600 ${Math.round(el.canvas.height*0.04)}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const msg = state.slides.length ? 'Ready to preview / export' : 'Import photos to begin';
+    ctx.fillText(msg, el.canvas.width/2, el.canvas.height/2);
+
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.font = `400 ${Math.round(el.canvas.height*0.022)}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    ctx.fillText(`Resolution: ${el.canvas.width}×${el.canvas.height}`, el.canvas.width/2, el.canvas.height/2 + el.canvas.height*0.06);
+  }
+  function drawTitleSlide(){
+    const W = el.canvas.width, H = el.canvas.height;
+    ctx.clearRect(0,0,W,H);
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,'#0b1220');
+    g.addColorStop(1,'#000000');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    const title = (state.titleText || '').trim();
+    const sub = (state.titleSubtitle || '').trim();
+    const fs = Math.max(24, Math.round(H*0.08));
+    ctx.font = `700 ${fs}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const centerY = H/2;
+    if(title){
+      ctx.fillText(title, W/2, centerY);
+    }
+    if(sub){
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      ctx.font = `500 ${Math.round(fs*0.5)}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+      ctx.fillText(sub, W/2, centerY + Math.round(fs*0.9));
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.60)';
+    ctx.font = `500 ${Math.round(fs*0.42)}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    ctx.fillText(`Resolution: ${W}×${H}`, W/2, centerY + Math.round(fs*(sub?1.6:0.95)));
+  }
+
+  function fitCover(imgW, imgH, canvasW, canvasH){
+    const imgAspect = imgW / imgH;
+    const canAspect = canvasW / canvasH;
+    let drawW, drawH, dx, dy;
+
+    if(imgAspect > canAspect){
+      // image is wider
+      drawH = canvasH;
+      drawW = canvasH * imgAspect;
+      dx = (canvasW - drawW) / 2;
+      dy = 0;
+    } else {
+      // image is taller
+      drawW = canvasW;
+      drawH = canvasW / imgAspect;
+      dx = 0;
+      dy = (canvasH - drawH) / 2;
+    }
+    return {dx,dy,drawW,drawH};
+  }
+
+  function formatExifLine(exif){
+    const focal = exif?.focalLength ? `${exif.focalLength}mm` : '—';
+    const shutter = exif?.exposureTime ? exif.exposureTime : '—';
+    const iso = exif?.iso ? `ISO ${exif.iso}` : 'ISO —';
+    const aperture = exif?.fNumber ? `f/${exif.fNumber}` : 'f/—';
+    return `f=${focal} · ${shutter} · ${iso} · ${aperture}`;
+  }
+
+  function drawSlide(slide){
+    const W = el.canvas.width, H = el.canvas.height;
+
+    // Photo as cover
+    const {dx,dy,drawW,drawH} = fitCover(slide.img.naturalWidth, slide.img.naturalHeight, W, H);
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(slide.img, dx, dy, drawW, drawH);
+
+    // Bottom gradient for readability
+    const gh = Math.round(H * 0.25);
+    const grad = ctx.createLinearGradient(0, H-gh, 0, H);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.72)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, H-gh, W, gh);
+
+    // Text
+    const pad = Math.round(W * 0.04);
+    const fontSize = Math.max(16, Number(el.fontSize.value) || 34);
+    const lineGap = Math.round(fontSize * 1.18);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+
+    // Description (wrap)
+    ctx.font = `700 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+
+    const desc = (slide.desc || '').trim() || '(No description)';
+    const maxWidth = W - pad*2;
+
+    const lines = wrapText(desc, maxWidth, ctx);
+    const exifLine = formatExifLine(slide.exif);
+
+    // EXIF smaller
+    ctx.font = `500 ${Math.round(fontSize*0.75)}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    const exifHeight = Math.round(fontSize*0.9);
+
+    // Draw from bottom up
+    let y = H - pad;
+    // EXIF
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillText(exifLine, pad, y);
+    y -= (exifHeight + Math.round(fontSize*0.35));
+
+    // Description lines
+    ctx.font = `700 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    ctx.fillStyle = 'rgba(255,255,255,0.98)';
+    for(let i = lines.length - 1; i >= 0; i--){
+      ctx.fillText(lines[i], pad, y);
+      y -= lineGap;
+      if (y < H - Math.round(H*0.26)) break; // prevent going too high
+    }
+  }
+
+  function wrapText(text, maxWidth, context){
+    const words = text.split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = '';
+    for(const w of words){
+      const test = line ? line + ' ' + w : w;
+      if(context.measureText(test).width <= maxWidth){
+        line = test;
+      } else {
+        if(line) lines.push(line);
+        line = w;
+      }
+    }
+    if(line) lines.push(line);
+    return lines;
+  }
+
+  function renderList(){
+    el.items.innerHTML = '';
+    state.slides.forEach((s, idx) => {
+      const div = document.createElement('div');
+      div.className = 'item';
+
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.src = s.url;
+
+      const right = document.createElement('div');
+
+      const top = document.createElement('div');
+      top.className = 'metaTop';
+
+      const info = document.createElement('div');
+      info.innerHTML = `
+        <div class="name">${escapeHtml(s.file.name)}</div>
+        <div class="sub">${escapeHtml(formatExifLine(s.exif))}</div>
+      `;
+
+      const btns = document.createElement('div');
+      btns.className = 'smallBtns';
+
+      const up = mkBtn('↑', () => move(idx, -1));
+      const down = mkBtn('↓', () => move(idx, +1));
+      const del = mkBtn('Delete', () => remove(idx), 'danger');
+
+      up.disabled = state.playing || state.exporting || idx === 0;
+      down.disabled = state.playing || state.exporting || idx === state.slides.length - 1;
+      del.disabled = state.playing || state.exporting;
+
+      btns.append(up, down, del);
+
+      top.append(info, btns);
+
+      const field = document.createElement('div');
+      field.className = 'field';
+      const label = document.createElement('label');
+      label.textContent = 'Description';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = s.desc || '';
+      input.placeholder = 'e.g. Sunset at Hakodate…';
+      input.disabled = state.playing || state.exporting;
+      input.addEventListener('input', () => {
+        s.desc = input.value;
+      });
+      field.append(label, input);
+
+      right.append(top, field);
+      div.append(img, right);
+      el.items.append(div);
+    });
+
+    updateTopUI();
+    drawCover();
+  }
+
+  function mkBtn(text, onClick, kind){
+    const b = document.createElement('button');
+    b.className = 'btn' + (kind ? ` ${kind}` : '');
+    b.textContent = text;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function move(idx, delta){
+    const j = idx + delta;
+    if(j < 0 || j >= state.slides.length) return;
+    const a = state.slides[idx];
+    state.slides.splice(idx, 1);
+    state.slides.splice(j, 0, a);
+    renderList();
+  }
+
+  function remove(idx){
+    const s = state.slides.splice(idx, 1)[0];
+    if(s && s.url) URL.revokeObjectURL(s.url);
+    renderList();
+  }
+
+  function escapeHtml(str){ return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  async function readExif(file){ try{ const data = await exifr.parse(file); const fnum = data && (data.FNumber || data.fNumber); const iso = data && (data.ISO || data.ISOSpeedRatings || data.iso); const focal = data && (data.FocalLength || data.focalLength); const exp = data && (data.ExposureTime || data.exposureTime); let exposureStr = '—'; if(exp){ if(typeof exp === 'number'){ exposureStr = exp >= 1 ? `${Math.round(exp)}s` : `1/${Math.round(1/exp)}`; } else { exposureStr = String(exp); } } return { fNumber: fnum ? Number(fnum) : null, iso: iso ? Number(iso) : null, focalLength: focal ? Math.round(Number(focal)) : null, exposureTime: exposureStr }; } catch(e){ return { fNumber: null, iso: null, focalLength: null, exposureTime: '—' }; } }
+  function addSlides(files){ const list = Array.from(files || []); if(!list.length) return; const pending = []; list.forEach(file => { if(file.type.startsWith('audio/')){ if(!state.bgAudioFile) setAudio(file); return; } if(!file.type.startsWith('image/')) return; const url = URL.createObjectURL(file); const img = new Image(); const slide = { id: Date.now() + Math.random(), file, url, img, desc: '', exif: {} }; pending.push(new Promise(resolve => { img.onload = async () => { slide.exif = await readExif(file); state.slides.push(slide); resolve(); }; img.onerror = () => { URL.revokeObjectURL(url); resolve(); }; img.src = url; })); }); Promise.all(pending).then(() => { renderList(); }); }
+  function setAudio(file){ if(!file || !file.type.startsWith('audio/')) return; clearAudio(); state.bgAudioFile = file; state.bgAudioUrl = URL.createObjectURL(file); state.bgAudioEl = new Audio(state.bgAudioUrl); state.bgAudioEl.crossOrigin = 'anonymous'; state.bgAudioEl.preload = 'auto'; state.bgAudioEl.loop = true; updateTopUI(); }
+  function clearAudio(){ if(state.bgAudioEl){ try{ state.bgAudioEl.pause(); }catch(e){} } if(state.bgAudioUrl) URL.revokeObjectURL(state.bgAudioUrl); state.bgAudioFile = null; state.bgAudioUrl = null; state.bgAudioEl = null; if(state.audioCtx){ try{ state.audioCtx.close(); }catch(e){} } state.audioCtx = null; state.audioDest = null; state.audioStream = null; updateTopUI(); }
+  function shuffle(){ for(let i = state.slides.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); const t = state.slides[i]; state.slides[i] = state.slides[j]; state.slides[j] = t; } renderList(); }
+  function clearAll(){ state.slides.forEach(s => { if(s.url) URL.revokeObjectURL(s.url); }); state.slides = []; renderList(); }
+  function play(){ if(!(state.slides.length > 0 || ((state.titleText && state.titleText.trim()) || (state.titleSubtitle && state.titleSubtitle.trim()))) || state.exporting) return; state.playing = true; state.startTs = performance.now(); el.modePill.textContent = 'Playing'; if(state.bgAudioEl){ try{ state.bgAudioEl.currentTime = 0; state.bgAudioEl.play(); }catch(e){} } tick(); updateTopUI(); }
+  function stop(){ if(state.rafId){ cancelAnimationFrame(state.rafId); state.rafId = null; } state.playing = false; if(state.bgAudioEl){ try{ state.bgAudioEl.pause(); state.bgAudioEl.currentTime = 0; }catch(e){} } el.modePill.textContent = 'Idle'; drawCover(); updateTopUI(); }
+  function tick(){ const sp = Math.max(0.5, Number(el.secPerPhoto.value) || 4); const fps = Math.max(1, Number(el.fps.value) || 30); const elapsed = (performance.now() - state.startTs) / 1000; const total = totalDuration(); const hasTitleSlide = !!((state.titleText && state.titleText.trim()) || (state.titleSubtitle && state.titleSubtitle.trim())); const titleDur = hasTitleSlide ? 4 : 0; const totalSlides = state.slides.length + (hasTitleSlide ? 1 : 0); if(elapsed >= total){ stop(); return; } if(hasTitleSlide && elapsed < titleDur){ drawTitleSlide(); el.timePill.textContent = `${fmtTime(elapsed)} / ${fmtTime(total)}`; el.slidePill.textContent = `Slide 1 / ${totalSlides}`; state.rafId = requestAnimationFrame(() => { setTimeout(tick, 1000 / fps); }); return; } const e2 = elapsed - titleDur; const idx = Math.min(state.slides.length - 1, Math.floor(e2 / sp)); drawSlide(state.slides[idx]); el.timePill.textContent = `${fmtTime(elapsed)} / ${fmtTime(total)}`; el.slidePill.textContent = `Slide ${idx+1+(hasTitleSlide?1:0)} / ${totalSlides}`; state.rafId = requestAnimationFrame(() => { setTimeout(tick, 1000 / fps); }); }
+  function exportWebM(){ if(!(state.slides.length > 0 || ((state.titleText && state.titleText.trim()) || (state.titleSubtitle && state.titleSubtitle.trim()))) || state.playing) return; const fps = Math.max(1, Number(el.fps.value) || 30); const total = totalDuration(); state.exporting = true; updateTopUI(); el.modePill.textContent = 'Exporting'; const videoStream = el.canvas.captureStream(fps); state.stream = videoStream; let finalStream = videoStream; if(state.bgAudioEl){ try{ if(!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const source = state.audioCtx.createMediaElementSource(state.bgAudioEl); state.audioDest = state.audioCtx.createMediaStreamDestination(); source.connect(state.audioDest); source.connect(state.audioCtx.destination); state.audioStream = state.audioDest.stream; finalStream = new MediaStream([ ...videoStream.getVideoTracks(), ...state.audioStream.getAudioTracks() ]); state.bgAudioEl.currentTime = 0; state.bgAudioEl.play(); }catch(e){} } const recorder = new MediaRecorder(finalStream, {mimeType: 'video/webm'}); state.recorder = recorder; state.chunks = []; recorder.ondataavailable = e => { if(e.data && e.data.size) state.chunks.push(e.data); }; recorder.onstop = () => { try{ if(state.bgAudioEl) state.bgAudioEl.pause(); }catch(e){} const blob = new Blob(state.chunks, {type: 'video/webm'}); const url = URL.createObjectURL(blob); el.downloadArea.innerHTML = `<a href="${url}" download="slideshow.webm">Download slideshow.webm</a>`; state.exporting = false; el.modePill.textContent = 'Idle'; updateTopUI(); }; recorder.start(); state.startTs = performance.now(); let elapsedPrev = -1; function exportTick(){ const sp = Math.max(0.5, Number(el.secPerPhoto.value) || 4); const hasTitleSlide = !!((state.titleText && state.titleText.trim()) || (state.titleSubtitle && state.titleSubtitle.trim())); const titleDur = hasTitleSlide ? 4 : 0; const elapsed = (performance.now() - state.startTs)/1000; if(elapsed >= total){ recorder.stop(); return; } if(Math.floor(elapsed*fps) !== elapsedPrev){ if(hasTitleSlide && elapsed < titleDur){ drawTitleSlide(); } else { const e2 = elapsed - titleDur; const idx = Math.min(state.slides.length - 1, Math.floor(e2 / sp)); drawSlide(state.slides[idx]); } el.timePill.textContent = `${fmtTime(elapsed)} / ${fmtTime(total)}`; elapsedPrev = Math.floor(elapsed*fps); } requestAnimationFrame(exportTick); } exportTick(); }
+  document.addEventListener('DOMContentLoaded', () => { setCanvasSizeFromUI(); updateTopUI(); drawCover(); el.fileInput.addEventListener('change', e => addSlides(e.target.files)); el.audioInput.addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if(f) setAudio(f); updateTopUI(); }); el.clearAudioBtn.addEventListener('click', clearAudio); el.titleText.addEventListener('input', () => { state.titleText = el.titleText.value || ''; updateTopUI(); if(!state.playing && !state.exporting) drawCover(); }); el.titleSubtitle.addEventListener('input', () => { state.titleSubtitle = el.titleSubtitle.value || ''; updateTopUI(); if(!state.playing && !state.exporting) drawCover(); }); el.resolution.addEventListener('input', () => { setCanvasSizeFromUI(); drawCover(); }); el.fontSize.addEventListener('input', () => { if(!state.playing && !state.exporting) drawCover(); }); el.clearBtn.addEventListener('click', clearAll); el.shuffleBtn.addEventListener('click', shuffle); el.playBtn.addEventListener('click', play); el.stopBtn.addEventListener('click', stop); el.exportBtn.addEventListener('click', exportWebM); const prevent = e => { e.preventDefault(); e.stopPropagation(); }; ['dragenter','dragover'].forEach(t => el.dropArea.addEventListener(t, e => { prevent(e); el.dropArea.classList.add('dragging'); })); ['dragleave','drop'].forEach(t => el.dropArea.addEventListener(t, e => { prevent(e); el.dropArea.classList.remove('dragging'); })); el.dropArea.addEventListener('drop', e => { const files = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : []; addSlides(files); }); });
+</script>
+</body>
+</html>
