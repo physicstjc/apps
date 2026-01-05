@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Assignment Tracker Portal (Google Apps Script + Google Sheets)</title>
+  <meta name="description" content="A step-by-step teacher guide to set up a Google Apps Script web app portal that shows each student only their own assignment/grades from a Google Sheet using email validation." />
+  <style>
+    :root{
+      --bg:#0b1220;
+      --bg2:#0f172a;
+      --card:#0b1220cc;
+      --panel:#0b1220;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --border:#1f2a44;
+      --accent:#60a5fa;
+      --accent2:#22c55e;
+      --warn:#fbbf24;
+      --danger:#fb7185;
+      --shadow: 0 22px 70px rgba(0,0,0,.35);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(96,165,250,.18), transparent 60%),
+        radial-gradient(900px 600px at 90% 20%, rgba(34,197,94,.12), transparent 60%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+    }
+    a{ color: var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    .container{ max-width: 1100px; margin: 0 auto; padding: 28px 18px 60px; }
+    header{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:18px;
+      align-items:stretch;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 920px){
+      header{ grid-template-columns: 1fr; }
+    }
+    .hero{
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(11,18,32,.76), rgba(11,18,32,.50));
+      box-shadow: var(--shadow);
+    }
+    .hero h1{
+      font-size: 26px;
+      margin: 0 0 10px;
+      letter-spacing: .2px;
+    }
+    .hero p{ margin:0 0 12px; color: var(--muted); line-height: 1.5; }
+    .pillrow{ display:flex; flex-wrap:wrap; gap:10px; margin-top: 12px; }
+    .pill{
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(15,23,42,.5);
+    }
+    .sidecard{
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(15,23,42,.55);
+      box-shadow: var(--shadow);
+    }
+    .sidecard h2{ margin:0 0 8px; font-size: 15px; letter-spacing:.2px; }
+    .sidecard ul{ margin: 10px 0 0; padding-left: 18px; color: var(--muted); line-height:1.6; }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 16px;
+      align-items:start;
+    }
+    @media (max-width: 920px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+    nav{
+      position: sticky;
+      top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(15,23,42,.55);
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    nav .title{ font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    nav a{
+      display:block;
+      padding: 10px 10px;
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 14px;
+      border: 1px solid transparent;
+    }
+    nav a:hover{
+      border-color: var(--border);
+      background: rgba(11,18,32,.55);
+      text-decoration:none;
+    }
+    main section{
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(15,23,42,.45);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    main h2{ margin:0 0 10px; font-size: 18px; }
+    main p{ margin: 8px 0; color: var(--muted); line-height: 1.65; }
+    .callout{
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      background: rgba(11,18,32,.6);
+      border-radius: 14px;
+      padding: 12px 12px;
+      margin: 12px 0;
+      color: var(--muted);
+    }
+    .callout.warn{ border-left-color: var(--warn); }
+    .callout.danger{ border-left-color: var(--danger); }
+    .callout.ok{ border-left-color: var(--accent2); }
+    .steps{ margin: 10px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.7; }
+    .twocol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    @media (max-width: 760px){
+      .twocol{ grid-template-columns: 1fr; }
+    }
+    code, pre{ font-family: var(--mono); }
+    pre{
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(6,11,16,.85);
+      color: #dbeafe;
+      overflow:auto;
+      line-height: 1.55;
+      font-size: 12.8px;
+    }
+    .btnrow{ display:flex; flex-wrap:wrap; gap:10px; margin-top: 10px; }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      background: rgba(11,18,32,.55);
+      color: var(--text);
+      cursor:pointer;
+      user-select:none;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .btn:hover{ background: rgba(11,18,32,.8); }
+    .btn.primary{ border-color: rgba(96,165,250,.35); }
+    .btn.good{ border-color: rgba(34,197,94,.35); }
+    .btn.copy{ border-color: rgba(148,163,184,.35); }
+    footer{
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align:center;
+      opacity:.9;
+    }
+    .kbd{
+      font-family: var(--mono);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px 7px;
+      background: rgba(2,6,23,.35);
+      color: var(--text);
+      font-size: 12px;
+    }
+    .shots{ display:grid; grid-template-columns: 1fr; gap:12px; margin-top:10px; }
+    @media (min-width: 860px){ .shots{ grid-template-columns: 1fr 1fr; } }
+    .shot{
+      display:block; width:100%; height:auto;
+      border:1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      background: rgba(15,23,42,.4);
+    }
+    .caption{ color: var(--muted); font-size: 12px; margin-top: 4px; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="hero">
+        <h1>Assignment Tracker Portal (Google Apps Script + Google Sheets)</h1>
+        <p>
+          A teacher-friendly setup guide to build a secure web portal where each student sees
+          <b>only their own record</b> (grades / assignment status) pulled from a Google Sheet.
+          Students authenticate with their <b>Google Workspace for Education</b> account (e.g. <code>@students.edu.sg</code>).
+        </p>
+        <div class="pillrow">
+          <span class="pill">Option A: Apps Script Web App (HTML Service)</span>
+          <span class="pill">Email-based validation</span>
+          <span class="pill">No CORS issues</span>
+          <span class="pill">Works well for school domains</span>
+        </div>
+
+        <div class="btnrow">
+          <button class="btn primary copy" data-copy="#code-gs">Copy Code.gs</button>
+          <button class="btn primary copy" data-copy="#index-html">Copy Index.html</button>
+        </div>
+      </div>
+
+    </header>
+
+    <div class="grid">
+
+      <main>
+        <section id="overview">
+          <h2>1) System overview</h2>
+          <p>
+            This portal works like a “self-service report” page. The Sheet is your database.
+            The Web App is your secure gateway. When a student opens the portal:
+          </p>
+          <ol class="steps">
+            <li>Google confirms they are signed in to your school domain account.</li>
+            <li>The Apps Script server reads the logged-in user’s email.</li>
+            <li>It finds the matching row in your Sheet (Email = key).</li>
+            <li>It returns only that row to the student UI.</li>
+          </ol>
+          <div class="callout warn">
+            If you deploy as <b>Execute as “User accessing the web app”</b>, students must have access to the Sheet.
+            To avoid permission problems, deploy as <b>Execute as “Me”</b>.
+          </div>
+        </section>
+
+        <section id="sheet">
+          <h2>2) Spreadsheet setup</h2>
+          <p>Create a Google Sheet tab named <b>Grades</b> (you can rename it) with headers like:</p>
+          <pre>
+Email | Class | Gender | Name | Assignment 1 | Assignment 2 | Overall | Remarks
+          </pre>
+          <p>
+            Only the first four fields are “always shown” in the student profile. Email is the validation key.
+            Everything after that is displayed as the “Assignments / Grades” list.
+          </p>
+          <div class="callout ok">
+            Tip: Keep header names consistent. Use exactly: <code>Email</code>, <code>Class</code>, <code>Gender</code>, <code>Name</code>.
+          </div>
+          <div class="shots" style="margin-top:12px;">
+            <div>
+              <img class="shot" src="google-sheet-for-homework-tracking.png" alt="Example Google Sheet headers and assignment columns" />
+              <div class="caption">Example: Email as the key, with subsequent assignment columns.</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="apps-script">
+          <h2>3) Apps Script project</h2>
+          <p>
+            Go to <b>script.google.com</b> → <b>New project</b>.
+            Create 2 files:
+            <span class="kbd">Code.gs</span> and <span class="kbd">Index.html</span>.
+          </p>
+
+          <h3 style="margin:14px 0 8px;font-size:15px;">Code.gs</h3>
+          <pre id="code-gs">
+// ====================== CONFIG ======================
+const SPREADSHEET_ID = "PASTE_YOUR_SPREADSHEET_ID_HERE";
+const SHEET_NAME = "Grades"; // change to your tab name
+// ====================================================
+
+function doGet(e) {
+  // Template lets us pass the deployment URL into the HTML (useful for account switch/logout links)
+  const t = HtmlService.createTemplateFromFile("Index");
+  t.webAppUrl = ScriptApp.getService().getUrl();
+
+  return t.evaluate()
+    .setTitle("Assignment Tracker")
+    // Allow embedding in an iframe (e.g., LMS, Google Sites, WordPress).
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * Returns the record for the logged-in student.
+ * Email is used as the unique identifier / validation key.
+ */
+function getMyGrades() {
+  // For Google Workspace domains, ActiveUser typically returns the student's email.
+  // EffectiveUser is a fallback in some environments.
+  const email =
+    Session.getActiveUser().getEmail() ||
+    Session.getEffectiveUser().getEmail();
+
+  if (!email) {
+    return {
+      ok: false,
+      error:
+        "Could not detect your email. Please open this portal while signed in to your school account."
+    };
+  }
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sh = ss.getSheetByName(SHEET_NAME);
+  if (!sh) return { ok: false, error: `Sheet tab '${SHEET_NAME}' not found.` };
+
+  const values = sh.getDataRange().getValues();
+  if (!values || values.length &lt; 2) return { ok: false, error: "No data found in sheet." };
+
+  const headers = values[0].map(h =&gt; String(h || "").trim());
+  const norm = v =&gt; String(v || "").trim().toLowerCase();
+
+  // Find Email column: exact "Email" preferred, else any header containing "email"
+  let emailCol = headers.findIndex(h =&gt; norm(h) === "email");
+  if (emailCol === -1) emailCol = headers.findIndex(h =&gt; norm(h).includes("email"));
+  if (emailCol === -1) return { ok: false, error: "Could not find an Email column header (must contain 'Email')." };
+
+  // Find the student row by email (case-insensitive)
+  const target = norm(email);
+  let rowIndex = -1;
+  for (let r = 1; r &lt; values.length; r++) {
+    if (norm(values[r][emailCol]) === target) { rowIndex = r; break; }
+  }
+  if (rowIndex === -1) return { ok: false, error: `No record found for ${email}.` };
+
+  const row = values[rowIndex];
+  const colIndex = (headerName) =&gt; headers.findIndex(h =&gt; norm(h) === norm(headerName));
+
+  // Always-show fields (if present)
+  const idxIcon   = colIndex("ICON");   // optional
+  const idxClass  = colIndex("Class");
+  const idxGender = colIndex("Gender");
+  const idxName   = colIndex("Name");
+
+  const profile = {
+    ...(idxIcon !== -1 ? { ICON: row[idxIcon] } : {}),
+    Email:  row[emailCol],
+    Class:  idxClass  !== -1 ? row[idxClass]  : "",
+    Gender: idxGender !== -1 ? row[idxGender] : "",
+    Name:   idxName   !== -1 ? row[idxName]   : ""
+  };
+
+  // All other columns become the "Assignments / Grades" list
+  const exclude = new Set([idxIcon, emailCol, idxClass, idxGender, idxName].filter(i =&gt; i !== -1));
+  const grades = [];
+  headers.forEach((h, i) =&gt; {
+    if (!h) return;
+    if (exclude.has(i)) return;
+    grades.push({ field: h, value: row[i] });
+  });
+
+  return { ok: true, email, profile, grades };
+}
+          </pre>
+
+          <h3 style="margin:14px 0 8px;font-size:15px;">Index.html (student UI)</h3>
+          <pre id="index-html">&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8" /&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+  &lt;title&gt;Assignment Tracker&lt;/title&gt;
+  &lt;style&gt;
+    :root{
+      --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#64748b;
+      --border:#e2e8f0; --accent:#2563eb; --radius:16px;
+      --shadow:0 10px 28px rgba(15,23,42,.09);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+    body{ margin:0; background:var(--bg); color:var(--text); }
+    .wrap{ max-width:760px; margin:28px auto; padding:0 16px; }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px;
+    }
+    h1{ font-size:20px; margin:0 0 6px; }
+    .muted{ color:var(--muted); font-size:14px; margin:0 0 16px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .btn{
+      appearance:none; border:0; border-radius:12px;
+      padding:10px 14px; background:var(--accent); color:#fff;
+      font-weight:600; cursor:pointer;
+    }
+    .btn:disabled{ opacity:.6; cursor:not-allowed; }
+    .btn.secondary{
+      background:#fff;
+      color:var(--text);
+      border:1px solid var(--border);
+    }
+    .btn.secondary.danger{
+      color:#b91c1c;
+      border-color:#fecaca;
+    }
+    .pill{
+      display:inline-block; padding:2px 10px;
+      border:1px solid var(--border); border-radius:999px;
+      font-size:12px; color:var(--muted);
+    }
+    .msg{ margin-top:12px; font-size:14px; }
+    table{ width:100%; border-collapse:collapse; margin-top:10px; }
+    th,td{
+      border-top:1px solid var(--border);
+      padding:10px 8px; text-align:left;
+      font-size:14px; vertical-align:top;
+    }
+    th{ color:var(--muted); font-weight:600; width:36%; }
+    h3{ margin:16px 0 8px; font-size:16px; }
+    .divider{ height:1px; background:var(--border); margin:16px 0; }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class="wrap"&gt;
+    &lt;div class="card"&gt;
+      &lt;h1&gt;Assignment Tracker&lt;/h1&gt;
+      &lt;p class="muted"&gt;You’ll see only the record linked to your signed-in Google account.&lt;/p&gt;
+
+      &lt;div class="row"&gt;
+        &lt;button id="loadBtn" class="btn" onclick="loadGrades()"&gt;Load my record&lt;/button&gt;
+        &lt;button class="btn secondary danger" onclick="googleLogout()" type="button"&gt;
+          Log out of Google
+        &lt;/button&gt;
+
+        &lt;span id="who" class="pill" style="display:none;"&gt;&lt;/span&gt;
+      &lt;/div&gt;
+
+      &lt;div id="msg" class="msg"&gt;&lt;/div&gt;
+      &lt;div id="profile"&gt;&lt;/div&gt;
+      &lt;div id="grades"&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    const WEB_APP_URL = "&lt;?= webAppUrl ?&gt;";
+
+    // Logs out in that browser session (may sign out of all Google tabs)
+    function googleLogout(){
+      const url =
+        "https://accounts.google.com/Logout?continue=" +
+        encodeURIComponent(WEB_APP_URL);
+      window.open(url, "_blank", "noopener");
+    }
+
+    function setMsg(text, isError=false){
+      const el = document.getElementById("msg");
+      el.textContent = text || "";
+      el.style.color = isError ? "#b91c1c" : "#0f172a";
+    }
+
+    function escapeHtml(s){
+      s = String(s ?? "");
+      return s.replace(/[&amp;&lt;&gt;"']/g, c =&gt; (
+        {"&amp;":"&amp;amp;","&lt;":"&amp;lt;","&gt;":"&amp;gt;",'"':"&amp;quot;","'":"&amp;#039;"}[c]
+      ));
+    }
+
+    function renderProfile(profile){
+      const el = document.getElementById("profile");
+      if (!profile) { el.innerHTML = ""; return; }
+
+      const rows = [];
+      if (profile.ICON !== undefined &amp;&amp; String(profile.ICON).trim() !== "") {
+        rows.push(["ICON", profile.ICON]);
+      }
+      rows.push(["Email", profile.Email]);
+      rows.push(["Class", profile.Class]);
+      rows.push(["Gender", profile.Gender]);
+      rows.push(["Name", profile.Name]);
+
+      el.innerHTML = `
+        &lt;h3&gt;Student Profile&lt;/h3&gt;
+        &lt;table aria-label="Student Profile"&gt;
+          ${rows.map(([k,v]) =&gt; `
+            &lt;tr&gt;&lt;th&gt;${escapeHtml(k)}&lt;/th&gt;&lt;td&gt;${escapeHtml(v ?? "")}&lt;/td&gt;&lt;/tr&gt;
+          `).join("")}
+        &lt;/table&gt;
+        &lt;div class="divider"&gt;&lt;/div&gt;
+      `;
+    }
+
+    function renderGrades(grades){
+      const el = document.getElementById("grades");
+      if (!grades || !grades.length) {
+        el.innerHTML = `&lt;p class="muted" style="margin-top:6px;"&gt;No assignment fields found.&lt;/p&gt;`;
+        return;
+      }
+
+      el.innerHTML = `
+        &lt;h3&gt;Assignments / Grades&lt;/h3&gt;
+        &lt;table aria-label="Assignments / Grades"&gt;
+          ${grades.map(item =&gt; `
+            &lt;tr&gt;&lt;th&gt;${escapeHtml(item.field)}&lt;/th&gt;&lt;td&gt;${escapeHtml(item.value ?? "")}&lt;/td&gt;&lt;/tr&gt;
+          `).join("")}
+        &lt;/table&gt;
+      `;
+    }
+
+    function loadGrades(){
+      const btn = document.getElementById("loadBtn");
+      btn.disabled = true;
+
+      setMsg("Loading…");
+      document.getElementById("profile").innerHTML = "";
+      document.getElementById("grades").innerHTML = "";
+      document.getElementById("who").style.display = "none";
+
+      google.script.run
+        .withSuccessHandler(res =&gt; {
+          btn.disabled = false;
+
+          if (!res || !res.ok) {
+            setMsg(res?.error || "Unknown error.", true);
+            return;
+          }
+
+          setMsg("");
+          const who = document.getElementById("who");
+          who.textContent = res.email;
+          who.style.display = "inline-block";
+
+          renderProfile(res.profile);
+          renderGrades(res.grades);
+        })
+        .withFailureHandler(err =&gt; {
+          btn.disabled = false;
+          setMsg(err?.message || "Failed to load record.", true);
+        })
+        .getMyGrades();
+    }
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+          
+          <div class="shots" style="margin-top:12px;">
+            <div>
+              <img class="shot" src="ui-for-homework-tracking-app.png" alt="Sample student portal rendering of profile and assignments" />
+              <div class="caption">Example student portal view rendered from the Apps Script web app.</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="deploy">
+          <h2>4) Deploy as a Web App</h2>
+          <ol class="steps">
+            <li>Apps Script → <b>Deploy</b> → <b>New deployment</b> → Select <b>Web app</b>.</li>
+            <li><b>Execute as:</b> <b>Me</b></li>
+            <li><b>Who has access:</b> <b>Anyone within your domain</b> (e.g., <code>students.edu.sg</code>)</li>
+            <li>Deploy → Copy the Web App URL.</li>
+          </ol>
+          <div class="callout ok">
+            Share the Web App URL with your students to access the app. They will authenticate with their school Google accounts and see only their own record.
+          </div>
+
+        </section>
+
+        <footer>
+          Built as a single-file guide. You can host this HTML anywhere (Google Sites, GitHub Pages, WordPress, LMS) to train other teachers.
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // Copy-to-clipboard helpers for the training website (not the portal itself).
+    // Teachers can quickly copy the code blocks.
+    function selectText(el){
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    async function copyFromSelector(sel){
+      const el = document.querySelector(sel);
+      if(!el) return false;
+      const text = el.innerText;
+      try{
+        await navigator.clipboard.writeText(text);
+        return true;
+      }catch(e){
+        // Fallback: select text for manual copy
+        selectText(el);
+        return false;
+      }
+    }
+
+    document.querySelectorAll("[data-copy]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const sel = btn.getAttribute("data-copy");
+        const ok = await copyFromSelector(sel);
+        const original = btn.textContent;
+        btn.textContent = ok ? "Copied!" : "Selected — press Ctrl/Cmd+C";
+        setTimeout(()=> btn.textContent = original, 1400);
+      });
+    });
+  </script>
+</body>
+</html>
