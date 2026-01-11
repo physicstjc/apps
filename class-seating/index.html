@@ -1,1 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartSeat - Intelligent Classroom Planner</title>
+    
+    <!-- 1. STYLES (Tailwind + Fonts) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
+        
+        /* Smooth fade animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Print specific adjustments */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; }
+            @page { size: landscape; margin: 5mm; }
+        }
+    </style>
 
+    <!-- 2. CORE LIBRARIES -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- FATAL ERROR TRAP -->
+    <div id="fatal-error" class="hidden fixed inset-0 z-[9999] bg-white p-10 overflow-auto">
+        <h2 class="text-2xl font-bold text-red-600 mb-2">Application Error</h2>
+        <pre id="error-text" class="bg-slate-100 p-4 rounded text-xs text-red-800 font-mono border border-red-200"></pre>
+        <button onclick="window.location.reload()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Reload</button>
+    </div>
+
+    <!-- ROOT MOUNT -->
+    <div id="root" class="flex-1 flex flex-col h-full"></div>
+
+    <!-- APP LOGIC -->
+    <script type="text/babel">
+        window.onerror = (msg, url, line) => {
+            const el = document.getElementById('fatal-error');
+            const txt = document.getElementById('error-text');
+            if (el && txt) {
+                el.classList.remove('hidden');
+                txt.textContent += `[Error] ${msg}\nLine: ${line}\n\n`;
+            }
+        };
+
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+        const { createRoot } = ReactDOM;
+        const { jsPDF } = window.jspdf;
+
+        // --- ICONS ---
+        const Icons = {
+            Layout: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>,
+            Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
+            Sliders: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="4" y1="21" y2="14" /><line x1="4" x2="4" y1="10" y2="3" /><line x1="12" x2="12" y1="21" y2="12" /><line x1="12" x2="12" y1="8" y2="3" /><line x1="20" x2="20" y1="21" y2="16" /><line x1="20" x2="20" y1="12" y2="3" /><line x1="1" x2="7" y1="14" y2="14" /><line x1="9" x2="15" y1="8" y2="8" /><line x1="17" x2="23" y1="16" y2="16" /></svg>,
+            Sparkles: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z" /></svg>,
+            ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+            ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>,
+            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>,
+            Loader: () => <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>,
+            Rotate: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>,
+            Shuffle: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l14.2-12.6c.8-1 2-1.7 3.3-1.7H22"/><path d="M2 6h1.4c1.3 0 2.5.6 3.3 1.7l14.2 12.6c.8 1 2 1.7 3.3 1.7H22"/></svg>
+        };
+
+        // --- LOCAL ALGORITHM SERVICE ---
+        const seatingService = {
+            generatePlan(students, config, constraints) {
+                const groupMap = { 'single': 1, 'pairs': 2, 'trios': 3, 'fours': 4 };
+                const groupSize = groupMap[config.grouping] || 1;
+                const totalCols = config.columns * groupSize;
+                const totalRows = Math.ceil(config.numStudents / totalCols);
+                const frontRowIdx = totalRows - 1;
+                
+                let slots = [];
+                for (let r = 0; r < totalRows; r++) {
+                    for (let c = 0; c < totalCols; c++) {
+                        slots.push({ row: r, col: c, studentId: null });
+                    }
+                }
+
+                const getTargetCoords = (pos) => {
+                    const row = frontRowIdx; 
+                    let col = Math.floor(totalCols / 2);
+                    if (pos.includes('left')) col = 0;
+                    if (pos.includes('right')) col = totalCols - 1;
+                    return { row, col };
+                };
+                
+                const teacherCoords = getTargetCoords(config.teacherPos);
+                const projectorCoords = getTargetCoords(config.projectorPos);
+                const getDist = (s1, s2) => Math.sqrt(Math.pow(s1.row - s2.row, 2) + Math.pow(s1.col - s2.col, 2));
+
+                let unassignedStudents = [...students];
+                const assignments = [];
+
+                const assignStudent = (studentId, slot) => {
+                    slot.studentId = studentId;
+                    assignments.push({ studentId, row: slot.row, col: slot.col });
+                    unassignedStudents = unassignedStudents.filter(s => s.id !== studentId);
+                };
+
+                const findBestSlot = (scoreFn) => {
+                    const available = slots.filter(s => !s.studentId);
+                    if (available.length === 0) return null;
+                    return available.sort((a, b) => scoreFn(a) - scoreFn(b))[0];
+                };
+
+                const priorityConstraints = constraints.filter(c => 
+                    ['front', 'back', 'near_teacher', 'near_projector'].includes(c.type)
+                );
+
+                priorityConstraints.forEach(c => {
+                    const student = unassignedStudents.find(s => s.id === c.studentA);
+                    if (!student) return;
+                    let slot = null;
+                    if (c.type === 'front') slot = findBestSlot(s => (frontRowIdx - s.row));
+                    else if (c.type === 'back') slot = findBestSlot(s => s.row);
+                    else if (c.type === 'near_teacher') slot = findBestSlot(s => getDist(s, teacherCoords));
+                    else if (c.type === 'near_projector') slot = findBestSlot(s => getDist(s, projectorCoords));
+                    if (slot) assignStudent(student.id, slot);
+                });
+
+                const pairConstraints = constraints.filter(c => c.type === 'near');
+                pairConstraints.forEach(c => {
+                    const sA = unassignedStudents.find(s => s.id === c.studentA);
+                    const sB = unassignedStudents.find(s => s.id === c.studentB);
+                    if (sA && sB) {
+                        const available = slots.filter(s => !s.studentId).sort((a,b) => b.row - a.row);
+                        let bestPair = null;
+                        for (let slot of available) {
+                            const neighbor = slots.find(s => s.row === slot.row && s.col === slot.col + 1 && !s.studentId);
+                            if (neighbor) { bestPair = [slot, neighbor]; break; }
+                        }
+                        if (bestPair) {
+                            assignStudent(sA.id, bestPair[0]);
+                            assignStudent(sB.id, bestPair[1]);
+                        }
+                    }
+                });
+
+                // NEW: Handle Separate Constraints (Sit Apart)
+                const separateConstraints = constraints.filter(c => c.type === 'separate');
+                separateConstraints.forEach(c => {
+                    const isAssigned = (id) => assignments.some(a => a.studentId === id);
+                    const sA_assigned = isAssigned(c.studentA);
+                    const sB_assigned = isAssigned(c.studentB);
+                    
+                    const sA = students.find(s => s.id === c.studentA);
+                    const sB = students.find(s => s.id === c.studentB);
+                    // Only process if both students exist and at least one is unassigned (or we can't move them)
+                    // If both are already assigned by priority rules, we skip moving them to avoid breaking those rules.
+                    if (!sA || !sB) return;
+
+                    const getPos = (id) => assignments.find(a => a.studentId === id);
+
+                    if (sA_assigned && !sB_assigned && unassignedStudents.some(s => s.id === sB.id)) {
+                        // Place B far from A
+                        const posA = getPos(c.studentA);
+                        // We want to MAXIMIZE distance, so score = -distance (since findBestSlot minimizes score)
+                        const bestSlot = findBestSlot(s => -getDist(s, posA));
+                        if (bestSlot) assignStudent(sB.id, bestSlot);
+                    } else if (!sA_assigned && sB_assigned && unassignedStudents.some(s => s.id === sA.id)) {
+                        // Place A far from B
+                        const posB = getPos(c.studentB);
+                        const bestSlot = findBestSlot(s => -getDist(s, posB));
+                        if (bestSlot) assignStudent(sA.id, bestSlot);
+                    } else if (!sA_assigned && !sB_assigned) {
+                        // Both unassigned. Place A somewhere, then B far away.
+                        // Check if they are actually in the unassigned list
+                        const sA_pending = unassignedStudents.find(s => s.id === sA.id);
+                        const sB_pending = unassignedStudents.find(s => s.id === sB.id);
+                        
+                        if (sA_pending && sB_pending) {
+                            const available = slots.filter(s => !s.studentId);
+                            if (available.length > 0) {
+                                // Pick random slot for A to keep distribution varied
+                                const randIdx = Math.floor(Math.random() * available.length);
+                                const slotA = available[randIdx];
+                                assignStudent(sA.id, slotA);
+                                
+                                // Now place B far from A
+                                const slotB = findBestSlot(s => -getDist(s, slotA));
+                                if (slotB) assignStudent(sB.id, slotB);
+                            }
+                        }
+                    }
+                });
+
+                for (let i = unassignedStudents.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [unassignedStudents[i], unassignedStudents[j]] = [unassignedStudents[j], unassignedStudents[i]];
+                }
+
+                const availableSlots = slots.filter(s => !s.studentId).sort((a, b) => {
+                    if (a.row !== b.row) return b.row - a.row; 
+                    return Math.random() - 0.5;
+                });
+
+                unassignedStudents.forEach((student, i) => {
+                    if (i < availableSlots.length) {
+                        assignStudent(student.id, availableSlots[i]);
+                    }
+                });
+
+                return {
+                    assignments,
+                    rows: totalRows,
+                    cols: totalCols,
+                    groupSize,
+                    numGroups: config.columns
+                };
+            }
+        };
+
+        // --- COMPONENTS ---
+
+        // Config Form (Unchanged Logic)
+        const ConfigForm = ({ data, update }) => {
+            const updateField = (f, v) => update({ ...data, [f]: v });
+            const groupMap = { 'single': 1, 'pairs': 2, 'trios': 3, 'fours': 4 };
+            const groupSize = groupMap[data.grouping] || 1;
+            const totalSlotsPerGroupRow = data.columns * groupSize; 
+            const totalGroupRows = Math.ceil(data.numStudents / totalSlotsPerGroupRow) || 1;
+            const visualRows = Math.max(totalGroupRows, 2);
+
+            return (
+                <div className="flex flex-col lg:flex-row gap-8 h-full">
+                    <div className="w-full lg:w-1/3 space-y-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                                <Icons.Layout /> Room Setup
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Class Name</label>
+                                    <input type="text" placeholder="e.g. Science 4B"
+                                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={data.className} onChange={e => updateField('className', e.target.value)} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Students</label>
+                                    <input type="number" min="1" max="200" 
+                                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={data.numStudents} onChange={e => updateField('numStudents', parseInt(e.target.value)||0)} 
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Table Groups</label>
+                                        <input type="number" min="1" max="12" 
+                                            className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={data.columns} onChange={e => updateField('columns', parseInt(e.target.value)||1)} 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Seats/Group</label>
+                                        <select className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-sm capitalize"
+                                            value={data.grouping} onChange={e => updateField('grouping', e.target.value)}
+                                        >
+                                            <option value="single">1 (Single)</option>
+                                            <option value="pairs">2 (Pairs)</option>
+                                            <option value="trios">3 (Trios)</option>
+                                            <option value="fours">4 (Quads)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <hr className="border-slate-100" />
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Teacher Position</label>
+                                    <select className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-sm"
+                                        value={data.teacherPos} onChange={e => updateField('teacherPos', e.target.value)}
+                                    >
+                                        <option value="front-left">Front Left</option>
+                                        <option value="front-right">Front Right</option>
+                                        <option value="front-center">Front Center</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Projector Screen</label>
+                                    <select className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-sm"
+                                        value={data.projectorPos} onChange={e => updateField('projectorPos', e.target.value)}
+                                    >
+                                        <option value="front-center">Front Center</option>
+                                        <option value="front-left">Front Left</option>
+                                        <option value="front-right">Front Right</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 relative flex flex-col items-center justify-center p-8 overflow-hidden">
+                        <div className="absolute top-4 font-bold text-slate-300 text-sm uppercase tracking-[0.2em]">Back of Room</div>
+                        
+                        <div className="flex flex-col gap-4 scale-90 origin-center transition-all mb-12 max-h-[70%] overflow-y-auto w-full items-center custom-scrollbar">
+                            {Array.from({ length: visualRows }).map((_, rowIndex) => {
+                                return (
+                                    <div key={rowIndex} className="flex gap-6 justify-center shrink-0">
+                                        {Array.from({ length: data.columns }).map((_, colIndex) => {
+                                            const globalIndex = (rowIndex * data.columns * groupSize) + (colIndex * groupSize);
+                                            return (
+                                                <div key={colIndex} className="flex gap-1 p-1 bg-white/50 rounded border border-slate-200/50">
+                                                    {Array.from({ length: groupSize }).map((_, seatIndex) => {
+                                                        const totalCapacity = visualRows * data.columns * groupSize;
+                                                        const flatIndex = globalIndex + seatIndex;
+                                                        const emptySlots = Math.max(0, totalCapacity - data.numStudents);
+                                                        const isOccupied = flatIndex >= emptySlots;
+                                                        return (
+                                                            <div key={seatIndex} className={`w-6 h-6 rounded-sm border transition-colors duration-300
+                                                                ${isOccupied ? 'bg-blue-400 border-blue-500 shadow-sm' : 'border-slate-200 bg-transparent'}`}
+                                                            ></div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )
+                            })}
+                        </div>
+
+                        <div className="absolute bottom-16 font-bold text-slate-300 text-sm uppercase tracking-[0.2em]">Front of Room</div>
+
+                        <div className={`absolute bottom-12 h-1.5 bg-slate-800 rounded-full shadow-lg transition-all duration-300
+                             ${data.projectorPos.includes('left') ? 'left-12 w-1/4' : data.projectorPos.includes('right') ? 'right-12 w-1/4' : 'left-1/2 -translate-x-1/2 w-1/3'}`}>
+                             <div className="absolute -top-4 w-full text-center text-[9px] font-bold text-slate-400 uppercase">Screen</div>
+                        </div>
+
+                        <div className={`absolute bottom-4 px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full shadow-lg transition-all duration-300 
+                            ${data.teacherPos.includes('left') ? 'left-8' : data.teacherPos.includes('right') ? 'right-8' : 'left-1/2 -translate-x-1/2'}`}>
+                            TEACHER
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Student Input (Unchanged)
+        const StudentInput = ({ students, setStudents }) => {
+            const [rawText, setRawText] = useState("");
+            useEffect(() => {
+                if (students.length > 0 && !rawText) {
+                    setRawText(students.map(s => `${s.index || ''}\t${s.gender || ''}\t${s.name}`).join('\n'));
+                }
+            }, []);
+            const parseText = (text) => {
+                return text.split('\n').map((line, i) => {
+                    const cleanLine = line.trim();
+                    if (!cleanLine) return null;
+                    if (cleanLine.includes('\t')) {
+                        const parts = cleanLine.split('\t');
+                        const genderIdx = parts.findIndex(p => /^(M|F)$/i.test(p.trim()));
+                        const gender = genderIdx > -1 ? parts[genderIdx].trim().toUpperCase() : '';
+                        let name = '', index = '';
+                        if (parts.length >= 3) {
+                            if (/^\d+$/.test(parts[0].trim())) index = parts[0].trim();
+                            name = parts.filter((p, idx) => idx !== 0 && idx !== genderIdx).join(' ').trim();
+                            if (!name) name = parts[parts.length-1].trim();
+                        } else if (parts.length === 2) {
+                            if (/^\d+$/.test(parts[0].trim())) { index = parts[0].trim(); name = parts[1].trim(); }
+                            else name = parts[0].trim();
+                        } else name = parts[0].trim();
+                        return { id: `s-${i}`, index, name, gender };
+                    }
+                    const match = cleanLine.match(/^(\d+)?\s*([MF])?\s*(.+)$/i);
+                    if (match) return { id: `s-${i}`, index: match[1] || '', gender: match[2] ? match[2].toUpperCase() : '', name: match[3].trim() };
+                    return { id: `s-${i}`, index: '', name: cleanLine, gender: '' };
+                }).filter(Boolean);
+            };
+            const handleChange = (e) => {
+                setRawText(e.target.value);
+                setStudents(parseText(e.target.value));
+            };
+            return (
+                <div className="flex flex-col h-full space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-blue-800 text-sm">
+                        <strong className="block mb-1">Paste from Excel / Sheets:</strong>
+                        <p>Format supported: <code className="bg-blue-100 px-1 rounded">[Index] [Gender] [Name]</code></p>
+                    </div>
+                    <textarea 
+                        className="flex-1 w-full p-6 border border-slate-200 rounded-2xl bg-white font-mono text-xs md:text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-inner whitespace-pre"
+                        placeholder={`1\tM\tALFIE TEO\n2\tM\tAN ZIEN`}
+                        value={rawText} onChange={handleChange}
+                    />
+                    <div className="text-right text-sm text-slate-500">Detected: <strong>{students.length}</strong> students</div>
+                </div>
+            );
+        };
+
+        // Constraints Input (Unchanged)
+        const ConstraintsInput = ({ students, constraints, setConstraints }) => {
+            const [type, setType] = useState('near');
+            const [studentA, setStudentA] = useState('');
+            const [studentB, setStudentB] = useState('');
+            const isSingleStudentRule = ['front', 'back', 'near_teacher', 'near_projector'].includes(type);
+            const addConstraint = () => {
+                if (!studentA || (!studentB && !isSingleStudentRule)) return;
+                setConstraints([...constraints, { id: Date.now(), type, studentA, studentB: isSingleStudentRule ? null : studentB }]);
+                setStudentA('');
+                setStudentB('');
+            };
+            const removeConstraint = (id) => setConstraints(constraints.filter(c => c.id !== id));
+            const getStudentName = (id) => students.find(s => s.id === id)?.name || "Unknown";
+            const getTypeLabel = (t) => {
+                const labels = { near: 'Sit Together', separate: 'Sit Apart', front: 'Front Row', back: 'Back Row', near_teacher: 'Near Teacher', near_projector: 'Near Projector' };
+                return labels[t] || t;
+            };
+            return (
+                <div className="flex flex-col md:flex-row gap-8 h-full">
+                    <div className="w-full md:w-1/3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                        <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2"><Icons.Sliders /> Rules</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">Constraint Type</label>
+                                <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={type} onChange={e=>setType(e.target.value)}>
+                                    <optgroup label="Relationship"><option value="near">Sit Together</option><option value="separate">Sit Apart</option></optgroup>
+                                    <optgroup label="Positioning"><option value="front">Front Row</option><option value="back">Back Row</option><option value="near_teacher">Near Teacher</option><option value="near_projector">Near Projector</option></optgroup>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">Student</label>
+                                <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={studentA} onChange={e=>setStudentA(e.target.value)}>
+                                    <option value="">Select student...</option>
+                                    {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                            {!isSingleStudentRule && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 mb-1">Target Student</label>
+                                    <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={studentB} onChange={e=>setStudentB(e.target.value)}>
+                                        <option value="">Select student...</option>
+                                        {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <button onClick={addConstraint} className="w-full py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 flex items-center justify-center gap-2 text-sm font-medium mt-2"><Icons.Plus /> Add Rule</button>
+                        </div>
+                    </div>
+                    <div className="flex-1 bg-slate-50 p-6 rounded-2xl border border-slate-200 overflow-y-auto">
+                        <h3 className="font-semibold text-slate-700 mb-4">Active Rules ({constraints.length})</h3>
+                        <div className="space-y-2">
+                            {constraints.length === 0 && <p className="text-slate-400 italic text-sm">No rules defined.</p>}
+                            {constraints.map(c => (
+                                <div key={c.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm fade-in">
+                                    <div className="text-sm">
+                                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide mr-2 bg-blue-100 text-blue-700">{getTypeLabel(c.type)}</span>
+                                        <span className="font-medium">{getStudentName(c.studentA)}</span>
+                                        {c.studentB && <span className="text-slate-400 mx-1">&</span>}
+                                        {c.studentB && <span className="font-medium">{getStudentName(c.studentB)}</span>}
+                                    </div>
+                                    <button onClick={() => removeConstraint(c.id)} className="text-slate-400 hover:text-red-500 p-1"><Icons.Trash /></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SEAT GRID COMPONENT (Reusable for Display & Print) ---
+        const SeatGrid = ({ plan, students, config, isFlipped, onDragStart, onDragOver, onDrop, onUpdateClassName, isInteractive = true }) => {
+            const rows = [];
+            const rowIndices = [];
+            for(let r=0; r<plan.rows; r++) rowIndices.push(r);
+            if (isFlipped) rowIndices.reverse();
+
+            for (let r of rowIndices) {
+                const rowGroups = [];
+                const groupIndices = [];
+                for(let g=0; g<plan.numGroups; g++) groupIndices.push(g);
+                if (isFlipped) groupIndices.reverse();
+
+                for (let g of groupIndices) {
+                    const groupCells = [];
+                    for (let s = 0; s < plan.groupSize; s++) {
+                        const c = (g * plan.groupSize) + s;
+                        const assignments = plan.assignments || [];
+                        const assign = assignments.find(a => a.row === r && a.col === c);
+                        const student = assign ? students.find(s => s.id === assign.studentId) : null;
+                        groupCells.push({ student, r, c });
+                    }
+                    if (isFlipped) groupCells.reverse();
+                    rowGroups.push(groupCells);
+                }
+                rows.push(rowGroups);
+            }
+
+            // Styles based on interactive mode (Screen) vs Print mode (PDF)
+            // For print, we force a larger width/height and remove line clamps to ensure names fit.
+            // Also use break-words to handle long names.
+            const boxClass = isInteractive 
+                ? "w-28 h-20 text-xs line-clamp-2" 
+                : "w-32 min-h-[6rem] text-sm whitespace-normal break-words"; // Larger for PDF print
+
+            return (
+                <div className={`bg-white p-12 rounded-xl flex flex-col items-center ${isInteractive ? 'min-w-[1000px] shadow-2xl' : 'w-fit mx-auto'}`}>
+                    
+                    {isInteractive ? (
+                        <input 
+                            className="text-3xl font-bold text-slate-800 mb-2 text-center border-b-2 border-transparent hover:border-slate-300 focus:border-blue-500 outline-none bg-transparent w-full"
+                            value={config.className} 
+                            onChange={(e) => onUpdateClassName(e.target.value)}
+                            placeholder="Enter Class Name"
+                        />
+                    ) : (
+                        <h1 className="text-3xl font-bold text-slate-800 mb-2 text-center w-full">{config.className || "Classroom Plan"}</h1>
+                    )}
+
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">{isFlipped ? "Front of Room" : "Back of Room"}</p>
+                    
+                    {/* TOP SCREEN/TEACHER (Only if Flipped) */}
+                    {isFlipped && (
+                        <div className="w-full mb-12 flex flex-col items-center relative">
+                            <div className={`h-2 bg-slate-800 rounded-full shadow-xl mb-6 relative flex justify-center items-center
+                                ${config.projectorPos.includes('left') ? (isFlipped ? 'self-end mr-20' : 'self-start ml-20') : config.projectorPos.includes('right') ? (isFlipped ? 'self-start ml-20' : 'self-end mr-20') : 'w-1/3'} w-1/4`}>
+                                <div className="absolute top-3 text-[9px] text-slate-400 font-bold tracking-wider uppercase whitespace-nowrap">Projector Screen</div>
+                            </div>
+                            <div className="flex justify-between w-full px-20">
+                                {config.teacherPos.includes('right') && <div className="px-5 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs shadow-lg uppercase">Teacher Desk</div>}
+                                <div></div>
+                                {config.teacherPos.includes('left') && <div className="px-5 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs shadow-lg uppercase">Teacher Desk</div>}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* THE GRID */}
+                    <div className="flex flex-col gap-8 w-full items-center">
+                        {rows.map((rowGroups, rIdx) => (
+                            <div key={rIdx} className="flex gap-12">
+                                {rowGroups.map((group, gIdx) => (
+                                    <div key={gIdx} className="flex gap-1 p-1 rounded-lg">
+                                        {group.map(({student, r, c}, sIdx) => (
+                                            <div 
+                                                key={sIdx} 
+                                                draggable={isInteractive && !!student}
+                                                onDragStart={(e) => isInteractive && student && onDragStart(e, student.id, r, c)}
+                                                onDragOver={isInteractive ? onDragOver : undefined}
+                                                onDrop={(e) => isInteractive && onDrop(e, r, c)}
+                                                className={`${boxClass} rounded-md border-2 flex flex-col items-center justify-center p-1 text-center relative transition-all 
+                                                ${isInteractive ? 'cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-lg' : ''}
+                                                ${student ? 'border-slate-800 bg-white shadow-sm' : 'border-slate-100 bg-slate-50'}`}
+                                            >
+                                                {student ? (
+                                                    <>
+                                                        {student.index && <span className="absolute top-1 left-1 text-[9px] font-bold text-slate-400">{student.index}</span>}
+                                                        <div className="font-bold text-slate-900 leading-tight px-1">{student.name}</div>
+                                                        {/* REMOVED GENDER DISPLAY */}
+                                                    </>
+                                                ) : (
+                                                    <div className="text-slate-200 text-[9px]">Empty</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* BOTTOM SCREEN/TEACHER (Only if NOT Flipped) */}
+                    {!isFlipped && (
+                        <div className="w-full mt-12 flex flex-col items-center relative">
+                            <div className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Front of Room</div>
+                            <div className={`h-2 bg-slate-800 rounded-full shadow-xl mb-8 relative flex justify-center items-center
+                                ${config.projectorPos.includes('left') ? 'self-start ml-20 w-1/4' : config.projectorPos.includes('right') ? 'self-end mr-20 w-1/4' : 'w-1/3'}`}>
+                                <div className="absolute top-3 text-[9px] text-slate-400 font-bold tracking-wider uppercase whitespace-nowrap">Projector Screen</div>
+                            </div>
+                            <div className="flex justify-between w-full px-20">
+                                {config.teacherPos.includes('left') && <div className="px-5 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs shadow-lg uppercase">Teacher Desk</div>}
+                                <div></div>
+                                {config.teacherPos.includes('right') && <div className="px-5 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs shadow-lg uppercase">Teacher Desk</div>}
+                            </div>
+                        </div>
+                    )}
+                    {isFlipped && <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-8">Back of Room</p>}
+                </div>
+            );
+        };
+
+        const SeatingChart = ({ students, plan, config, constraints, onSwap, onUpdateClassName, onRandomize }) => {
+            const containerRef = useRef(null);
+            // We use two refs for printing: one for normal view, one for flipped view
+            const printNormalRef = useRef(null);
+            const printFlippedRef = useRef(null);
+            const [scale, setScale] = useState(1);
+            const [isFlipped, setIsFlipped] = useState(false);
+
+            useEffect(() => {
+                const resizeObserver = new ResizeObserver(entries => {
+                    for (let entry of entries) {
+                        const containerW = entry.contentRect.width;
+                        const containerH = entry.contentRect.height;
+                        const contentW = 1000 + 80; 
+                        const contentH = 800 + 80; // Approximate
+                        const newScale = Math.min(Math.min(containerW / contentW, containerH / contentH), 1);
+                        setScale(newScale);
+                    }
+                });
+                if (containerRef.current) resizeObserver.observe(containerRef.current);
+                return () => resizeObserver.disconnect();
+            }, [plan, isFlipped]);
+
+            const downloadPDF = async () => {
+                const pdf = new jsPDF('l', 'mm', 'a4');
+                const pdfW = pdf.internal.pageSize.getWidth();
+                const pdfH = pdf.internal.pageSize.getHeight();
+                const margin = 10; // 10mm margin
+                const maxW = pdfW - (margin * 2);
+                const maxH = pdfH - (margin * 2);
+
+                const addToPdf = async (elementRef, pageTitle) => {
+                    if (!elementRef) return;
+                    const canvas = await html2canvas(elementRef, { scale: 2, useCORS: true });
+                    const imgData = canvas.toDataURL('image/png');
+                    
+                    // Calculate scaling ratio to CONTAIN image within margins
+                    const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+                    const imgW = canvas.width * ratio;
+                    const imgH = canvas.height * ratio;
+                    
+                    // Center the image on the page
+                    const x = (pdfW - imgW) / 2;
+                    const y = (pdfH - imgH) / 2;
+
+                    pdf.addImage(imgData, 'PNG', x, y, imgW, imgH);
+                    pdf.setFontSize(10);
+                    // Place title in top margin area
+                    pdf.text(pageTitle, margin, margin - 2); 
+                };
+
+                // 1. Capture Normal View (Teacher Perspective)
+                if (printNormalRef.current) {
+                    await addToPdf(printNormalRef.current, "Teacher Perspective (Back at Top)");
+                }
+
+                // 2. Add Page & Capture Flipped View (Student Perspective)
+                if (printFlippedRef.current) {
+                    pdf.addPage();
+                    await addToPdf(printFlippedRef.current, "Student Perspective (Front at Top)");
+                }
+
+                pdf.save(`${config.className || 'classroom-plan'}.pdf`);
+            };
+
+            const handleDragStart = (e, studentId, row, col) => {
+                e.dataTransfer.setData("text/plain", JSON.stringify({ studentId, row, col }));
+                e.dataTransfer.effectAllowed = "move";
+            };
+            const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
+            const handleDrop = (e, targetRow, targetCol) => {
+                e.preventDefault();
+                const data = e.dataTransfer.getData("text/plain");
+                if (data) {
+                    const source = JSON.parse(data);
+                    onSwap(source.studentId, targetRow, targetCol);
+                }
+            };
+
+            const getStudentName = (id) => students.find(s => s.id === id)?.name || "Unknown";
+            const getTypeLabel = (t) => {
+                const labels = { near: 'Sit Together', separate: 'Sit Apart', front: 'Front Row', back: 'Back Row', near_teacher: 'Near Teacher', near_projector: 'Near Projector' };
+                return labels[t] || t;
+            };
+
+            return (
+                <div className="flex flex-col h-full">
+                    {/* Toolbar */}
+                    <div className="flex justify-between items-center mb-2 no-print">
+                        <div className="flex gap-2">
+                             <button onClick={() => setIsFlipped(!isFlipped)} className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 text-sm font-medium">
+                                <Icons.Rotate /> {isFlipped ? "Unflip View" : "Flip Perspective"}
+                            </button>
+                            <button onClick={onRandomize} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-200 text-sm font-medium">
+                                <Icons.Shuffle /> Randomize
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-slate-500 text-sm hidden md:inline-block">Drag and drop names to swap seats</span>
+                            <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 text-sm font-medium shadow">
+                                <Icons.Download /> Save as PDF
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Main Content Area: Sidebar + Chart */}
+                    <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
+                        
+                        {/* Interactive Display Area */}
+                        <div ref={containerRef} className="flex-1 overflow-hidden bg-slate-100 rounded-2xl border border-slate-300 relative flex items-center justify-center">
+                            <div style={{ transform: `scale(${scale})` }} className="origin-center transition-transform duration-300">
+                                <SeatGrid 
+                                    plan={plan} 
+                                    students={students} 
+                                    config={config} 
+                                    isFlipped={isFlipped}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={handleDragOver}
+                                    onDrop={handleDrop}
+                                    onUpdateClassName={onUpdateClassName}
+                                    isInteractive={true}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Constraints Sidebar */}
+                        <div className="w-64 bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-3 h-full overflow-hidden no-print hidden lg:flex">
+                            <h3 className="font-bold text-slate-700 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-slate-100 pb-2">
+                                <Icons.Sliders /> Active Rules
+                            </h3>
+                            <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                {constraints.length === 0 && <p className="text-slate-400 italic text-xs">No rules defined.</p>}
+                                {constraints.map(c => (
+                                    <div key={c.id} className="bg-slate-50 p-2 rounded border border-slate-100 text-xs">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-100 text-blue-700">{getTypeLabel(c.type)}</span>
+                                        </div>
+                                        <div className="text-slate-700 font-medium leading-tight">
+                                            {getStudentName(c.studentA)}
+                                            {c.studentB && <span className="text-slate-400 mx-1">&</span>}
+                                            {c.studentB && getStudentName(c.studentB)}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Hidden Render Area for PDF Generation (High Res, Fixed Size, Both Views) */}
+                    <div style={{ position: 'absolute', left: '-10000px', top: 0 }}>
+                        <div ref={printNormalRef} className="w-fit">
+                            <SeatGrid 
+                                plan={plan} students={students} config={config} isFlipped={false} isInteractive={false} 
+                            />
+                        </div>
+                        <div ref={printFlippedRef} className="w-fit">
+                            <SeatGrid 
+                                plan={plan} students={students} config={config} isFlipped={true} isInteractive={false} 
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [step, setStep] = useState(1);
+            const [config, setConfig] = useState({ className: "", numStudents: 24, columns: 4, grouping: 'fours', teacherPos: 'front-right', projectorPos: 'front-center' });
+            const [students, setStudents] = useState([]);
+            const [constraints, setConstraints] = useState([]);
+            const [plan, setPlan] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const steps = [ { id: 1, name: 'Layout' }, { id: 2, name: 'Students' }, { id: 3, name: 'Rules' }, { id: 4, name: 'Plan' } ];
+
+            const handleGenerate = async () => {
+                if (students.length === 0) { alert("Add students first!"); setStep(2); return; }
+                setIsLoading(true);
+                setTimeout(() => {
+                    try {
+                        const result = seatingService.generatePlan(students, config, constraints);
+                        setPlan(result);
+                        setStep(4);
+                    } catch (e) { alert(e.message); } finally { setIsLoading(false); }
+                }, 800);
+            };
+
+            const handleSwap = (sourceId, targetRow, targetCol) => {
+                setPlan(prev => {
+                    const newAssign = [...prev.assignments];
+                    const sourceIdx = newAssign.findIndex(a => a.studentId === sourceId);
+                    if (sourceIdx === -1) return prev;
+                    const source = newAssign[sourceIdx];
+                    const targetIdx = newAssign.findIndex(a => a.row === targetRow && a.col === targetCol);
+                    if (targetIdx > -1) {
+                        const target = newAssign[targetIdx];
+                        newAssign[sourceIdx] = { ...source, row: targetRow, col: targetCol };
+                        newAssign[targetIdx] = { ...target, row: source.row, col: source.col };
+                    } else {
+                        newAssign[sourceIdx] = { ...source, row: targetRow, col: targetCol };
+                    }
+                    return { ...prev, assignments: newAssign };
+                });
+            };
+
+            return (
+                <div className="flex flex-col h-screen max-w-7xl mx-auto w-full bg-white shadow-2xl md:my-4 md:rounded-3xl md:h-[calc(100vh-2rem)] overflow-hidden">
+                    <header className="bg-white border-b border-slate-100 p-6 flex items-center justify-between z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                                <Icons.Sparkles />
+                            </div>
+                            <h1 className="text-xl font-bold text-slate-800 tracking-tight">SmartSeat <span className="text-xs font-normal text-slate-500 ml-1 border border-slate-200 px-1 rounded">Offline</span></h1>
+                        </div>
+                        <div className="hidden md:flex gap-2">
+                            {steps.map((s) => (
+                                <div key={s.id} className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${step === s.id ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+                                    {s.id}. {s.name}
+                                </div>
+                            ))}
+                        </div>
+                    </header>
+                    <main className="flex-1 overflow-hidden p-6 md:p-8 bg-[#fafafa]">
+                        <div className="h-full max-w-6xl mx-auto fade-in">
+                            {step === 1 && <ConfigForm data={config} update={setConfig} />}
+                            {step === 2 && <StudentInput students={students} setStudents={setStudents} />}
+                            {step === 3 && <ConstraintsInput students={students} constraints={constraints} setConstraints={setConstraints} />}
+                            {step === 4 && <SeatingChart students={students} plan={plan} config={config} constraints={constraints} onSwap={handleSwap} onUpdateClassName={name => setConfig({...config, className: name})} onRandomize={handleGenerate} />}
+                        </div>
+                    </main>
+                    <footer className="bg-white p-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center z-10 no-print gap-4">
+                        <button onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1 || isLoading} className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"><Icons.ChevronLeft /> Back</button>
+                        
+                        <div className="text-xs text-slate-400 font-medium">Made by James Kua, Temasek Junior College</div>
+
+                        <div className="flex gap-4">
+                            {step < 3 ? <button onClick={() => setStep(step + 1)} className="flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 shadow-lg">Next <Icons.ChevronRight /></button> : step === 3 ? <button onClick={handleGenerate} disabled={isLoading} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 shadow-lg disabled:opacity-70">{isLoading ? <><Icons.Loader /> Generating...</> : <><Icons.Sparkles /> Create Plan</>}</button> : <button onClick={() => setStep(1)} className="px-6 py-3 text-slate-500 font-medium hover:text-slate-800">Start Over</button>}
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
