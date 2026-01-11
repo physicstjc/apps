@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audience Sound Meter</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .card {
+      background: #020617;
+      padding: 24px 28px 28px;
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      width: 360px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      margin-bottom: 16px;
+    }
+
+    .meter-container {
+      position: relative;
+      width: 100%;
+      height: 28px;
+      background: #020617;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+      margin: 20px 0 12px;
+    }
+
+    .meter-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+      transition: width 0.08s linear;
+    }
+
+    .label {
+      font-size: 0.9rem;
+      margin-top: 8px;
+    }
+
+    .db {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    button {
+      margin-top: 18px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #475569;
+      cursor: not-allowed;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎤 Audience Sound Meter</h1>
+
+    <div class="meter-container">
+      <div id="meter" class="meter-bar"></div>
+    </div>
+
+    <div class="label">Current Loudness</div>
+    <div id="db" class="db">0 dB</div>
+
+    <button id="startBtn">Start Measuring</button>
+    <div class="hint">Uses your microphone (no audio is recorded)</div>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById("startBtn");
+    const meter = document.getElementById("meter");
+    const dbText = document.getElementById("db");
+
+    let audioContext;
+    let analyser;
+    let dataArray;
+    let animationId;
+
+    async function startMeter() {
+      startBtn.disabled = true;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+
+      source.connect(analyser);
+
+      dataArray = new Uint8Array(analyser.fftSize);
+      updateMeter();
+    }
+
+    function updateMeter() {
+      analyser.getByteTimeDomainData(dataArray);
+
+      // Calculate RMS (volume)
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const value = (dataArray[i] - 128) / 128;
+        sum += value * value;
+      }
+
+      const rms = Math.sqrt(sum / dataArray.length);
+
+      // Convert to a dB-like scale (approximate)
+      const db = Math.max(0, Math.min(100, rms * 100));
+
+      meter.style.width = db + "%";
+      dbText.textContent = db.toFixed(1) + " dB";
+
+      animationId = requestAnimationFrame(updateMeter);
+    }
+
+    startBtn.addEventListener("click", startMeter);
+  </script>
+</body>
+</html>
