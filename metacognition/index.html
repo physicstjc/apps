@@ -22,6 +22,7 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 .bar-row{display:flex;gap:10px;align-items:center}
 .label{font-size:13px}
 .bar{height:18px;display:flex;width:100%;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;background:#fff}
+.seg{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:12px;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .blue{background:#3b82f6}
 .red{background:#ef4444}
 .gray{background:#cbd5e1}
@@ -40,6 +41,10 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
     <div class="controls">
       <select id="groupFilter"></select>
       <select id="classFilter"></select>
+      <select id="overlayMode">
+        <option value="count">Overlay: Count</option>
+        <option value="percent">Overlay: Percent</option>
+      </select>
     </div>
   </div>
 
@@ -143,11 +148,23 @@ function deriveGroup(cls){
   if(/^4.*\/26$/.test(v)) return 'IP4';
   return '';
 }
-function renderBars(container, label, pTrue, pFalse, colors){
+function renderBars(container, label, pTrue, pFalse, colors, counts, denom, segNames){
   const l=document.createElement('div'); l.className='label'; l.textContent=label;
   const bar=document.createElement('div'); bar.className='bar';
-  const b=document.createElement('div'); b.className=colors.true; b.style.width=(pTrue*100)+'%';
-  const r=document.createElement('div'); r.className=colors.false; r.style.width=(pFalse*100)+'%';
+  const b=document.createElement('div'); b.className=colors.true+' seg'; b.style.width=(pTrue*100)+'%';
+  const r=document.createElement('div'); r.className=colors.false+' seg'; r.style.width=(pFalse*100)+'%';
+  const tCount = counts && typeof counts.t==='number' ? counts.t : Math.round((denom||0)*pTrue);
+  const fCount = counts && typeof counts.f==='number' ? counts.f : Math.round((denom||0)*pFalse);
+  const modeSel = document.getElementById('overlayMode');
+  const overlayMode = modeSel ? modeSel.value : 'count';
+  const tPct = (Math.round((pTrue||0)*1000)/10);
+  const fPct = (Math.round((pFalse||0)*1000)/10);
+  const tName = segNames && segNames.true ? segNames.true : 'True';
+  const fName = segNames && segNames.false ? segNames.false : 'False';
+  b.textContent = overlayMode==='percent' ? `${tPct}%` : String(tCount);
+  r.textContent = overlayMode==='percent' ? `${fPct}%` : String(fCount);
+  b.title = `${tName}: ${tPct}% • ${tCount}/${denom||0}`;
+  r.title = `${fName}: ${fPct}% • ${fCount}/${denom||0}`;
   bar.appendChild(b); bar.appendChild(r);
   container.appendChild(l); container.appendChild(bar);
 }
@@ -223,7 +240,7 @@ function buildDashboard(data){
     for(let i=tfStart;i<=tfEnd;i++){
       const label=cleanLabel(header[i]||('Q '+i));
       const counts=computeCounts(respondentsFiltered, i, v=>String(v).toLowerCase()==='true');
-      renderBars(tfTable, label, counts.pt, counts.pf, {true:'blue', false:'red'});
+      renderBars(tfTable, label, counts.pt, counts.pf, {true:'blue', false:'red'}, {t:counts.t, f:counts.f}, counts.d, {true:'True', false:'False'});
     }
     const yTable=document.getElementById('yTable'); yTable.innerHTML='';
     const yStart=colToIndex('BK'), yEnd=colToIndex('BQ');
@@ -248,7 +265,7 @@ function buildDashboard(data){
       }
       const denom = respondentsFiltered.length;
       const pY = denom ? yCount/denom : 0;
-      renderBars(yTable, label, pY, 1-pY, {true:'blue', false:'gray'});
+      renderBars(yTable, label, pY, 1-pY, {true:'blue', false:'gray'}, {t:yCount, f:denom - yCount}, denom, {true:'Y', false:'Not Y'});
     }
     const oeCard=document.getElementById('oeCard');
     if(g && (g==='IP3' || g==='IP4')){
@@ -291,6 +308,7 @@ function buildDashboard(data){
   }
   document.getElementById('groupFilter').addEventListener('change',applyFilters);
   document.getElementById('classFilter').addEventListener('change',applyFilters);
+  document.getElementById('overlayMode').addEventListener('change',applyFilters);
   applyFilters();
 }
 function parseCSV(path){
