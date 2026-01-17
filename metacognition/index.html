@@ -37,7 +37,7 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 <body>
 <div class="wrap">
   <div class="header">
-    <div class="title">Metacognition Survey Dashboard</div>
+    <div class="title">Metacognitive Awareness Inventory Survey Dashboard</div>
     <div class="controls">
       <select id="groupFilter"></select>
       <select id="classFilter"></select>
@@ -68,7 +68,7 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 
   <div class="card">
     <div class="section-actions">
-      <h2>True/False Questions (K–BJ)</h2>
+      <h2>True/False Questions</h2>
       <div class="legend">
         <span><span class="swatch blue"></span>True</span>
         <span><span class="swatch red"></span>False</span>
@@ -79,7 +79,7 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 
   <div class="card">
     <div class="section-actions">
-      <h2>Metacognitive Strategies (BK–BQ)</h2>
+      <h2>Metacognitive Strategies</h2>
       <div id="yLegend" class="legend">
         <span><span class="swatch blue"></span>Y</span>
         <span><span class="swatch gray"></span>Not Y</span>
@@ -246,7 +246,9 @@ function buildDashboard(data){
     const yStart=colToIndex('BK'), yEnd=colToIndex('BQ');
     const yNote=document.getElementById('yNote');
     const yLegend=document.getElementById('yLegend');
-    if(g && g!=='JC2'){
+    const classGroup = c ? deriveGroup(c) : '';
+    const suppress = (g && g!=='JC2') || (classGroup && classGroup!=='JC2');
+    if(suppress){
       yNote.textContent='This part of the survey was not administered for the selected group.';
       yLegend.style.display='none';
       yTable.style.display='none';
@@ -268,7 +270,8 @@ function buildDashboard(data){
       renderBars(yTable, label, pY, 1-pY, {true:'blue', false:'gray'}, {t:yCount, f:denom - yCount}, denom, {true:'Y', false:'Not Y'});
     }
     const oeCard=document.getElementById('oeCard');
-    if(g && (g==='IP3' || g==='IP4')){
+    const classGroupForOE = c ? deriveGroup(c) : '';
+    if((g && (g==='IP3' || g==='IP4')) || (classGroupForOE && (classGroupForOE==='IP3' || classGroupForOE==='IP4'))){
       oeCard.style.display='';
       const idxQ56 = colToIndex('BK');
       const idxQ57 = colToIndex('BL');
@@ -306,9 +309,12 @@ function buildDashboard(data){
       oeCard.style.display='none';
     }
   }
-  document.getElementById('groupFilter').addEventListener('change',applyFilters);
-  document.getElementById('classFilter').addEventListener('change',applyFilters);
-  document.getElementById('overlayMode').addEventListener('change',applyFilters);
+  const groupSel=document.getElementById('groupFilter');
+  const classSel=document.getElementById('classFilter');
+  const overlaySel=document.getElementById('overlayMode');
+  groupSel.addEventListener('change',()=>{ if(groupSel.value) classSel.value=''; applyFilters(); });
+  classSel.addEventListener('change',()=>{ if(classSel.value) groupSel.value=''; applyFilters(); });
+  overlaySel.addEventListener('change',applyFilters);
   applyFilters();
 }
 function parseCSV(path){
