@@ -31,6 +31,7 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 .legend{display:flex;gap:12px;align-items:center}
 .legend .swatch{width:12px;height:12px;border-radius:2px;display:inline-block;margin-right:6px;border:1px solid #cbd5e1}
 .section-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.subhead{font-size:13px;font-weight:600;margin:8px 0 4px 0}
 .footer{margin-top:20px;color:#64748b;font-size:12px}
 </style>
 </head>
@@ -79,7 +80,7 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 
   <div class="card">
     <div class="section-actions">
-      <h2>Knowledge Types Report</h2>
+      <h2>Summary Report</h2>
       <div class="legend">
         <span><span class="swatch blue"></span>True</span>
         <span><span class="swatch red"></span>False</span>
@@ -90,13 +91,13 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 
   <div class="card">
     <div class="section-actions">
-      <h2>Metacognitive Strategies</h2>
+      <h2>Strategies that students find effective in developing their metacognitive skills</h2>
       <div id="yLegend" class="legend">
         <span><span class="swatch blue"></span>Y</span>
         <span><span class="swatch gray"></span>Not Y</span>
       </div>
     </div>
-    <div id="yStem" class="tiny">Select the strategies that you find effective in developing your metacognitive skills.</div>
+    <div id="yStem" class="tiny"></div>
     <div id="yNote" class="tiny"></div>
     <div id="yTable" class="table"></div>
   </div>
@@ -129,6 +130,13 @@ const CSV_PATHS = [
   'MAI_JC2_2026_responses_20260117_150427.csv',
   'MAI_IP34_2026_responses_20260117_180823.csv'
 ];
+(function(){
+  const ktCard = document.getElementById('ktTable') && document.getElementById('ktTable').closest('.card');
+  const tfCard = document.getElementById('tfTable') && document.getElementById('tfTable').closest('.card');
+  if(ktCard && tfCard){
+    tfCard.parentNode.insertBefore(ktCard, tfCard);
+  }
+})();
 function colToIndex(col){
   let s=col.toUpperCase(),n=0;
   for(let i=0;i<s.length;i++){n=n*26+(s.charCodeAt(i)-64)}
@@ -151,7 +159,18 @@ function computeCounts(rows, idx, truthy){
   return {t,f,d,pt:d? t/d:0, pf:d? f/d:0};
 }
 function cleanLabel(s){
-  return String(s||'').replace(/^\s*Q\s*\d+\s*-\s*/,'').trim();
+  let str=String(s||'').trim();
+  const m=str.match(/^Q\s*\d+\s*\((.*?)\)\s*$/i);
+  if(m) return m[1].trim();
+  str=str
+    .replace(/^\s*Q\s*\d+\s*-\s*/,'')
+    .replace(/^\s*Q\s*\d+\s*/,'')
+    .replace(/^\s*\((.*?)\)\s*$/,'$1')
+    .replace(/[()]/g,'')
+    .replace(/select the strategies that you find effective in developing your metacognitive skills\.?\s*/i,'')
+    .replace(/\s*-\s*$/,'')
+    .trim();
+  return str;
 }
 function deriveGroup(cls){
   const v=String(cls||'').trim().toUpperCase();
@@ -269,7 +288,7 @@ function buildDashboard(data){
       'Debugging Strategies':[25,40,44,51,52],
       'Evaluation':[7,19,24,36,38,50]
     };
-    Object.keys(KT).forEach(name=>{
+    function renderCategory(name){
       let tSum=0,dSum=0;
       KT[name].forEach(q=>{
         const idx=itemIndexFromNumber(q);
@@ -280,7 +299,11 @@ function buildDashboard(data){
       const pTrue = denom ? tSum/denom : 0;
       const avgScore = respondentsFiltered.length ? tSum/respondentsFiltered.length : 0;
       renderBars(ktTable, `${name} — avg ${avgScore.toFixed(2)} / ${KT[name].length}`, pTrue, 1-pTrue, {true:'blue', false:'red'}, {t:tSum, f:denom - tSum}, denom, {true:'True', false:'False'});
-    });
+    }
+    const kacHead=document.createElement('div'); kacHead.className='subhead'; kacHead.textContent='KNOWLEDGE ABOUT COGNITION'; kacHead.style.gridColumn='1 / -1'; ktTable.appendChild(kacHead);
+    ['Declarative Knowledge','Conditional Knowledge','Procedural Knowledge'].forEach(renderCategory);
+    const rocHead=document.createElement('div'); rocHead.className='subhead'; rocHead.textContent='REGULATION OF COGNITION'; rocHead.style.gridColumn='1 / -1'; ktTable.appendChild(rocHead);
+    ['Planning','Information Management Strategies','Comprehension Monitoring','Debugging Strategies','Evaluation'].forEach(renderCategory);
     const yTable=document.getElementById('yTable'); yTable.innerHTML='';
     const yStart=colToIndex('BK'), yEnd=colToIndex('BQ');
     const yNote=document.getElementById('yNote');
