@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metacognition Survey Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+body{font-family:Inter,system-ui,Arial,sans-serif;margin:0;background:#f7f7f9;color:#0f172a}
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.title{font-size:22px;font-weight:600}
+.controls{display:flex;gap:12px;flex-wrap:wrap}
+select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 10px 0}
+.metric{display:flex;gap:16px;flex-wrap:wrap}
+.metric .box{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:12px;min-width:180px}
+.metric .num{font-size:20px;font-weight:600}
+.bar-row{display:flex;gap:10px;align-items:center}
+.label{font-size:13px}
+.bar{height:18px;display:flex;width:100%;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;background:#fff}
+.blue{background:#3b82f6}
+.red{background:#ef4444}
+.gray{background:#cbd5e1}
+.tiny{font-size:12px;color:#475569}
+.table{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.legend{display:flex;gap:12px;align-items:center}
+.legend .swatch{width:12px;height:12px;border-radius:2px;display:inline-block;margin-right:6px;border:1px solid #cbd5e1}
+.section-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.footer{margin-top:20px;color:#64748b;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title">Metacognition Survey Dashboard</div>
+    <div class="controls">
+      <select id="groupFilter"></select>
+      <select id="classFilter"></select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Participation</h2>
+    <div class="metric">
+      <div class="box">
+        <div class="tiny">Invited</div>
+        <div class="num" id="invitedCount">–</div>
+      </div>
+      <div class="box">
+        <div class="tiny">Respondents</div>
+        <div class="num" id="respondentsCount">–</div>
+      </div>
+      <div class="box">
+        <div class="tiny">Response Rate</div>
+        <div class="num" id="responseRate">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-actions">
+      <h2>True/False Questions (K–BJ)</h2>
+      <div class="legend">
+        <span><span class="swatch blue"></span>True</span>
+        <span><span class="swatch red"></span>False</span>
+      </div>
+    </div>
+    <div id="tfTable" class="table"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-actions">
+      <h2>Metacognitive Strategies (BK–BQ)</h2>
+      <div id="yLegend" class="legend">
+        <span><span class="swatch blue"></span>Y</span>
+        <span><span class="swatch gray"></span>Not Y</span>
+      </div>
+    </div>
+    <div id="yNote" class="tiny"></div>
+    <div id="yTable" class="table"></div>
+  </div>
+
+  <div class="card" id="oeCard" style="display:none">
+    <div class="section-actions">
+      <h2>Open-Ended Responses Summary</h2>
+    </div>
+    <div class="grid">
+      <div>
+        <div class="tiny" style="font-weight:600">2024 Reflection (Q56)</div>
+        <div id="oeRefSummary" class="tiny"></div>
+        <div id="oeRefExamples" class="tiny" style="margin-top:6px"></div>
+      </div>
+      <div>
+        <div class="tiny" style="font-weight:600">2025 Plans (Q57)</div>
+        <div id="oePlanSummary" class="tiny"></div>
+        <div id="oePlanExamples" class="tiny" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Names are excluded throughout this report.
+  </div>
+</div>
+
+<script>
+const CSV_PATHS = [
+  'MAI_JC2_2026_responses_20260117_150427.csv',
+  'MAI_IP34_2026_responses_20260117_180823.csv'
+];
+function colToIndex(col){
+  let s=col.toUpperCase(),n=0;
+  for(let i=0;i<s.length;i++){n=n*26+(s.charCodeAt(i)-64)}
+  return n-1;
+}
+function sliceCols(row, fromCol, toCol){
+  const s=colToIndex(fromCol), e=colToIndex(toCol);
+  return row.slice(s, e+1);
+}
+function unique(arr){return [...new Set(arr.filter(x=>x&&String(x).trim().length>0))].sort()}
+function fmtPct(x){return (Math.round(x*1000)/10)+'%'}
+function computeCounts(rows, idx, truthy){
+  let t=0,f=0,d=0;
+  for(const r of rows){
+    const v=r[idx];
+    if(v===undefined||String(v).trim()==='') continue;
+    d++;
+    if(truthy(v)) t++; else f++;
+  }
+  return {t,f,d,pt:d? t/d:0, pf:d? f/d:0};
+}
+function cleanLabel(s){
+  return String(s||'').replace(/^\s*Q\s*\d+\s*-\s*/,'').trim();
+}
+function deriveGroup(cls){
+  const v=String(cls||'').trim().toUpperCase();
+  if(/^CG\s+\d{2}\/25$/.test(v)) return 'JC2';
+  if(/^3.*\/26$/.test(v)) return 'IP3';
+  if(/^4.*\/26$/.test(v)) return 'IP4';
+  return '';
+}
+function renderBars(container, label, pTrue, pFalse, colors){
+  const l=document.createElement('div'); l.className='label'; l.textContent=label;
+  const bar=document.createElement('div'); bar.className='bar';
+  const b=document.createElement('div'); b.className=colors.true; b.style.width=(pTrue*100)+'%';
+  const r=document.createElement('div'); r.className=colors.false; r.style.width=(pFalse*100)+'%';
+  bar.appendChild(b); bar.appendChild(r);
+  container.appendChild(l); container.appendChild(bar);
+}
+function setOptions(sel, values, label){
+  sel.innerHTML='';
+  const any=document.createElement('option'); any.value=''; any.textContent=label; sel.appendChild(any);
+  values.forEach(v=>{const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o)});
+}
+function findHeaderIndex(header, patterns){
+  const H = header.map(h=>String(h||'').toLowerCase());
+  for(const p of patterns){
+    const idx = H.findIndex(h=>h.includes(p.toLowerCase()));
+    if(idx!==-1) return idx;
+  }
+  const q56 = H.findIndex(h=>/q\s*56/.test(h));
+  if(q56!==-1) return q56;
+  const q57 = H.findIndex(h=>/q\s*57/.test(h));
+  if(q57!==-1) return q57;
+  return -1;
+}
+function normalizeText(s){
+  return String(s||'').replace(/\s+/g,' ').trim();
+}
+function keywordSummary(texts, themes){
+  const counts = themes.map(t=>({name:t.name,count:0}));
+  texts.forEach(t=>{
+    const low = t.toLowerCase();
+    themes.forEach((th,i)=>{ if(th.keywords.some(k=>low.includes(k))) counts[i].count++; });
+  });
+  counts.sort((a,b)=>b.count-a.count);
+  return counts.filter(c=>c.count>0).slice(0,8);
+}
+function renderSummaryEl(el, items){
+  el.textContent = items.length ? items.map(it=>`${it.name} (${it.count})`).join(' · ') : 'No responses';
+}
+function renderExamplesEl(el, texts, label){
+  const samples = texts.slice(0,3).map(t=>('• '+(t.length>180?t.slice(0,180)+'…':t)));
+  el.textContent = samples.length ? samples.join('  ') : `No ${label.toLowerCase()} provided`;
+}
+function buildDashboard(data){
+  const header=data[0];
+  const rows=data.slice(1);
+  const idxTime=colToIndex('A');
+  const idxClass=colToIndex('D');
+  const idxSN=colToIndex('E');
+  const invited=rows.filter(r=>String(r[idxClass]||'').trim()!=='' && String(r[idxSN]||'').trim()!=='');
+  const respondents=invited.filter(r=>String(r[idxTime]||'').trim()!=='');
+  const groupVals=['JC2','IP4','IP3'];
+  const classVals=unique(invited.map(r=>r[idxClass]));
+  setOptions(document.getElementById('groupFilter'), groupVals, 'All Groups');
+  setOptions(document.getElementById('classFilter'), classVals, 'All Classes');
+  function applyFilters(){
+    const g=document.getElementById('groupFilter').value;
+    const c=document.getElementById('classFilter').value;
+    const invitedFiltered = invited.filter(r=>{
+      const gr=deriveGroup(r[idxClass]);
+      if(g && gr!==g) return false;
+      if(c && String(r[idxClass])!==c) return false;
+      return true;
+    });
+    const respondentsFiltered = respondents.filter(r=>{
+      const gr=deriveGroup(r[idxClass]);
+      if(g && gr!==g) return false;
+      if(c && String(r[idxClass])!==c) return false;
+      return true;
+    });
+    document.getElementById('invitedCount').textContent=String(invitedFiltered.length);
+    document.getElementById('respondentsCount').textContent=String(respondentsFiltered.length);
+    const rate=invitedFiltered.length? respondentsFiltered.length/invitedFiltered.length:0;
+    document.getElementById('responseRate').textContent=fmtPct(rate);
+    const tfTable=document.getElementById('tfTable'); tfTable.innerHTML='';
+    const tfStart=colToIndex('K'), tfEnd=colToIndex('BJ');
+    for(let i=tfStart;i<=tfEnd;i++){
+      const label=cleanLabel(header[i]||('Q '+i));
+      const counts=computeCounts(respondentsFiltered, i, v=>String(v).toLowerCase()==='true');
+      renderBars(tfTable, label, counts.pt, counts.pf, {true:'blue', false:'red'});
+    }
+    const yTable=document.getElementById('yTable'); yTable.innerHTML='';
+    const yStart=colToIndex('BK'), yEnd=colToIndex('BQ');
+    const yNote=document.getElementById('yNote');
+    const yLegend=document.getElementById('yLegend');
+    if(g && g!=='JC2'){
+      yNote.textContent='This part of the survey was not administered for the selected group.';
+      yLegend.style.display='none';
+      yTable.style.display='none';
+      yTable.innerHTML='';
+    } else {
+      yNote.textContent='';
+      yLegend.style.display='';
+      yTable.style.display='';
+    }
+    for(let i=yStart;i<=yEnd;i++){
+      const label=cleanLabel(header[i]||('Strategy '+i));
+      let yCount=0;
+      for(const r of respondentsFiltered){
+        const v=r[i];
+        if(v!==undefined && String(v).trim().toUpperCase()==='Y') yCount++;
+      }
+      const denom = respondentsFiltered.length;
+      const pY = denom ? yCount/denom : 0;
+      renderBars(yTable, label, pY, 1-pY, {true:'blue', false:'gray'});
+    }
+    const oeCard=document.getElementById('oeCard');
+    if(g && (g==='IP3' || g==='IP4')){
+      oeCard.style.display='';
+      const idxQ56 = colToIndex('BK');
+      const idxQ57 = colToIndex('BL');
+      const refTexts = idxQ56!==-1 ? respondentsFiltered.map(r=>normalizeText(r[idxQ56])).filter(t=>t.length>0) : [];
+      const planTexts = idxQ57!==-1 ? respondentsFiltered.map(r=>normalizeText(r[idxQ57])).filter(t=>t.length>0) : [];
+      const refThemes = [
+        {name:'Time management', keywords:['time management','manage time','timing','schedule','planner','plan time']},
+        {name:'Procrastination', keywords:['procrastinat']},
+        {name:'Distractions/phone', keywords:['distract','phone','devices']},
+        {name:'Memorisation over understanding', keywords:['memor','remember','rote','notes hours']},
+        {name:'Lack of planning/goals', keywords:['plan','goal','expectation']},
+        {name:'Inconsistent revision', keywords:['consist','last minute','cram']},
+        {name:'Attention/focus', keywords:['focus','attention','listen']},
+        {name:'Sleep/rest', keywords:['sleep']},
+        {name:'Misuse of AI', keywords:['use ai','ai wrongly']},
+        {name:'Practice/application gaps', keywords:['practice','apply','apply concepts']}
+      ];
+      const planThemes = [
+        {name:'Plan/schedule/timetable', keywords:['plan','schedule','timetable','planner']},
+        {name:'Consistent study', keywords:['consist','study consistently']},
+        {name:'Reduce distractions', keywords:['distract','phone','devices']},
+        {name:'Ask for help/consultations', keywords:['ask','consult','help']},
+        {name:'Active recall/smart strategies', keywords:['active recall','flashcards','metacognition','study smarter']},
+        {name:'Sleep earlier/rest', keywords:['sleep','rest']},
+        {name:'Set goals', keywords:['goal']},
+        {name:'Practice more', keywords:['practice','papers']}
+      ];
+      const refSummary = keywordSummary(refTexts, refThemes);
+      const planSummary = keywordSummary(planTexts, planThemes);
+      renderSummaryEl(document.getElementById('oeRefSummary'), refSummary);
+      renderSummaryEl(document.getElementById('oePlanSummary'), planSummary);
+      renderExamplesEl(document.getElementById('oeRefExamples'), refTexts, 'reflection');
+      renderExamplesEl(document.getElementById('oePlanExamples'), planTexts, 'plans');
+    } else {
+      oeCard.style.display='none';
+    }
+  }
+  document.getElementById('groupFilter').addEventListener('change',applyFilters);
+  document.getElementById('classFilter').addEventListener('change',applyFilters);
+  applyFilters();
+}
+function parseCSV(path){
+  return new Promise((resolve)=>Papa.parse(path,{download:true,dynamicTyping:false,skipEmptyLines:false,complete:(res)=>resolve(res)}));
+}
+Promise.all(CSV_PATHS.map(parseCSV)).then(results=>{
+  let header = results[0].data[0];
+  results.forEach(r=>{ if(r.data[0].length>header.length) header = r.data[0]; });
+  const rows = [];
+  results.forEach(r=>{
+    const d=r.data;
+    for(let i=1;i<d.length;i++){ rows.push(d[i]); }
+  });
+  buildDashboard([header, ...rows]);
+});
+</script>
+</body>
+</html>
