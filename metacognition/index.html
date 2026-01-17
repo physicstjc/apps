@@ -79,12 +79,24 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 
   <div class="card">
     <div class="section-actions">
+      <h2>Knowledge Types Report</h2>
+      <div class="legend">
+        <span><span class="swatch blue"></span>True</span>
+        <span><span class="swatch red"></span>False</span>
+      </div>
+    </div>
+    <div id="ktTable" class="table"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-actions">
       <h2>Metacognitive Strategies</h2>
       <div id="yLegend" class="legend">
         <span><span class="swatch blue"></span>Y</span>
         <span><span class="swatch gray"></span>Not Y</span>
       </div>
     </div>
+    <div id="yStem" class="tiny">Select the strategies that you find effective in developing your metacognitive skills.</div>
     <div id="yNote" class="tiny"></div>
     <div id="yTable" class="table"></div>
   </div>
@@ -147,6 +159,10 @@ function deriveGroup(cls){
   if(/^3.*\/26$/.test(v)) return 'IP3';
   if(/^4.*\/26$/.test(v)) return 'IP4';
   return '';
+}
+function itemIndexFromNumber(n){
+  const tfStart=colToIndex('K');
+  return tfStart + (n-1);
 }
 function renderBars(container, label, pTrue, pFalse, colors, counts, denom, segNames){
   const l=document.createElement('div'); l.className='label'; l.textContent=label;
@@ -242,20 +258,46 @@ function buildDashboard(data){
       const counts=computeCounts(respondentsFiltered, i, v=>String(v).toLowerCase()==='true');
       renderBars(tfTable, label, counts.pt, counts.pf, {true:'blue', false:'red'}, {t:counts.t, f:counts.f}, counts.d, {true:'True', false:'False'});
     }
+    const ktTable=document.getElementById('ktTable'); ktTable.innerHTML='';
+    const KT={
+      'Declarative Knowledge':[5,10,12,16,17,20,32,46],
+      'Conditional Knowledge':[15,18,26,29,35],
+      'Procedural Knowledge':[3,14,27,33],
+      'Planning':[4,6,8,22,23,42,45],
+      'Information Management Strategies':[9,13,30,31,37,39,41,43,47,48],
+      'Comprehension Monitoring':[1,2,11,21,28,34,49],
+      'Debugging Strategies':[25,40,44,51,52],
+      'Evaluation':[7,19,24,36,38,50]
+    };
+    Object.keys(KT).forEach(name=>{
+      let tSum=0,dSum=0;
+      KT[name].forEach(q=>{
+        const idx=itemIndexFromNumber(q);
+        const cts=computeCounts(respondentsFiltered, idx, v=>String(v).toLowerCase()==='true');
+        tSum+=cts.t; dSum+=cts.d;
+      });
+      const denom = dSum;
+      const pTrue = denom ? tSum/denom : 0;
+      const avgScore = respondentsFiltered.length ? tSum/respondentsFiltered.length : 0;
+      renderBars(ktTable, `${name} — avg ${avgScore.toFixed(2)} / ${KT[name].length}`, pTrue, 1-pTrue, {true:'blue', false:'red'}, {t:tSum, f:denom - tSum}, denom, {true:'True', false:'False'});
+    });
     const yTable=document.getElementById('yTable'); yTable.innerHTML='';
     const yStart=colToIndex('BK'), yEnd=colToIndex('BQ');
     const yNote=document.getElementById('yNote');
     const yLegend=document.getElementById('yLegend');
+    const yStem=document.getElementById('yStem');
     const classGroup = c ? deriveGroup(c) : '';
     const suppress = (g && g!=='JC2') || (classGroup && classGroup!=='JC2');
     if(suppress){
       yNote.textContent='This part of the survey was not administered for the selected group.';
       yLegend.style.display='none';
+      yStem.style.display='none';
       yTable.style.display='none';
       yTable.innerHTML='';
     } else {
       yNote.textContent='';
       yLegend.style.display='';
+      yStem.style.display='';
       yTable.style.display='';
     }
     for(let i=yStart;i<=yEnd;i++){
