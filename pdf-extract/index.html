@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Page Extractor (Client-side)</title>
+  <style>
+    :root { --max: 780px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    .wrap { max-width: var(--max); margin: 0 auto; }
+    h1 { font-size: 1.25rem; margin: 0 0 12px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+    label { display: block; font-weight: 600; margin: 12px 0 6px; }
+    input[type="file"], input[type="text"] { width: 100%; }
+    input[type="text"] { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 1rem; }
+    input[type="file"] { padding: 6px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    button {
+      border: 0; padding: 10px 14px; border-radius: 10px;
+      background: #111827; color: white; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .muted { color: #6b7280; font-size: 0.95rem; }
+    .status { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #f3f4f6; white-space: pre-wrap; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 0.85rem; }
+    .ok { background: #ecfdf5; color: #065f46; }
+    .warn { background: #fffbeb; color: #92400e; }
+    .err { background: #fef2f2; color: #991b1b; }
+    .small { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>PDF Page Extractor <span class="pill">Client-side</span></h1>
+    <div class="card">
+      <div class="muted">
+        Upload a PDF, enter pages like <b>1-3, 5, 8-10</b>, then export a new PDF.
+      </div>
+
+      <label for="pdfInput">1) Choose PDF</label>
+      <input id="pdfInput" type="file" accept="application/pdf" />
+
+      <label for="pagesInput">2) Pages to extract (1-based)</label>
+      <input id="pagesInput" type="text" placeholder="e.g. 1-3, 5, 8-10" />
+
+      <div class="row">
+        <button id="extractBtn" disabled>Extract & Download</button>
+        <button id="clearBtn" type="button">Clear</button>
+      </div>
+
+      <div id="status" class="status small">Waiting for PDF…</div>
+    </div>
+  </div>
+
+  <!-- pdf-lib via CDN -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script>
+    const pdfInput = document.getElementById('pdfInput');
+    const pagesInput = document.getElementById('pagesInput');
+    const extractBtn = document.getElementById('extractBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const statusEl = document.getElementById('status');
+
+    let sourcePdfBytes = null;
+    let sourceFileName = 'extracted.pdf';
+    let totalPages = null;
+
+    function setStatus(msg, kind = 'info') {
+      statusEl.className = 'status small';
+      if (kind === 'ok') statusEl.classList.add('ok');
+      if (kind === 'warn') statusEl.classList.add('warn');
+      if (kind === 'err') statusEl.classList.add('err');
+      statusEl.textContent = msg;
+    }
+
+    function safeBaseName(filename) {
+      // remove extension
+      const i = filename.lastIndexOf('.');
+      return i > 0 ? filename.slice(0, i) : filename;
+    }
+
+    function parsePageSpec(spec, maxPages) {
+      // Returns { pages: number[], warnings: string[] }
+      // pages are 0-based indices
+      const warnings = [];
+      if (!spec || !spec.trim()) {
+        return { pages: [], warnings: ['No page range provided.'] };
+      }
+
+      const tokens = spec.split(',').map(t => t.trim()).filter(Boolean);
+      const pageSet = new Set();
+
+      for (const tok of tokens) {
+        // match "a-b" or "a"
+        const mRange = tok.match(/^(\d+)\s*-\s*(\d+)$/);
+        const mSingle = tok.match(/^(\d+)$/);
+
+        if (mRange) {
+          let a = parseInt(mRange[1], 10);
+          let b = parseInt(mRange[2], 10);
+          if (a > b) [a, b] = [b, a];
+
+          for (let p = a; p <= b; p++) {
+            if (p < 1 || p > maxPages) {
+              warnings.push(`Ignoring out-of-range page ${p} (valid: 1-${maxPages}).`);
+              continue;
+            }
+            pageSet.add(p - 1);
+          }
+        } else if (mSingle) {
+          const p = parseInt(mSingle[1], 10);
+          if (p < 1 || p > maxPages) {
+            warnings.push(`Ignoring out-of-range page ${p} (valid: 1-${maxPages}).`);
+            continue;
+          }
+          pageSet.add(p - 1);
+        } else {
+          warnings.push(`Ignoring invalid token: "${tok}"`);
+        }
+      }
+
+      const pages = Array.from(pageSet).sort((x, y) => x - y);
+      return { pages, warnings };
+    }
+
+    function downloadBytes(bytes, filename, mime = 'application/pdf') {
+      const blob = new Blob([bytes], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    pdfInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        sourcePdfBytes = null;
+        totalPages = null;
+        extractBtn.disabled = true;
+        setStatus('Waiting for PDF…');
+        return;
+      }
+
+      if (file.type !== 'application/pdf') {
+        sourcePdfBytes = null;
+        totalPages = null;
+        extractBtn.disabled = true;
+        setStatus('Please upload a valid PDF file.', 'err');
+        return;
+      }
+
+      try {
+        setStatus('Loading PDF…');
+        sourcePdfBytes = new Uint8Array(await file.arrayBuffer());
+        sourceFileName = file.name || 'document.pdf';
+
+        const srcDoc = await PDFLib.PDFDocument.load(sourcePdfBytes);
+        totalPages = srcDoc.getPageCount();
+
+        extractBtn.disabled = false;
+        setStatus(`Loaded: ${sourceFileName}\nTotal pages: ${totalPages}\nEnter a page range and click “Extract & Download”.`, 'ok');
+      } catch (err) {
+        console.error(err);
+        sourcePdfBytes = null;
+        totalPages = null;
+        extractBtn.disabled = true;
+        setStatus('Failed to read PDF. The file may be corrupted or password-protected.', 'err');
+      }
+    });
+
+    extractBtn.addEventListener('click', async () => {
+      if (!sourcePdfBytes || !totalPages) {
+        setStatus('No PDF loaded.', 'err');
+        return;
+      }
+
+      const spec = pagesInput.value;
+      const { pages, warnings } = parsePageSpec(spec, totalPages);
+
+      if (pages.length === 0) {
+        setStatus(`No valid pages selected.\n${warnings.join('\n')}`.trim(), 'warn');
+        return;
+      }
+
+      try {
+        setStatus('Extracting pages…');
+
+        const srcDoc = await PDFLib.PDFDocument.load(sourcePdfBytes);
+        const outDoc = await PDFLib.PDFDocument.create();
+
+        const copiedPages = await outDoc.copyPages(srcDoc, pages);
+        for (const p of copiedPages) outDoc.addPage(p);
+
+        const outBytes = await outDoc.save();
+
+        const base = safeBaseName(sourceFileName);
+        const outName = `${base}_pages_${spec.replace(/\s+/g,'').replace(/[^0-9,\-]/g,'') || 'selected'}.pdf`;
+
+        const warnText = warnings.length ? `\n\nWarnings:\n- ${warnings.join('\n- ')}` : '';
+        setStatus(`Done.\nExtracted ${pages.length} page(s) from ${totalPages}.\nDownloading: ${outName}${warnText}`, warnings.length ? 'warn' : 'ok');
+
+        downloadBytes(outBytes, outName);
+      } catch (err) {
+        console.error(err);
+        setStatus('Extraction failed. If the PDF is password-protected, client-side tools may not be able to process it.', 'err');
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      pdfInput.value = '';
+      pagesInput.value = '';
+      sourcePdfBytes = null;
+      totalPages = null;
+      extractBtn.disabled = true;
+      setStatus('Cleared. Waiting for PDF…');
+    });
+  </script>
+</body>
+</html>
