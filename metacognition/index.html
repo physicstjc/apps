@@ -122,13 +122,15 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
 
   <div class="footer">
     Names are excluded throughout this report.
+    <div id="dataMeta" class="tiny" style="margin-top:6px"></div>
   </div>
 </div>
 
 <script>
 const CSV_PATHS = [
-  'MAI_JC2_2026_responses_20260117_150427.csv',
-  'MAI_IP34_2026_responses_20260117_180823.csv'
+  'MAI_IP34_2026_responses_20260223_152644.csv',
+  'MAI_JC1_2026_responses_20260223_152021.csv',
+  'MAI_JC2_2026_responses_20260223_152343.csv'
 ];
 (function(){
   const ktCard = document.getElementById('ktTable') && document.getElementById('ktTable').closest('.card');
@@ -137,21 +139,12 @@ const CSV_PATHS = [
     tfCard.parentNode.insertBefore(ktCard, tfCard);
   }
 })();
-function colToIndex(col){
-  let s=col.toUpperCase(),n=0;
-  for(let i=0;i<s.length;i++){n=n*26+(s.charCodeAt(i)-64)}
-  return n-1;
-}
-function sliceCols(row, fromCol, toCol){
-  const s=colToIndex(fromCol), e=colToIndex(toCol);
-  return row.slice(s, e+1);
-}
 function unique(arr){return [...new Set(arr.filter(x=>x&&String(x).trim().length>0))].sort()}
 function fmtPct(x){return (Math.round(x*1000)/10)+'%'}
-function computeCounts(rows, idx, truthy){
+function computeCounts(rows, pickValue, truthy){
   let t=0,f=0,d=0;
   for(const r of rows){
-    const v=r[idx];
+    const v=pickValue(r);
     if(v===undefined||String(v).trim()==='') continue;
     d++;
     if(truthy(v)) t++; else f++;
@@ -174,14 +167,11 @@ function cleanLabel(s){
 }
 function deriveGroup(cls){
   const v=String(cls||'').trim().toUpperCase();
-  if(/^CG\s+\d{2}\/25$/.test(v)) return 'JC2';
+  if(/^CG\s+\d{1,2}\/26$/.test(v)) return 'JC1';
+  if(/^CG\s+\d{1,2}\/25$/.test(v)) return 'JC2';
   if(/^3.*\/26$/.test(v)) return 'IP3';
   if(/^4.*\/26$/.test(v)) return 'IP4';
   return '';
-}
-function itemIndexFromNumber(n){
-  const tfStart=colToIndex('K');
-  return tfStart + (n-1);
 }
 function renderBars(container, label, pTrue, pFalse, colors, counts, denom, segNames){
   const l=document.createElement('div'); l.className='label'; l.textContent=label;
@@ -208,17 +198,64 @@ function setOptions(sel, values, label){
   const any=document.createElement('option'); any.value=''; any.textContent=label; sel.appendChild(any);
   values.forEach(v=>{const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o)});
 }
-function findHeaderIndex(header, patterns){
-  const H = header.map(h=>String(h||'').toLowerCase());
-  for(const p of patterns){
-    const idx = H.findIndex(h=>h.includes(p.toLowerCase()));
-    if(idx!==-1) return idx;
+function extractMaiItemNumber(headerCell){
+  const s=String(headerCell||'');
+  const m=s.match(/(?:^|[^\d])([1-9]|[1-4]\d|5[0-2])\)\s/);
+  return m ? Number(m[1]) : -1;
+}
+function isStrategyHeader(headerCell){
+  const s=String(headerCell||'').toLowerCase();
+  return s.includes('select the strategies that you find effective in developing your metacognitive skills');
+}
+function parseSurveyResults(results){
+  const records=[];
+  const maiLabels={};
+  let strategyLabels=[];
+  for(const res of results){
+    const data=(res&&res.data)||[];
+    if(!data.length) continue;
+    const header=(data[0]||[]).map(h=>String(h||''));
+    const H=header.map(h=>h.toLowerCase().trim());
+    const idxTime=H.findIndex(h=>h.includes('time submitted'));
+    const idxClass=H.findIndex(h=>h==='class');
+    const idxSN=H.findIndex(h=>h.includes('s/n'));
+    const maiCols={};
+    const strategyCols=[];
+    let idxReflect=-1;
+    let idxPlan=-1;
+    header.forEach((h,i)=>{
+      const low=String(h||'').toLowerCase();
+      const itemNo=extractMaiItemNumber(h);
+      if(itemNo!==-1){
+        maiCols[itemNo]=i;
+        if(!maiLabels[itemNo]) maiLabels[itemNo]=cleanLabel(h);
+      }
+      if(isStrategyHeader(h)) strategyCols.push({idx:i,label:cleanLabel(h)});
+      if(low.includes('as you reflect on 2024 school year')) idxReflect=i;
+      if(low.includes('as you prepare for the new school year')) idxPlan=i;
+    });
+    if(!strategyLabels.length && strategyCols.length){
+      strategyLabels=strategyCols.map(s=>s.label);
+    }
+    for(let i=1;i<data.length;i++){
+      const row=data[i]||[];
+      const record={
+        time: idxTime===-1 ? '' : row[idxTime],
+        className: idxClass===-1 ? '' : row[idxClass],
+        sn: idxSN===-1 ? '' : row[idxSN],
+        mai:{},
+        strategies: strategyCols.map(s=>row[s.idx]),
+        reflection: idxReflect===-1 ? '' : row[idxReflect],
+        plan: idxPlan===-1 ? '' : row[idxPlan]
+      };
+      for(let item=1;item<=52;item++){
+        const col=maiCols[item];
+        record.mai[item]=col===undefined ? '' : row[col];
+      }
+      records.push(record);
+    }
   }
-  const q56 = H.findIndex(h=>/q\s*56/.test(h));
-  if(q56!==-1) return q56;
-  const q57 = H.findIndex(h=>/q\s*57/.test(h));
-  if(q57!==-1) return q57;
-  return -1;
+  return {records, maiLabels, strategyLabels};
 }
 function normalizeText(s){
   return String(s||'').replace(/\s+/g,' ').trim();
@@ -239,31 +276,46 @@ function renderExamplesEl(el, texts, label){
   const samples = texts.slice(0,3).map(t=>('• '+(t.length>180?t.slice(0,180)+'…':t)));
   el.textContent = samples.length ? samples.join('  ') : `No ${label.toLowerCase()} provided`;
 }
-function buildDashboard(data){
-  const header=data[0];
-  const rows=data.slice(1);
-  const idxTime=colToIndex('A');
-  const idxClass=colToIndex('D');
-  const idxSN=colToIndex('E');
-  const invited=rows.filter(r=>String(r[idxClass]||'').trim()!=='' && String(r[idxSN]||'').trim()!=='');
-  const respondents=invited.filter(r=>String(r[idxTime]||'').trim()!=='');
-  const groupVals=['JC2','IP4','IP3'];
-  const classVals=unique(invited.map(r=>r[idxClass]));
+function renderDataMeta(){
+  const target=document.getElementById('dataMeta');
+  if(!target) return;
+  const fileLines=CSV_PATHS.map(path=>{
+    const m=String(path).match(/_responses_(\d{8})_(\d{6})\.csv$/i);
+    if(!m) return path;
+    const date=m[1];
+    const time=m[2];
+    const yyyy=date.slice(0,4);
+    const mm=date.slice(4,6);
+    const dd=date.slice(6,8);
+    const hh=time.slice(0,2);
+    const min=time.slice(2,4);
+    return `${path} (${dd}/${mm}/${yyyy} ${hh}:${min})`;
+  });
+  target.textContent=`Data sources: ${fileLines.join(' · ')}`;
+}
+function buildDashboard(parsed){
+  const {records, maiLabels, strategyLabels}=parsed;
+  const invited=records.filter(r=>String(r.className||'').trim()!=='' && String(r.sn||'').trim()!=='');
+  const respondents=invited.filter(r=>String(r.time||'').trim()!=='');
+  const groupsFound=unique(invited.map(r=>deriveGroup(r.className))).filter(Boolean);
+  const prefOrder=['JC2','JC1','IP4','IP3'];
+  const groupVals=prefOrder.filter(g=>groupsFound.includes(g));
+  const classVals=unique(records.map(r=>r.className).filter(v=>String(v||'').trim()!==''));
   setOptions(document.getElementById('groupFilter'), groupVals, 'All Groups');
   setOptions(document.getElementById('classFilter'), classVals, 'All Classes');
   function applyFilters(){
     const g=document.getElementById('groupFilter').value;
     const c=document.getElementById('classFilter').value;
     const invitedFiltered = invited.filter(r=>{
-      const gr=deriveGroup(r[idxClass]);
+      const gr=deriveGroup(r.className);
       if(g && gr!==g) return false;
-      if(c && String(r[idxClass])!==c) return false;
+      if(c && String(r.className)!==c) return false;
       return true;
     });
     const respondentsFiltered = respondents.filter(r=>{
-      const gr=deriveGroup(r[idxClass]);
+      const gr=deriveGroup(r.className);
       if(g && gr!==g) return false;
-      if(c && String(r[idxClass])!==c) return false;
+      if(c && String(r.className)!==c) return false;
       return true;
     });
     document.getElementById('invitedCount').textContent=String(invitedFiltered.length);
@@ -271,10 +323,9 @@ function buildDashboard(data){
     const rate=invitedFiltered.length? respondentsFiltered.length/invitedFiltered.length:0;
     document.getElementById('responseRate').textContent=fmtPct(rate);
     const tfTable=document.getElementById('tfTable'); tfTable.innerHTML='';
-    const tfStart=colToIndex('K'), tfEnd=colToIndex('BJ');
-    for(let i=tfStart;i<=tfEnd;i++){
-      const label=cleanLabel(header[i]||('Q '+i));
-      const counts=computeCounts(respondentsFiltered, i, v=>String(v).toLowerCase()==='true');
+    for(let item=1;item<=52;item++){
+      const label=maiLabels[item]||(`Item ${item}`);
+      const counts=computeCounts(respondentsFiltered, r=>r.mai[item], v=>String(v).trim().toLowerCase()==='true');
       renderBars(tfTable, label, counts.pt, counts.pf, {true:'blue', false:'red'}, {t:counts.t, f:counts.f}, counts.d, {true:'True', false:'False'});
     }
     const ktTable=document.getElementById('ktTable'); ktTable.innerHTML='';
@@ -291,8 +342,7 @@ function buildDashboard(data){
     function renderCategory(name){
       let tSum=0,dSum=0;
       KT[name].forEach(q=>{
-        const idx=itemIndexFromNumber(q);
-        const cts=computeCounts(respondentsFiltered, idx, v=>String(v).toLowerCase()==='true');
+        const cts=computeCounts(respondentsFiltered, r=>r.mai[q], v=>String(v).trim().toLowerCase()==='true');
         tSum+=cts.t; dSum+=cts.d;
       });
       const denom = dSum;
@@ -305,12 +355,11 @@ function buildDashboard(data){
     const rocHead=document.createElement('div'); rocHead.className='subhead'; rocHead.textContent='REGULATION OF COGNITION'; rocHead.style.gridColumn='1 / -1'; ktTable.appendChild(rocHead);
     ['Planning','Information Management Strategies','Comprehension Monitoring','Debugging Strategies','Evaluation'].forEach(renderCategory);
     const yTable=document.getElementById('yTable'); yTable.innerHTML='';
-    const yStart=colToIndex('BK'), yEnd=colToIndex('BQ');
     const yNote=document.getElementById('yNote');
     const yLegend=document.getElementById('yLegend');
     const yStem=document.getElementById('yStem');
-    const classGroup = c ? deriveGroup(c) : '';
-    const suppress = (g && g!=='JC2') || (classGroup && classGroup!=='JC2');
+    const yRows=respondentsFiltered.filter(r=>deriveGroup(r.className)==='JC2');
+    const suppress = yRows.length===0;
     if(suppress){
       yNote.textContent='This part of the survey was not administered for the selected group.';
       yLegend.style.display='none';
@@ -323,25 +372,21 @@ function buildDashboard(data){
       yStem.style.display='';
       yTable.style.display='';
     }
-    for(let i=yStart;i<=yEnd;i++){
-      const label=cleanLabel(header[i]||('Strategy '+i));
-      let yCount=0;
-      for(const r of respondentsFiltered){
-        const v=r[i];
-        if(v!==undefined && String(v).trim().toUpperCase()==='Y') yCount++;
-      }
-      const denom = respondentsFiltered.length;
-      const pY = denom ? yCount/denom : 0;
-      renderBars(yTable, label, pY, 1-pY, {true:'blue', false:'gray'}, {t:yCount, f:denom - yCount}, denom, {true:'Y', false:'Not Y'});
+    const strategyCount=strategyLabels.length;
+    for(let i=0;i<strategyCount;i++){
+      const label=strategyLabels[i]||(`Strategy ${i+1}`);
+      const counts=computeCounts(yRows, r=>r.strategies[i], v=>String(v).trim().toUpperCase()==='Y');
+      renderBars(yTable, label, counts.pt, counts.pf, {true:'blue', false:'gray'}, {t:counts.t, f:counts.f}, counts.d, {true:'Y', false:'Not Y'});
     }
     const oeCard=document.getElementById('oeCard');
-    const classGroupForOE = c ? deriveGroup(c) : '';
-    if((g && (g==='IP3' || g==='IP4')) || (classGroupForOE && (classGroupForOE==='IP3' || classGroupForOE==='IP4'))){
+    const oeRows=respondentsFiltered.filter(r=>{
+      const grp=deriveGroup(r.className);
+      return grp==='IP3' || grp==='IP4';
+    });
+    if(oeRows.length>0){
       oeCard.style.display='';
-      const idxQ56 = colToIndex('BK');
-      const idxQ57 = colToIndex('BL');
-      const refTexts = idxQ56!==-1 ? respondentsFiltered.map(r=>normalizeText(r[idxQ56])).filter(t=>t.length>0) : [];
-      const planTexts = idxQ57!==-1 ? respondentsFiltered.map(r=>normalizeText(r[idxQ57])).filter(t=>t.length>0) : [];
+      const refTexts = oeRows.map(r=>normalizeText(r.reflection)).filter(t=>t.length>0);
+      const planTexts = oeRows.map(r=>normalizeText(r.plan)).filter(t=>t.length>0);
       const refThemes = [
         {name:'Time management', keywords:['time management','manage time','timing','schedule','planner','plan time']},
         {name:'Procrastination', keywords:['procrastinat']},
@@ -386,14 +431,9 @@ function parseCSV(path){
   return new Promise((resolve)=>Papa.parse(path,{download:true,dynamicTyping:false,skipEmptyLines:false,complete:(res)=>resolve(res)}));
 }
 Promise.all(CSV_PATHS.map(parseCSV)).then(results=>{
-  let header = results[0].data[0];
-  results.forEach(r=>{ if(r.data[0].length>header.length) header = r.data[0]; });
-  const rows = [];
-  results.forEach(r=>{
-    const d=r.data;
-    for(let i=1;i<d.length;i++){ rows.push(d[i]); }
-  });
-  buildDashboard([header, ...rows]);
+  const parsed=parseSurveyResults(results);
+  renderDataMeta();
+  buildDashboard(parsed);
 });
 </script>
 </body>
