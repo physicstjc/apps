@@ -13,7 +13,7 @@ body{font-family:Inter,system-ui,Arial,sans-serif;margin:0;background:#f7f7f9;co
 .title{font-size:22px;font-weight:600}
 .controls{display:flex;gap:12px;flex-wrap:wrap}
 select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
 .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px}
 .card h2{font-size:16px;margin:0 0 10px 0}
 .metric{display:flex;gap:16px;flex-wrap:wrap}
@@ -93,8 +93,7 @@ select,.pill{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;backgro
     <div class="section-actions">
       <h2>Strategies that students find effective in developing their metacognitive skills</h2>
       <div id="yLegend" class="legend">
-        <span><span class="swatch blue"></span>Y</span>
-        <span><span class="swatch gray"></span>Not Y</span>
+        <span><span class="swatch blue"></span>Yes Count</span>
       </div>
     </div>
     <div id="yStem" class="tiny"></div>
@@ -191,6 +190,18 @@ function renderBars(container, label, pTrue, pFalse, colors, counts, denom, segN
   b.title = `${tName}: ${tPct}% • ${tCount}/${denom||0}`;
   r.title = `${fName}: ${fPct}% • ${fCount}/${denom||0}`;
   bar.appendChild(b); bar.appendChild(r);
+  container.appendChild(l); container.appendChild(bar);
+}
+function renderCountBar(container, label, count, maxCount, denom){
+  const l=document.createElement('div'); l.className='label'; l.textContent=label;
+  const bar=document.createElement('div'); bar.className='bar';
+  const b=document.createElement('div'); b.className='blue seg';
+  const width=maxCount>0 ? (count/maxCount)*100 : 0;
+  b.style.width=width+'%';
+  b.textContent=String(count);
+  const pct = denom>0 ? Math.round((count/denom)*1000)/10 : 0;
+  b.title = `Y: ${count}/${denom||0} (${pct}%)`;
+  bar.appendChild(b);
   container.appendChild(l); container.appendChild(bar);
 }
 function setOptions(sel, values, label){
@@ -373,10 +384,15 @@ function buildDashboard(parsed){
       yTable.style.display='';
     }
     const strategyCount=strategyLabels.length;
+    const strategyCounts=[];
     for(let i=0;i<strategyCount;i++){
       const label=strategyLabels[i]||(`Strategy ${i+1}`);
       const counts=computeCounts(yRows, r=>r.strategies[i], v=>String(v).trim().toUpperCase()==='Y');
-      renderBars(yTable, label, counts.pt, counts.pf, {true:'blue', false:'gray'}, {t:counts.t, f:counts.f}, counts.d, {true:'Y', false:'Not Y'});
+      strategyCounts.push({label, yCount:counts.t, denom:counts.d});
+    }
+    const maxYCount = strategyCounts.length ? Math.max(...strategyCounts.map(s=>s.yCount)) : 0;
+    for(const s of strategyCounts){
+      renderCountBar(yTable, s.label, s.yCount, maxYCount, s.denom);
     }
     const oeCard=document.getElementById('oeCard');
     const oeRows=respondentsFiltered.filter(r=>{
