@@ -335,7 +335,11 @@ function buildDashboard(parsed){
     document.getElementById('responseRate').textContent=fmtPct(rate);
     const tfTable=document.getElementById('tfTable'); tfTable.innerHTML='';
     for(let item=1;item<=52;item++){
-      const label=maiLabels[item]||(`Item ${item}`);
+      const baseLabel=maiLabels[item]||(`Item ${item}`);
+      const cleanedBaseLabel=String(baseLabel)
+        .replace(/^\s*(?:Q\s*)?\d+\s*[)\].:-]?\s*/i,'')
+        .trim();
+      const label=`${item}) ${cleanedBaseLabel}`;
       const counts=computeCounts(respondentsFiltered, r=>r.mai[item], v=>String(v).trim().toLowerCase()==='true');
       renderBars(tfTable, label, counts.pt, counts.pf, {true:'blue', false:'red'}, {t:counts.t, f:counts.f}, counts.d, {true:'True', false:'False'});
     }
