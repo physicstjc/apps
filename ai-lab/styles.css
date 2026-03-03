@@ -1,0 +1,147 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #0f1115;
+  color: #eff3f8;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 8, 14, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.preview-overlay.hidden {
+  display: none;
+}
+
+.preview-card {
+  width: min(1020px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  background: #0f1722;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.preview-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+#previewClose {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eff3f8;
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.preview-body {
+  padding: 10px;
+  overflow: auto;
+  max-height: calc(100vh - 104px);
+}
+
+#previewImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+canvas {
+  display: block;
+}
+
+.hud {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: min(430px, calc(100vw - 32px));
+  background: rgba(20, 24, 32, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  padding: 14px 16px;
+  z-index: 5;
+}
+
+.hud h1 {
+  font-size: 1.2rem;
+  margin: 0 0 6px;
+}
+
+.hud p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+button {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eff3f8;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+button.active {
+  background: rgba(78, 155, 255, 0.35);
+  border-color: rgba(78, 155, 255, 0.9);
+}
+
+ul {
+  margin: 0;
+  padding-left: 18px;
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .controls {
+    flex-direction: column;
+  }
+}

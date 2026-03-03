@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Block C AI Labs - 3D Mockup</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="previewOverlay" class="preview-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+      <div class="preview-card">
+        <div class="preview-header">
+          <h2 id="previewTitle">Display Preview</h2>
+          <button id="previewClose" aria-label="Close preview">✕</button>
+        </div>
+        <div class="preview-body">
+          <img id="previewImage" alt="Display close up" />
+        </div>
+      </div>
+    </div>
+
+    <div class="hud">
+      <h1>Block C · AI Labs</h1>
+      <p>Interactive 3D mockup (Option 1: 1 big room + 2 small rooms)</p>
+      <div class="controls">
+        <button id="option1" class="active">Option 1 Layout</button>
+        <button id="option2">Option 2 Layout</button>
+        <button id="openStudio">Open Studio Layout</button>
+      </div>
+      <ul>
+        <li><strong>Mouse drag</strong>: orbit</li>
+        <li><strong>Mouse wheel</strong>: zoom</li>
+        <li><strong>Right drag</strong>: pan</li>
+      </ul>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
