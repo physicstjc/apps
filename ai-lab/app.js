@@ -633,6 +633,231 @@ function makeDataScienceLab2PreviewTexture() {
   return texture;
 }
 
+function makeOutsidePoseRecognitionTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1280;
+  canvas.height = 720;
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, '#112038');
+  gradient.addColorStop(1, '#1f385f');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#a5ecff';
+  ctx.font = '700 52px Inter, sans-serif';
+  ctx.fillText('AI LAB SHOWCASE · POSE RECOGNITION', 36, 64);
+
+  // Camera view panel
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(40, 102, 760, 580);
+  ctx.strokeStyle = 'rgba(170,231,255,0.75)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(40, 102, 760, 580);
+
+  // Skeleton pose mockup
+  ctx.strokeStyle = '#8bf2c8';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(410, 220, 34, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(410, 256);
+  ctx.lineTo(410, 390);
+  ctx.moveTo(410, 285);
+  ctx.lineTo(330, 320);
+  ctx.moveTo(410, 285);
+  ctx.lineTo(492, 320);
+  ctx.moveTo(410, 390);
+  ctx.lineTo(355, 490);
+  ctx.moveTo(410, 390);
+  ctx.lineTo(465, 490);
+  ctx.stroke();
+
+  // Guidance text
+  ctx.fillStyle = '#e7f9ff';
+  ctx.font = '600 30px Inter, sans-serif';
+  ctx.fillText('Try this yoga pose: Warrior II', 74, 650);
+
+  // Right status panel
+  ctx.fillStyle = 'rgba(9,16,28,0.9)';
+  ctx.fillRect(842, 102, 398, 580);
+  ctx.strokeStyle = 'rgba(154, 229, 255, 0.8)';
+  ctx.strokeRect(842, 102, 398, 580);
+
+  ctx.fillStyle = '#9ee8ff';
+  ctx.font = '700 34px Inter, sans-serif';
+  ctx.fillText('Pose Match', 874, 152);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 64px Inter, sans-serif';
+  ctx.fillText('88%', 872, 228);
+
+  ctx.fillStyle = '#99f1cf';
+  ctx.fillRect(874, 264, 320, 28);
+  ctx.fillStyle = '#13212f';
+  ctx.font = '600 22px Inter, sans-serif';
+  ctx.fillText('Great alignment', 886, 286);
+
+  ctx.fillStyle = '#c5efff';
+  ctx.font = '600 24px Inter, sans-serif';
+  ctx.fillText('• Raise left arm slightly', 874, 348);
+  ctx.fillText('• Keep shoulders level', 874, 390);
+  ctx.fillText('• Hold for 10 seconds', 874, 432);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function makeOutsideHeatmapTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1280;
+  canvas.height = 720;
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, '#1c2132');
+  gradient.addColorStop(1, '#25324a');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#b2d8ff';
+  ctx.font = '700 50px Inter, sans-serif';
+  ctx.fillText('AI LAB SHOWCASE · CAMPUS HEATMAP', 34, 62);
+
+  // Map panel
+  const mapX = 42;
+  const mapY = 102;
+  const mapW = 880;
+  const mapH = 580;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(mapX, mapY, mapW, mapH);
+  ctx.strokeStyle = 'rgba(190,221,255,0.75)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(mapX, mapY, mapW, mapH);
+
+  // School block outlines
+  ctx.strokeStyle = 'rgba(230,240,255,0.45)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(mapX + 48, mapY + 56, 260, 170);
+  ctx.strokeRect(mapX + 350, mapY + 64, 220, 150);
+  ctx.strokeRect(mapX + 600, mapY + 90, 230, 210);
+  ctx.strokeRect(mapX + 140, mapY + 290, 300, 220);
+  ctx.strokeRect(mapX + 500, mapY + 340, 280, 180);
+
+  function drawHeatSpot(x, y, r, color) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawHeatSpot(mapX + 180, mapY + 170, 90, 'rgba(255,70,50,0.72)');
+  drawHeatSpot(mapX + 700, mapY + 220, 80, 'rgba(255,140,40,0.66)');
+  drawHeatSpot(mapX + 360, mapY + 470, 95, 'rgba(255,80,80,0.72)');
+  drawHeatSpot(mapX + 640, mapY + 440, 84, 'rgba(255,170,40,0.62)');
+
+  // Legend panel
+  ctx.fillStyle = 'rgba(11,16,28,0.9)';
+  ctx.fillRect(954, 102, 286, 580);
+  ctx.strokeStyle = 'rgba(190,221,255,0.75)';
+  ctx.strokeRect(954, 102, 286, 580);
+
+  ctx.fillStyle = '#cbe6ff';
+  ctx.font = '700 30px Inter, sans-serif';
+  ctx.fillText('Live Stats', 980, 152);
+  ctx.font = '600 22px Inter, sans-serif';
+  ctx.fillText('Students on campus: 612', 980, 204);
+  ctx.fillText('High-density zones: 4', 980, 238);
+  ctx.fillText('Low-density zones: 7', 980, 272);
+
+  ctx.fillStyle = '#dbeeff';
+  ctx.font = '700 24px Inter, sans-serif';
+  ctx.fillText('Heat Index', 980, 338);
+
+  const legendColors = ['#2dd4bf', '#facc15', '#fb923c', '#ef4444'];
+  const legendLabels = ['Low', 'Moderate', 'Busy', 'Very High'];
+  legendColors.forEach((color, index) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(982, 362 + index * 48, 34, 20);
+    ctx.fillStyle = '#f5f9ff';
+    ctx.font = '600 20px Inter, sans-serif';
+    ctx.fillText(legendLabels[index], 1030, 379 + index * 48);
+  });
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function makeSingaporeFlagTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 900;
+  canvas.height = 600;
+  const ctx = canvas.getContext('2d');
+
+  // Red upper half
+  ctx.fillStyle = '#ef3340';
+  ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+
+  // White lower half
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+
+  // Crescent
+  const crescentCx = 185;
+  const crescentCy = 150;
+  const outerR = 74;
+  const innerR = 58;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(crescentCx, crescentCy, outerR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ef3340';
+  ctx.beginPath();
+  ctx.arc(crescentCx + 22, crescentCy, innerR, 0, Math.PI * 2);
+  ctx.fill();
+
+  function drawStar(cx, cy, outer, inner) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const angle = -Math.PI / 2 + (Math.PI * i) / 5;
+      const r = i % 2 === 0 ? outer : inner;
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Five stars
+  ctx.fillStyle = '#ffffff';
+  const stars = [
+    [285, 88],
+    [335, 124],
+    [316, 182],
+    [254, 182],
+    [235, 124]
+  ];
+  stars.forEach(([x, y]) => drawStar(x, y, 17, 7));
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 const backTvTextures = {
   lab1: makeCodePeopleTexture('AI LAB 1 · ROBOTICS CODE', '#7ed3ff'),
   lab2: makeCodePeopleTexture('AI LAB 2 · MODEL OPS', '#b8a4ff'),
@@ -697,12 +922,13 @@ function addTeacherTable(x, roomMinX, roomMaxX) {
   const tableWidth = Math.min(2.2, Math.max(1.5, roomSpan * 0.32));
   const teacherTopMaterial = new THREE.MeshStandardMaterial({ color: 0x4a5566, roughness: 0.52, metalness: 0.18 });
   const teacherLegMaterial = new THREE.MeshStandardMaterial({ color: 0x2f3744, roughness: 0.5, metalness: 0.32 });
+  const teacherTableZ = roomDepth / 2 - 1.35;
 
   const top = new THREE.Mesh(
     new THREE.BoxGeometry(tableWidth, 0.1, 0.9),
     teacherTopMaterial
   );
-  top.position.set(x, 0.76, frontZ + 1.45);
+  top.position.set(x, 0.76, teacherTableZ);
   top.castShadow = true;
   top.receiveShadow = true;
   roomGroup.add(top);
@@ -710,7 +936,7 @@ function addTeacherTable(x, roomMinX, roomMaxX) {
   for (const legX of [-tableWidth / 2 + 0.12, tableWidth / 2 - 0.12]) {
     for (const legZ of [-0.34, 0.34]) {
       const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.08), teacherLegMaterial);
-      leg.position.set(x + legX, 0.36, frontZ + 1.45 + legZ);
+      leg.position.set(x + legX, 0.36, teacherTableZ + legZ);
       roomGroup.add(leg);
     }
   }
@@ -792,56 +1018,74 @@ function createRoundTableCluster(zoneCenterX, roomMinX, roomMaxX, options = {}) 
   const preferredClusterWidth = options.clusterWidth ?? Math.max(1.5, roomUsableWidth - 3.3);
   const clusterWidth = Math.min(preferredClusterWidth, maxClusterWidth);
 
-  const frontClearanceZ = frontZ + 3.2;
+  const frontClearanceZ = frontZ + 2.3;
   const backClearanceZ = roomDepth / 2 - safeRadius - 0.08;
   const maxAllowedPitch = rowCount > 1 ? (backClearanceZ - frontClearanceZ) / (rowCount - 1) : 0;
   const preferredPitch = options.rowPitch ?? 2.35;
   const rowPitch = rowCount > 1 ? Math.max(0.5, Math.min(preferredPitch, maxAllowedPitch)) : 0;
   const startZ = frontClearanceZ;
+  const skipBackCount = options.skipBackCount ?? 0;
+
+  const candidatePlacements = [];
+  for (let row = 0; row < rowCount; row += 1) {
+    for (let col = 0; col < columnCount; col += 1) {
+      const xOffset = columnCount === 1 ? 0 : (col / (columnCount - 1) - 0.5) * clusterWidth;
+      candidatePlacements.push({
+        x: zoneCenterX + xOffset,
+        z: startZ + row * rowPitch
+      });
+    }
+  }
+
+  // Remove tables closest to teacher table (back wall side) when requested.
+  const sortedByBack = [...candidatePlacements].sort((a, b) => b.z - a.z);
+  const skipSet = new Set(sortedByBack.slice(0, skipBackCount).map((placement) => `${placement.x.toFixed(3)}:${placement.z.toFixed(3)}`));
+  const placements = candidatePlacements.filter((placement) => !skipSet.has(`${placement.x.toFixed(3)}:${placement.z.toFixed(3)}`));
+
   let createdTables = 0;
 
-  for (let row = 0; row < rowCount && createdTables < maxTables; row += 1) {
-    for (let col = 0; col < columnCount && createdTables < maxTables; col += 1) {
-      const xOffset = columnCount === 1 ? 0 : (col / (columnCount - 1) - 0.5) * clusterWidth;
-      const x = zoneCenterX + xOffset;
-      const z = startZ + row * rowPitch;
-
-      const sectorGap = 0.02;
-      const sectorLength = Math.PI * 2 / 3 - sectorGap;
-
-      for (let section = 0; section < 3; section += 1) {
-        const thetaStart = (Math.PI * 2 * section) / 3 + sectorGap / 2;
-        const sectorTop = new THREE.Mesh(
-          new THREE.CylinderGeometry(tableRadius, tableRadius, 0.08, 36, 1, false, thetaStart, sectorLength),
-          topMaterial
-        );
-        sectorTop.position.set(x, 0.8, z);
-        sectorTop.castShadow = true;
-        sectorTop.receiveShadow = true;
-        roomGroup.add(sectorTop);
-      }
-
-      const tableEdge = new THREE.Mesh(new THREE.TorusGeometry(tableRadius - 0.02, 0.02, 12, 48), edgeMaterial);
-      tableEdge.rotation.x = Math.PI / 2;
-      tableEdge.position.set(x, 0.84, z);
-      roomGroup.add(tableEdge);
-
-      const centerHub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 20), edgeMaterial);
-      centerHub.position.set(x, 0.85, z);
-      roomGroup.add(centerHub);
-
-      const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.72, 20), legMaterial);
-      pedestal.position.set(x, 0.42, z);
-      roomGroup.add(pedestal);
-
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.05, 24), legMaterial);
-      base.position.set(x, 0.04, z);
-      roomGroup.add(base);
-
-      addSixChairsAroundTable(x, z);
-      addLaptop(x + 0.12, 0.85, z - 0.08, Math.PI * 0.2);
-      createdTables += 1;
+  for (const placement of placements) {
+    if (createdTables >= maxTables) {
+      break;
     }
+    const x = placement.x;
+    const z = placement.z;
+
+    const sectorGap = 0.02;
+    const sectorLength = Math.PI * 2 / 3 - sectorGap;
+
+    for (let section = 0; section < 3; section += 1) {
+      const thetaStart = (Math.PI * 2 * section) / 3 + sectorGap / 2;
+      const sectorTop = new THREE.Mesh(
+        new THREE.CylinderGeometry(tableRadius, tableRadius, 0.08, 36, 1, false, thetaStart, sectorLength),
+        topMaterial
+      );
+      sectorTop.position.set(x, 0.8, z);
+      sectorTop.castShadow = true;
+      sectorTop.receiveShadow = true;
+      roomGroup.add(sectorTop);
+    }
+
+    const tableEdge = new THREE.Mesh(new THREE.TorusGeometry(tableRadius - 0.02, 0.02, 12, 48), edgeMaterial);
+    tableEdge.rotation.x = Math.PI / 2;
+    tableEdge.position.set(x, 0.84, z);
+    roomGroup.add(tableEdge);
+
+    const centerHub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 20), edgeMaterial);
+    centerHub.position.set(x, 0.85, z);
+    roomGroup.add(centerHub);
+
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.72, 20), legMaterial);
+    pedestal.position.set(x, 0.42, z);
+    roomGroup.add(pedestal);
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.05, 24), legMaterial);
+    base.position.set(x, 0.04, z);
+    roomGroup.add(base);
+
+    addSixChairsAroundTable(x, z);
+    addLaptop(x + 0.12, 0.85, z - 0.08, Math.PI * 0.2);
+    createdTables += 1;
   }
 }
 
@@ -940,11 +1184,12 @@ function addLab1CageDisplays() {
 }
 
 function addLab1PlayTableRoadAndCars() {
-  const tableCenterX = roomBands.lab1.minX + 3.2;
-  const tableCenterZ = roomDepth / 2 - 1.35;
   const playTableWidth = 4.6;
   const playTableDepth = 2.7;
   const playTopY = 0.78;
+  const cornerClearance = 0.45;
+  const tableCenterX = roomBands.lab1.minX + playTableWidth / 2 + cornerClearance;
+  const tableCenterZ = roomDepth / 2 - playTableDepth / 2 - cornerClearance;
 
   const top = new THREE.Mesh(
     new THREE.BoxGeometry(playTableWidth, 0.1, playTableDepth),
@@ -1237,6 +1482,7 @@ function addLab1DisplayShelvesAndSideTables() {
 }
 
 function addBackWallTvScreens() {
+  const backWallDisplayRotation = Math.PI;
   const tvSpecs = [
     { key: 'lab1', x: roomCenters.lab1, texture: backTvTextures.lab1 },
     { key: 'lab2', x: roomCenters.lab2, texture: backTvTextures.lab2 },
@@ -1255,12 +1501,76 @@ function addBackWallTvScreens() {
       new THREE.PlaneGeometry(3.45, 1.9),
       new THREE.MeshStandardMaterial({ map: spec.texture, roughness: 0.25, metalness: 0.05, side: THREE.DoubleSide })
     );
-    tvScreen.position.set(spec.x, 2.35, roomDepth / 2 - 0.13);
-    tvScreen.rotation.y = Math.PI;
+    tvScreen.position.set(spec.x, 2.35, roomDepth / 2 - 0.27);
+    tvScreen.rotation.y = backWallDisplayRotation;
     roomGroup.add(tvScreen);
     registerDisplayPreview(tvScreen, 'TV Screen Preview', backTvClickPreviewTextures[spec.key] ?? spec.texture);
     addClickMe3DLabel(spec.x + 1.22, 3.02, roomDepth / 2 - 0.08);
   });
+}
+
+function addOutsideShowcaseScreens() {
+  const outsideShowcase = [
+    {
+      x: roomCenters.lab1 + 0.3,
+      z: frontZ - 1.75,
+      title: 'Outside Showcase · Pose Recognition',
+      texture: makeOutsidePoseRecognitionTexture()
+    },
+    {
+      x: roomCenters.lab3 - 0.6,
+      z: frontZ - 1.75,
+      title: 'Outside Showcase · Campus Heatmap',
+      texture: makeOutsideHeatmapTexture()
+    }
+  ];
+
+  outsideShowcase.forEach((item) => {
+    const stand = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 2.0, 0.16),
+      new THREE.MeshStandardMaterial({ color: 0x2b3443, roughness: 0.5, metalness: 0.38 })
+    );
+    stand.position.set(item.x, 1.0, item.z);
+    roomGroup.add(stand);
+
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(3.1, 1.95, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0x1f2735, roughness: 0.42, metalness: 0.34 })
+    );
+    frame.position.set(item.x, 2.2, item.z);
+    frame.rotation.y = Math.PI;
+    roomGroup.add(frame);
+
+    const screen = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.8, 1.65),
+      new THREE.MeshStandardMaterial({ map: item.texture, roughness: 0.25, metalness: 0.06, side: THREE.DoubleSide })
+    );
+    screen.position.set(item.x, 2.2, item.z - 0.06);
+    screen.rotation.y = Math.PI;
+    roomGroup.add(screen);
+    registerDisplayPreview(screen, item.title, item.texture);
+    addClickMe3DLabel(item.x + 1.0, 3.05, item.z - 0.12);
+  });
+}
+
+function addLab3SingaporeFlag() {
+  const flagTexture = makeSingaporeFlagTexture();
+
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(2.0, 1.35, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x313b4c, roughness: 0.45, metalness: 0.28 })
+  );
+  frame.position.set(roomBands.lab3.maxX - 0.14, 2.35, roomDepth / 2 - 2.8);
+  frame.rotation.y = -Math.PI / 2;
+  roomGroup.add(frame);
+
+  const flagPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.84, 1.22),
+    new THREE.MeshStandardMaterial({ map: flagTexture, roughness: 0.24, metalness: 0.05, side: THREE.DoubleSide })
+  );
+  flagPanel.position.set(roomBands.lab3.maxX - 0.21, 2.35, roomDepth / 2 - 2.8);
+  flagPanel.rotation.y = -Math.PI / 2;
+  roomGroup.add(flagPanel);
 }
 
 function addPeopleFigurines() {
@@ -1412,19 +1722,21 @@ function addPeopleFigurines() {
     addLaptop(laptopX, 0.83, laptopZ, anchor.rotationY);
   });
 
-  // Teacher walking to and fro in front of Lab 3 classroom.
-  const teacherMesh = createWalkingTeacher(roomCenters.lab3 - 1.2, frontZ + 1.55, 0, darkCloth);
+  // Teacher walking to and fro near the back teaching zone in Lab 3.
+  const teacherBackLaneZ = roomDepth / 2 - 2.35;
+  const teacherMesh = createWalkingTeacher(roomCenters.lab3 - 1.0, teacherBackLaneZ, 0, darkCloth);
   walkingTeachers.push({
     mesh: teacherMesh,
-    startX: roomCenters.lab3 - 1.0,
-    endX: roomCenters.lab3 + 1.0,
-    z: frontZ + 0.72,
+    startX: roomCenters.lab3 - 0.9,
+    endX: roomCenters.lab3 + 0.9,
+    z: teacherBackLaneZ,
     speed: 0.9,
     phase: 0
   });
 }
 
 function addLab1ScientificPosters() {
+  const backWallDisplayRotation = Math.PI;
   function makePosterTexture(title, subtitle, accent, mockLines) {
     const canvas = document.createElement('canvas');
     canvas.width = 700;
@@ -1519,8 +1831,8 @@ function addLab1ScientificPosters() {
       new THREE.PlaneGeometry(1.75, 2.45),
       new THREE.MeshStandardMaterial({ map: poster.texture, roughness: 0.22, metalness: 0.05, side: THREE.DoubleSide })
     );
-    panel.position.set(poster.x, 2.2, roomDepth / 2 - 0.13);
-    panel.rotation.y = 0;
+    panel.position.set(poster.x, 2.2, roomDepth / 2 - 0.24);
+    panel.rotation.y = backWallDisplayRotation;
     roomGroup.add(panel);
     registerDisplayPreview(panel, 'Scientific Poster Preview', poster.texture);
     addClickMe3DLabel(poster.x + 0.55, 3.45, roomDepth / 2 - 0.08);
@@ -1528,21 +1840,31 @@ function addLab1ScientificPosters() {
 }
 
 createRoundTableCluster(roomCenters.lab1 + 0.9, roomBands.lab1.minX, roomBands.lab1.maxX, {
-  columnCount: 2,
-  rowCount: 4,
-  maxTables: 8,
-  clusterWidth: 2.85,
-  rowPitch: 2.5
+  columnCount: 3,
+  rowCount: 3,
+  maxTables: 9,
+  clusterWidth: 4.8,
+  rowPitch: 3.0
 });
-createRoundTableCluster(roomCenters.lab2, roomBands.lab2.minX, roomBands.lab2.maxX);
-createRoundTableCluster(roomCenters.lab3, roomBands.lab3.minX, roomBands.lab3.maxX);
+createRoundTableCluster(roomCenters.lab2, roomBands.lab2.minX, roomBands.lab2.maxX, {
+  skipBackCount: 2,
+  clusterWidth: 3.0,
+  rowPitch: 2.75
+});
+createRoundTableCluster(roomCenters.lab3, roomBands.lab3.minX, roomBands.lab3.maxX, {
+  skipBackCount: 2,
+  clusterWidth: 3.0,
+  rowPitch: 2.75
+});
 addLab1DisplayShelvesAndSideTables();
 addLab1CageDisplays();
 addLab1PlayTableRoadAndCars();
 addHoveringDroneSwarm();
 addBackWallTvScreens();
+addLab3SingaporeFlag();
 addLab1ScientificPosters();
 addPeopleFigurines();
+addOutsideShowcaseScreens();
 
 const partitionSet = [partition1, partition2];
 let currentMode = 'option1';
