@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>In-Browser Video to GIF Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col items-center justify-center p-6">
+
+    <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-2xl p-8 border border-gray-700">
+        <h1 class="text-3xl font-bold text-center mb-2 text-indigo-400">Video to GIF Converter</h1>
+        <p class="text-gray-400 text-center text-sm mb-6">100% local browser processing. No servers, no tracking.</p>
+
+        <div id="statusMessage" class="mb-4 text-center text-sm font-semibold text-yellow-400">
+            Initializing FFmpeg core components...
+        </div>
+
+        <div id="appInterface" class="hidden space-y-6">
+            
+            <div class="flex items-center justify-center w-full">
+                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-700 hover:bg-gray-600 transition">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <svg class="w-8 h-8 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="mb-2 text-sm text-gray-300"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                        <p class="text-xs text-gray-400" id="fileNameDisplay">MP4, WebM, MOV, etc.</p>
+                    </div>
+                    <input id="videoInput" type="file" accept="video/*" class="hidden" />
+                </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 bg-gray-750 p-4 rounded-lg border border-gray-700 text-sm">
+                <div>
+                    <label class="block text-gray-400 mb-1">FPS (Frame Rate)</label>
+                    <input id="fpsInput" type="number" value="10" min="1" max="30" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-400 mb-1">Width (Pixels)</label>
+                    <input id="widthInput" type="number" value="480" min="100" max="1920" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <button id="convertBtn" disabled class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition shadow-lg">
+                Convert to GIF
+            </button>
+
+            <div id="outputContainer" class="hidden space-y-4 pt-4 border-t border-gray-700">
+                <h3 class="text-lg font-medium text-center text-green-400">Conversion Complete!</h3>
+                <div class="flex justify-center bg-gray-900 rounded-lg p-2 max-h-64 overflow-hidden">
+                    <img id="gifResult" src="" alt="Generated GIF" class="object-contain max-h-60 rounded">
+                </div>
+                <a id="downloadBtn" href="#" download="converted.gif" class="block text-center w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg transition">
+                    Download GIF
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+
+    <script>
+        const { FFmpeg } = FFmpegWasm;
+        const { fetchFile, toBlobURL } = FFmpegUtil;
+
+        let ffmpeg = null;
+        let selectedFile = null;
+
+        // DOM Elements
+        const statusMessage = document.getElementById('statusMessage');
+        const appInterface = document.getElementById('appInterface');
+        const videoInput = document.getElementById('videoInput');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const convertBtn = document.getElementById('convertBtn');
+        const fpsInput = document.getElementById('fpsInput');
+        const widthInput = document.getElementById('widthInput');
+        const outputContainer = document.getElementById('outputContainer');
+        const gifResult = document.getElementById('gifResult');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // 1. Initialize FFmpeg
+        async function initFFmpeg() {
+            try {
+                ffmpeg = new FFmpeg();
+                
+                // Track progress inside FFmpeg
+                ffmpeg.on('log', ({ message }) => {
+                    console.log(message);
+                    if (message.includes('frame=')) {
+                        statusMessage.textContent = "Processing frames... " + message.substring(0, 30);
+                    }
+                });
+
+                const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+                await ffmpeg.load({
+                    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                });
+
+                statusMessage.classList.add('hidden');
+                appInterface.classList.remove('hidden');
+            } catch (error) {
+                console.error(error);
+                statusMessage.textContent = "Failed to load processing engine. Ensure you are running via a local web server.";
+                statusMessage.className = "text-red-400 font-semibold text-center text-sm";
+            }
+        }
+
+        // 2. Handle File Selection
+        videoInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                fileNameDisplay.textContent = `${selectedFile.name} (${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)`;
+                convertBtn.disabled = false;
+                outputContainer.classList.add('hidden');
+            }
+        });
+
+        // 3. Process Video to GIF
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // UI Feedback
+            convertBtn.disabled = true;
+            statusMessage.classList.remove('hidden');
+            statusMessage.textContent = "Writing file to virtual memory...";
+
+            const inputName = 'input_video';
+            const outputName = 'output.gif';
+            const fps = fpsInput.value || 10;
+            const width = widthInput.value || 480;
+
+            try {
+                // Write the file to FFmpeg's virtual filesystem
+                await ffmpeg.writeFile(inputName, await fetchFile(selectedFile));
+                
+                statusMessage.textContent = "Generating high-quality GIF color palette...";
+                
+                // We use a two-pass approach with FFmpeg to generate a high-quality GIF palette.
+                // Pass 1: Analyze video colors to create a custom palette.
+                await ffmpeg.exec([
+                    '-i', inputName, 
+                    '-vf', `fps=${fps},scale=${width}:-1:flags=lanczos,palettegen`, 
+                    'palette.png'
+                ]);
+
+                statusMessage.textContent = "Encoding GIF from palette...";
+
+                // Pass 2: Map video frames to the created palette for clean, vibrant output.
+                await ffmpeg.exec([
+                    '-i', inputName, 
+                    '-i', 'palette.png', 
+                    '-filter_complex', `fps=${fps},scale=${width}:-1:flags=lanczos[x];[x][1:v]paletteuse`, 
+                    outputName
+                ]);
+
+                // Read output from filesystem
+                statusMessage.textContent = "Finalizing elements...";
+                const data = await ffmpeg.readFile(outputName);
+                
+                // Create object URL for the image and download link
+                const gifBlob = new Blob([data.buffer], { type: 'image/gif' });
+                const gifUrl = URL.createObjectURL(gifBlob);
+
+                gifResult.src = gifUrl;
+                downloadBtn.href = gifUrl;
+                
+                // Show Output
+                outputContainer.classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                alert("An error occurred during conversion.");
+            } finally {
+                statusMessage.classList.add('hidden');
+                convertBtn.disabled = false;
+            }
+        });
+
+        // Start the engine on page load
+        initFFmpeg();
+    </script>
+</body>
+</html>
