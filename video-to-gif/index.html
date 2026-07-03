@@ -1,183 +1,614 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>In-Browser Video to GIF Converter</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MOV → GIF Converter</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0c0c14;
+      color: #e0e0f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 64px;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .hero h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      margin-top: 8px;
+      color: #6b7280;
+      font-size: 0.92rem;
+    }
+
+    .card {
+      background: #16161f;
+      border: 1px solid #2a2a3d;
+      border-radius: 18px;
+      padding: 28px;
+      width: 100%;
+      max-width: 580px;
+      margin-bottom: 20px;
+    }
+
+    /* ---- Drop zone ---- */
+    .drop-zone {
+      position: relative;
+      border: 2px dashed #383858;
+      border-radius: 12px;
+      padding: 44px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #a78bfa;
+      background: rgba(167, 139, 250, 0.04);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .drop-icon { font-size: 2.8rem; margin-bottom: 10px; }
+    .drop-zone h3 { font-size: 1.05rem; color: #d1d5db; margin-bottom: 5px; }
+    .drop-zone p  { font-size: 0.82rem; color: #6b7280; }
+
+    /* ---- File pill ---- */
+    .file-pill {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      background: rgba(167, 139, 250, 0.08);
+      border: 1px solid rgba(167, 139, 250, 0.2);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 0.84rem;
+      color: #a78bfa;
+      overflow: hidden;
+    }
+    .file-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ---- Settings grid ---- */
+    .settings {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 22px;
+    }
+    .setting-group {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .setting-group.full { grid-column: span 2; }
+    .setting-group label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+    }
+    .setting-group label .val {
+      color: #a78bfa;
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    select {
+      appearance: none;
+      background: #1e1e2e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b7280' d='M6 8L0 0h12z'/%3E%3C/svg%3E") no-repeat right 12px center;
+      border: 1px solid #383858;
+      border-radius: 8px;
+      color: #e0e0f0;
+      padding: 9px 32px 9px 12px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    select:focus { outline: none; border-color: #a78bfa; }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #a78bfa;
+      cursor: pointer;
+      height: 4px;
+    }
+
+    /* ---- Convert button ---- */
+    .convert-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 22px;
+      padding: 13px;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .convert-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+    .convert-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ---- Status badge ---- */
+    .status-badge {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      background: rgba(167, 139, 250, 0.08);
+      border: 1px solid rgba(167, 139, 250, 0.18);
+      border-radius: 100px;
+      padding: 5px 12px;
+      margin-bottom: 18px;
+      color: #a78bfa;
+    }
+    .spinner {
+      width: 11px; height: 11px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Progress ---- */
+    .progress-section { display: none; margin-top: 20px; }
+    .progress-track {
+      background: #1e1e2e;
+      border-radius: 100px;
+      height: 7px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7c3aed, #2563eb);
+      border-radius: 100px;
+      transition: width 0.35s ease;
+    }
+    .progress-label { font-size: 0.83rem; color: #6b7280; }
+
+    details { margin-top: 10px; }
+    details summary {
+      font-size: 0.78rem;
+      color: #4b5563;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+    }
+    details summary::before { content: '▶ '; font-size: 0.7rem; }
+    details[open] summary::before { content: '▼ '; }
+    .log-box {
+      background: #0a0a10;
+      border: 1px solid #2a2a3d;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      color: #4b5563;
+      max-height: 130px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ---- Output card ---- */
+    #outputCard { display: none; }
+    #outputCard h2 { font-size: 1rem; margin-bottom: 14px; color: #d1d5db; }
+    .gif-wrap {
+      background: repeating-conic-gradient(#1e1e2e 0% 25%, #16161f 0% 50%) 0 0 / 16px 16px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 14px;
+      line-height: 0;
+    }
+    .gif-wrap img { width: 100%; display: block; }
+    .gif-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin-bottom: 14px;
+    }
+    .download-btn {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid #2563eb;
+      border-radius: 10px;
+      color: #60a5fa;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .download-btn:hover { background: rgba(37, 99, 235, 0.12); }
+    .reset-btn {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      background: transparent;
+      border: 1px solid #383858;
+      border-radius: 10px;
+      color: #6b7280;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .reset-btn:hover { background: rgba(255,255,255,0.04); color: #d1d5db; }
+
+    /* ---- Footer ---- */
+    footer {
+      margin-top: 28px;
+      font-size: 0.78rem;
+      color: #374151;
+      text-align: center;
+      line-height: 1.7;
+    }
+  </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col items-center justify-center p-6">
+<body>
 
-    <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-2xl p-8 border border-gray-700">
-        <h1 class="text-3xl font-bold text-center mb-2 text-indigo-400">Video to GIF Converter</h1>
-        <p class="text-gray-400 text-center text-sm mb-6">100% local browser processing. No servers, no tracking.</p>
+  <div class="hero">
+    <h1>MOV → GIF</h1>
+    <p>Browser-based converter &nbsp;·&nbsp; No upload &nbsp;·&nbsp; Powered by FFmpeg WebAssembly</p>
+  </div>
 
-        <div id="statusMessage" class="mb-4 text-center text-sm font-semibold text-yellow-400">
-            Initializing FFmpeg core components...
-        </div>
+  <!-- Main card -->
+  <div class="card" id="mainCard">
 
-        <div id="appInterface" class="hidden space-y-6">
-            
-            <div class="flex items-center justify-center w-full">
-                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-700 hover:bg-gray-600 transition">
-                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg class="w-8 h-8 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                        <p class="mb-2 text-sm text-gray-300"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-                        <p class="text-xs text-gray-400" id="fileNameDisplay">MP4, WebM, MOV, etc.</p>
-                    </div>
-                    <input id="videoInput" type="file" accept="video/*" class="hidden" />
-                </label>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 bg-gray-750 p-4 rounded-lg border border-gray-700 text-sm">
-                <div>
-                    <label class="block text-gray-400 mb-1">FPS (Frame Rate)</label>
-                    <input id="fpsInput" type="number" value="10" min="1" max="30" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-gray-400 mb-1">Width (Pixels)</label>
-                    <input id="widthInput" type="number" value="480" min="100" max="1920" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500">
-                </div>
-            </div>
-
-            <button id="convertBtn" disabled class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition shadow-lg">
-                Convert to GIF
-            </button>
-
-            <div id="outputContainer" class="hidden space-y-4 pt-4 border-t border-gray-700">
-                <h3 class="text-lg font-medium text-center text-green-400">Conversion Complete!</h3>
-                <div class="flex justify-center bg-gray-900 rounded-lg p-2 max-h-64 overflow-hidden">
-                    <img id="gifResult" src="" alt="Generated GIF" class="object-contain max-h-60 rounded">
-                </div>
-                <a id="downloadBtn" href="#" download="converted.gif" class="block text-center w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg transition">
-                    Download GIF
-                </a>
-            </div>
-        </div>
+    <div class="status-badge" id="statusBadge">
+      <div class="spinner"></div>
+      <span id="statusText">Loading FFmpeg (first load ~30 MB)…</span>
     </div>
 
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".mov,.mp4,.avi,.mkv,.webm,video/*" />
+      <div class="drop-icon">🎬</div>
+      <h3>Drop a video file here</h3>
+      <p>MOV, MP4, AVI, MKV and more · processed entirely in your browser</p>
+    </div>
 
-    <script>
-        const { FFmpeg } = FFmpegWasm;
-        const { fetchFile, toBlobURL } = FFmpegUtil;
+    <div class="file-pill" id="filePill">
+      <span>📄</span>
+      <span id="fileName"></span>
+    </div>
 
-        let ffmpeg = null;
-        let selectedFile = null;
+    <!-- Settings -->
+    <div class="settings">
+      <div class="setting-group">
+        <label>Frame Rate</label>
+        <select id="fps">
+          <option value="5">5 FPS — smaller file</option>
+          <option value="10" selected>10 FPS — balanced</option>
+          <option value="15">15 FPS</option>
+          <option value="20">20 FPS — smoother</option>
+          <option value="24">24 FPS — cinematic</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Width</label>
+        <select id="width">
+          <option value="320">320 px — tiny</option>
+          <option value="480" selected>480 px — default</option>
+          <option value="640">640 px</option>
+          <option value="800">800 px</option>
+          <option value="-1">Original width</option>
+        </select>
+      </div>
+      <div class="setting-group full">
+        <label>Start time — <span class="val" id="startVal">0 s</span></label>
+        <input type="range" id="startTime" min="0" max="120" step="0.5" value="0" />
+      </div>
+      <div class="setting-group full">
+        <label>Duration — <span class="val" id="durVal">10 s</span></label>
+        <input type="range" id="duration" min="1" max="60" step="1" value="10" />
+      </div>
+    </div>
 
-        // DOM Elements
-        const statusMessage = document.getElementById('statusMessage');
-        const appInterface = document.getElementById('appInterface');
-        const videoInput = document.getElementById('videoInput');
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
-        const convertBtn = document.getElementById('convertBtn');
-        const fpsInput = document.getElementById('fpsInput');
-        const widthInput = document.getElementById('widthInput');
-        const outputContainer = document.getElementById('outputContainer');
-        const gifResult = document.getElementById('gifResult');
-        const downloadBtn = document.getElementById('downloadBtn');
+    <button class="convert-btn" id="convertBtn" disabled>
+      <div class="spinner" id="btnSpinner" style="display:none"></div>
+      <span id="btnLabel">Loading FFmpeg…</span>
+    </button>
 
-        // 1. Initialize FFmpeg
-        async function initFFmpeg() {
-            try {
-                ffmpeg = new FFmpeg();
-                
-                // Track progress inside FFmpeg
-                ffmpeg.on('log', ({ message }) => {
-                    console.log(message);
-                    if (message.includes('frame=')) {
-                        statusMessage.textContent = "Processing frames... " + message.substring(0, 30);
-                    }
-                });
+    <!-- Progress -->
+    <div class="progress-section" id="progressSection">
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-label" id="progressLabel">Starting…</div>
+      <details id="logDetails">
+        <summary>Show FFmpeg logs</summary>
+        <div class="log-box" id="logBox"></div>
+      </details>
+    </div>
 
-                const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-                await ffmpeg.load({
-                    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-                    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-                });
+  </div>
 
-                statusMessage.classList.add('hidden');
-                appInterface.classList.remove('hidden');
-            } catch (error) {
-                console.error(error);
-                statusMessage.textContent = "Failed to load processing engine. Ensure you are running via a local web server.";
-                statusMessage.className = "text-red-400 font-semibold text-center text-sm";
-            }
+  <!-- Output card -->
+  <div class="card" id="outputCard">
+    <h2>✅ GIF ready</h2>
+    <div class="gif-wrap"><img id="gifPreview" alt="Generated GIF" /></div>
+    <div class="gif-meta">
+      <span id="gifSize">—</span>
+      <span id="gifDims">—</span>
+    </div>
+    <button class="download-btn" id="downloadBtn">⬇ Download GIF</button>
+    <button class="reset-btn" id="resetBtn">Convert another file</button>
+  </div>
+
+  <footer>
+    All processing happens locally in your browser. No data is ever sent to a server.
+  </footer>
+
+  <script type="module">
+    import { FFmpeg }              from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js';
+    import { fetchFile, toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+    // ── DOM refs ──────────────────────────────────────────────────
+    const dropZone       = document.getElementById('dropZone');
+    const fileInput      = document.getElementById('fileInput');
+    const filePill       = document.getElementById('filePill');
+    const fileNameEl     = document.getElementById('fileName');
+    const convertBtn     = document.getElementById('convertBtn');
+    const btnLabel       = document.getElementById('btnLabel');
+    const btnSpinner     = document.getElementById('btnSpinner');
+    const statusBadge    = document.getElementById('statusBadge');
+    const statusText     = document.getElementById('statusText');
+    const progressSection= document.getElementById('progressSection');
+    const progressFill   = document.getElementById('progressFill');
+    const progressLabel  = document.getElementById('progressLabel');
+    const logBox         = document.getElementById('logBox');
+    const outputCard     = document.getElementById('outputCard');
+    const gifPreview     = document.getElementById('gifPreview');
+    const gifSizeEl      = document.getElementById('gifSize');
+    const gifDimsEl      = document.getElementById('gifDims');
+    const downloadBtn    = document.getElementById('downloadBtn');
+    const resetBtn       = document.getElementById('resetBtn');
+    const startTimeInput = document.getElementById('startTime');
+    const durationInput  = document.getElementById('duration');
+    const startValEl     = document.getElementById('startVal');
+    const durValEl       = document.getElementById('durVal');
+
+    // ── State ─────────────────────────────────────────────────────
+    let ffmpeg      = null;
+    let ffmpegReady = false;
+    let selectedFile = null;
+    let gifBlobURL  = null;
+
+    // ── Sliders ───────────────────────────────────────────────────
+    startTimeInput.addEventListener('input', () => {
+      startValEl.textContent = startTimeInput.value + ' s';
+    });
+    durationInput.addEventListener('input', () => {
+      durValEl.textContent = durationInput.value + ' s';
+    });
+
+    // ── File selection ────────────────────────────────────────────
+    fileInput.addEventListener('change', e => {
+      if (e.target.files[0]) setFile(e.target.files[0]);
+    });
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) setFile(f);
+    });
+
+    function setFile(file) {
+      selectedFile = file;
+      fileNameEl.textContent = file.name;
+      filePill.style.display = 'flex';
+      if (ffmpegReady) enableConvert();
+    }
+
+    function enableConvert() {
+      convertBtn.disabled = false;
+      btnLabel.textContent = 'Convert to GIF';
+    }
+
+    // ── Load FFmpeg ───────────────────────────────────────────────
+    async function loadFFmpeg() {
+      statusBadge.style.display = 'flex';
+
+      ffmpeg = new FFmpeg();
+
+      ffmpeg.on('log', ({ message }) => {
+        logBox.textContent += message + '\n';
+        logBox.scrollTop = logBox.scrollHeight;
+      });
+
+      ffmpeg.on('progress', ({ progress }) => {
+        const pct = Math.min(100, Math.round(progress * 100));
+        progressFill.style.width = pct + '%';
+        progressLabel.textContent = `Encoding GIF… ${pct}%`;
+      });
+
+      const base = 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/esm';
+
+      try {
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${base}/ffmpeg-core.js`,   'text/javascript'),
+          wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+
+        ffmpegReady = true;
+        statusBadge.style.display = 'none';
+        if (selectedFile) enableConvert();
+        else {
+          btnLabel.textContent = 'Convert to GIF';
+          // still disabled until file chosen
         }
+      } catch (err) {
+        statusText.textContent = '⚠ Failed to load FFmpeg: ' + err.message;
+        statusBadge.querySelector('.spinner').style.display = 'none';
+      }
+    }
 
-        // 2. Handle File Selection
-        videoInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                selectedFile = e.target.files[0];
-                fileNameDisplay.textContent = `${selectedFile.name} (${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)`;
-                convertBtn.disabled = false;
-                outputContainer.classList.add('hidden');
-            }
-        });
+    // ── Convert ───────────────────────────────────────────────────
+    convertBtn.addEventListener('click', convert);
 
-        // 3. Process Video to GIF
-        convertBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
+    async function convert() {
+      if (!selectedFile || !ffmpegReady) return;
 
-            // UI Feedback
-            convertBtn.disabled = true;
-            statusMessage.classList.remove('hidden');
-            statusMessage.textContent = "Writing file to virtual memory...";
+      // UI: start
+      convertBtn.disabled = true;
+      btnSpinner.style.display = 'block';
+      btnLabel.textContent = 'Converting…';
+      progressSection.style.display = 'block';
+      outputCard.style.display = 'none';
+      logBox.textContent = '';
+      progressFill.style.width = '0%';
+      progressLabel.textContent = 'Loading video…';
 
-            const inputName = 'input_video';
-            const outputName = 'output.gif';
-            const fps = fpsInput.value || 10;
-            const width = widthInput.value || 480;
+      const fps      = document.getElementById('fps').value;
+      const width    = document.getElementById('width').value;
+      const startSec = startTimeInput.value;
+      const durSec   = durationInput.value;
 
-            try {
-                // Write the file to FFmpeg's virtual filesystem
-                await ffmpeg.writeFile(inputName, await fetchFile(selectedFile));
-                
-                statusMessage.textContent = "Generating high-quality GIF color palette...";
-                
-                // We use a two-pass approach with FFmpeg to generate a high-quality GIF palette.
-                // Pass 1: Analyze video colors to create a custom palette.
-                await ffmpeg.exec([
-                    '-i', inputName, 
-                    '-vf', `fps=${fps},scale=${width}:-1:flags=lanczos,palettegen`, 
-                    'palette.png'
-                ]);
+      // Build filter pieces
+      const hasScale = (width !== '-1');
+      const scaleStr = hasScale ? `,scale=${width}:-1:flags=lanczos` : '';
 
-                statusMessage.textContent = "Encoding GIF from palette...";
+      // palettegen vf  (pass 1)
+      const vfPass1  = `fps=${fps}${scaleStr},palettegen=stats_mode=diff`;
 
-                // Pass 2: Map video frames to the created palette for clean, vibrant output.
-                await ffmpeg.exec([
-                    '-i', inputName, 
-                    '-i', 'palette.png', 
-                    '-filter_complex', `fps=${fps},scale=${width}:-1:flags=lanczos[x];[x][1:v]paletteuse`, 
-                    outputName
-                ]);
+      // paletteuse filter_complex (pass 2)
+      const fcPass2  = `[0:v]fps=${fps}${scaleStr}[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`;
 
-                // Read output from filesystem
-                statusMessage.textContent = "Finalizing elements...";
-                const data = await ffmpeg.readFile(outputName);
-                
-                // Create object URL for the image and download link
-                const gifBlob = new Blob([data.buffer], { type: 'image/gif' });
-                const gifUrl = URL.createObjectURL(gifBlob);
+      try {
+        progressLabel.textContent = 'Writing input file…';
+        await ffmpeg.writeFile('input.src', await fetchFile(selectedFile));
 
-                gifResult.src = gifUrl;
-                downloadBtn.href = gifUrl;
-                
-                // Show Output
-                outputContainer.classList.remove('hidden');
-            } catch (err) {
-                console.error(err);
-                alert("An error occurred during conversion.");
-            } finally {
-                statusMessage.classList.add('hidden');
-                convertBtn.disabled = false;
-            }
-        });
+        // ── Pass 1: generate palette ──
+        progressLabel.textContent = 'Generating palette…';
+        progressFill.style.width = '10%';
 
-        // Start the engine on page load
-        initFFmpeg();
-    </script>
+        await ffmpeg.exec([
+          '-ss', String(startSec),
+          '-t',  String(durSec),
+          '-i',  'input.src',
+          '-vf', vfPass1,
+          '-y',  'palette.png',
+        ]);
+
+        // ── Pass 2: encode GIF ──
+        progressLabel.textContent = 'Encoding GIF… 0%';
+        progressFill.style.width = '15%';
+
+        await ffmpeg.exec([
+          '-ss',             String(startSec),
+          '-t',              String(durSec),
+          '-i',              'input.src',
+          '-i',              'palette.png',
+          '-filter_complex', fcPass2,
+          '-loop',           '0',
+          '-y',              'output.gif',
+        ]);
+
+        // ── Read result ──
+        const data = await ffmpeg.readFile('output.gif');
+        const blob = new Blob([data.buffer], { type: 'image/gif' });
+
+        if (gifBlobURL) URL.revokeObjectURL(gifBlobURL);
+        gifBlobURL = URL.createObjectURL(blob);
+
+        gifPreview.onload = () => {
+          gifDimsEl.textContent = `${gifPreview.naturalWidth} × ${gifPreview.naturalHeight} px`;
+        };
+        gifPreview.src = gifBlobURL;
+        gifSizeEl.textContent = formatBytes(blob.size);
+
+        downloadBtn.onclick = () => {
+          const a = document.createElement('a');
+          a.href = gifBlobURL;
+          a.download = selectedFile.name.replace(/\.[^.]+$/, '') + '.gif';
+          a.click();
+        };
+
+        progressFill.style.width = '100%';
+        progressLabel.textContent = 'Done!';
+        outputCard.style.display = 'block';
+        outputCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        // Cleanup WASM virtual FS
+        await ffmpeg.deleteFile('input.src').catch(() => {});
+        await ffmpeg.deleteFile('palette.png').catch(() => {});
+        await ffmpeg.deleteFile('output.gif').catch(() => {});
+
+      } catch (err) {
+        progressLabel.textContent = '⚠ Error: ' + err.message;
+        console.error(err);
+      }
+
+      btnSpinner.style.display = 'none';
+      btnLabel.textContent = 'Convert to GIF';
+      convertBtn.disabled = false;
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────
+    resetBtn.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      filePill.style.display = 'none';
+      progressSection.style.display = 'none';
+      outputCard.style.display = 'none';
+      logBox.textContent = '';
+      progressFill.style.width = '0%';
+      convertBtn.disabled = true;
+      btnLabel.textContent = 'Convert to GIF';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function formatBytes(b) {
+      if (b < 1024)           return b + ' B';
+      if (b < 1024 * 1024)    return (b / 1024).toFixed(1) + ' KB';
+      return (b / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    // ── Init ──────────────────────────────────────────────────────
+    loadFFmpeg();
+  </script>
+
 </body>
 </html>
