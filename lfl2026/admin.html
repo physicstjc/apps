@@ -42,18 +42,21 @@
     .pill { display: inline-block; padding: 4px 7px; border-radius: 999px; font-size: .67rem; font-weight: 800; background: var(--mint); }
     .empty { padding: 34px; color: var(--muted); text-align: center; }
     .note { margin: 12px 2px 0; color: var(--muted); font-size: .72rem; }
-    .qr-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 13px; }
-    .qr-card { padding: 17px; border: 1px solid var(--line); border-radius: 16px; text-align: center; background: rgba(255,255,255,.9); break-inside: avoid; }
+    .qr-selector { max-width: 680px; margin: 0 auto 14px; padding: 15px; border-radius: 16px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
+    .qr-selector select { width: 100%; }
+    .qr-display { max-width: 680px; margin: 0 auto; }
+    .qr-card { padding: 22px; border: 1px solid var(--line); border-radius: 16px; text-align: center; background: rgba(255,255,255,.9); break-inside: avoid; }
     .qr-card h3 { min-height: 2.7em; margin: 0 0 5px; font-size: .92rem; line-height: 1.35; }
     .qr-card p { margin: 0 0 12px; color: var(--muted); font-size: .75rem; }
-    .qr-card img { display: block; width: min(100%,220px); aspect-ratio: 1; margin: 0 auto 12px; }
+    .qr-card img { display: block; width: min(100%,360px); aspect-ratio: 1; margin: 0 auto 12px; }
     .qr-link { display: block; overflow: hidden; color: var(--muted); font-size: .63rem; text-overflow: ellipsis; white-space: nowrap; }
     @media print {
       body { background: white; }
       .header,.stats,.controls,.tabs,.note { display: none !important; }
       .panel[hidden] { display: none !important; }
       #qr-panel { display: block !important; }
-      .qr-grid { grid-template-columns: repeat(3,1fr); }
+      .qr-selector { display: none !important; }
+      .qr-display { max-width: none; }
     }
     @media(max-width:760px) {
       .shell { width: calc(100% - 18px); padding-top: 16px; }
@@ -96,8 +99,12 @@
       <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
     </section>
     <section class="panel" id="qr-panel" hidden>
-      <div class="qr-grid" id="qr-grid"></div>
-      <p class="note">Print this page from the browser to produce workshop QR sheets. Each code opens the live app for one specific session.</p>
+      <div class="qr-selector">
+        <label for="qr-session-select">Select a session QR code</label>
+        <select id="qr-session-select"></select>
+      </div>
+      <div class="qr-display" id="qr-display"></div>
+      <p class="note">Select a workshop, then display it on screen or print the page. The code opens the live app for that specific session.</p>
     </section>
     <p class="note">This page is intentionally unlinked. It has no login, so anyone who knows its URL can view the attendance data.</p>
   </main>
@@ -125,13 +132,19 @@
       if(p.session1) qrSessions.set(`breakout-1:${p.session1.title}`,{key:"breakout-1",title:p.session1.title,time:"10:00–10:45",venue:p.session1.venue});
       if(p.session2) qrSessions.set(`breakout-2:${p.session2.title}`,{key:"breakout-2",title:p.session2.title,time:"11:00–11:45",venue:p.session2.venue});
     });
-    $("#qr-grid").innerHTML=[...qrSessions.values()].map(session => {
+    const qrOrder={"morning-plenary":0,"breakout-1":1,"breakout-2":2};
+    const qrSessionList=[...qrSessions.values()].sort((a,b) => qrOrder[a.key]-qrOrder[b.key] || a.title.localeCompare(b.title));
+    qrSessionList.forEach((session,index) => $("#qr-session-select").add(new Option(`${session.time} · ${session.title} · ${session.venue}`,String(index))));
+    function renderQrCode() {
+      const session=qrSessionList[Number($("#qr-session-select").value)] || qrSessionList[0];
       const target=new URL(publicAppUrl);
       target.searchParams.set("attendance",session.key);
       target.searchParams.set("workshop",session.title);
       const qr=`https://quickchart.io/qr?size=360&margin=2&dark=276f78&light=ffffff&text=${encodeURIComponent(target.href)}`;
-      return `<article class="qr-card"><h3>${esc(session.title)}</h3><p>${esc(session.time)} · ${esc(session.venue)}</p><img src="${esc(qr)}" alt="Attendance QR code for ${esc(session.title)}" loading="lazy"><span class="qr-link">${esc(target.href)}</span></article>`;
-    }).join("");
+      $("#qr-display").innerHTML=`<article class="qr-card"><h3>${esc(session.title)}</h3><p>${esc(session.time)} · ${esc(session.venue)}</p><img src="${esc(qr)}" alt="Attendance QR code for ${esc(session.title)}"><span class="qr-link">${esc(target.href)}</span></article>`;
+    }
+    $("#qr-session-select").addEventListener("change",renderQrCode);
+    renderQrCode();
     const workshops = new Set();
     workshops.add("Morning Plenary");
     data.participants.forEach(p => { if(p.session1?.title) workshops.add(p.session1.title); if(p.session2?.title) workshops.add(p.session2.title); });
