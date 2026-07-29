@@ -51,6 +51,10 @@
     .note { margin: 12px 2px 0; color: var(--muted); font-size: .72rem; }
     .qr-selector { max-width: 680px; margin: 0 auto 14px; padding: 15px; border-radius: 16px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
     .qr-selector select { width: 100%; }
+    .qr-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .qr-download { min-height: 42px; padding: 0 16px; border: 0; border-radius: 10px; color: var(--teal); font-weight: 850; background: white; cursor: pointer; }
+    .qr-download:hover, .qr-download:focus-visible { color: white; background: var(--orange); }
+    .qr-download:disabled { cursor: wait; opacity: .7; }
     .qr-display { max-width: 680px; margin: 0 auto; }
     .qr-card { padding: 22px; border: 1px solid var(--line); border-radius: 16px; text-align: center; background: rgba(255,255,255,.9); break-inside: avoid; }
     .qr-card h3 { min-height: 2.7em; margin: 0 0 5px; font-size: .92rem; line-height: 1.35; }
@@ -115,6 +119,7 @@
       <div class="qr-selector">
         <label for="qr-session-select">Select a session QR code</label>
         <select id="qr-session-select"></select>
+        <div class="qr-actions"><button class="qr-download" id="download-qr" type="button">Download QR image</button></div>
       </div>
       <div class="qr-display" id="qr-display"></div>
       <p class="note">Select a workshop, then display it on screen or print the page. The code opens the live app for that specific session.</p>
@@ -157,6 +162,7 @@
     });
     const qrOrder={"morning-plenary":0,"breakout-1":1,"breakout-2":2};
     const qrSessionList=[...qrSessions.values()].sort((a,b) => qrOrder[a.key]-qrOrder[b.key] || a.title.localeCompare(b.title));
+    let selectedQr = null;
     qrSessionList.forEach((session,index) => $("#qr-session-select").add(new Option(`${session.time} · ${session.title} · ${session.venue}`,String(index))));
     function renderQrCode() {
       const session=qrSessionList[Number($("#qr-session-select").value)] || qrSessionList[0];
@@ -164,9 +170,35 @@
       target.searchParams.set("attendance",session.key);
       target.searchParams.set("workshop",session.title);
       const qr=`https://quickchart.io/qr?size=360&margin=2&dark=276f78&light=ffffff&text=${encodeURIComponent(target.href)}`;
+      selectedQr={session,target:target.href,downloadUrl:`https://quickchart.io/qr?size=1200&margin=3&dark=276f78&light=ffffff&format=png&text=${encodeURIComponent(target.href)}`};
       $("#qr-display").innerHTML=`<article class="qr-card"><h3>${esc(session.title)}</h3><p>${esc(session.time)} · ${esc(session.venue)}</p><img src="${esc(qr)}" alt="Attendance QR code for ${esc(session.title)}"><span class="qr-link">${esc(target.href)}</span></article>`;
     }
     $("#qr-session-select").addEventListener("change",renderQrCode);
+    $("#download-qr").addEventListener("click",async () => {
+      if(!selectedQr) return;
+      const button=$("#download-qr");
+      const safeTitle=selectedQr.session.title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      button.disabled=true;
+      button.textContent="Preparing image…";
+      try {
+        const response=await fetch(selectedQr.downloadUrl);
+        if(!response.ok) throw new Error(`QR image request failed (${response.status})`);
+        const image=URL.createObjectURL(await response.blob());
+        const link=document.createElement("a");
+        link.href=image;
+        link.download=`learning-for-life-${selectedQr.session.key}-${safeTitle}-qr.png`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(()=>URL.revokeObjectURL(image),1000);
+        button.textContent="Downloaded";
+      } catch(error) {
+        console.error(error);
+        button.textContent="Download failed — try again";
+      } finally {
+        setTimeout(()=>{ button.disabled=false; button.textContent="Download QR image"; },1800);
+      }
+    });
     renderQrCode();
     const workshops = new Set();
     workshops.add("Morning Plenary");
