@@ -375,7 +375,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-    import { doc, getFirestore, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+    import { doc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBIytzQZuv8hSjJM0IkSwWHi_ENFTKPPXE",
@@ -389,9 +389,12 @@
 
     const app = initializeApp(firebaseConfig);
     const database = getFirestore(app);
+    const attendanceDocumentId = (participantName,sessionKey) => {
+      const safeName = participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return `2026-08-04_${sessionKey}_${safeName || "participant"}`;
+    };
     window.saveLflAttendance = async (record) => {
-      const safeName = record.participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const documentId = `2026-08-04_${record.sessionKey}_${safeName || "participant"}`;
+      const documentId = attendanceDocumentId(record.participantName,record.sessionKey);
       await setDoc(doc(database, "lflAttendance", documentId), {
         ...record,
         eventName: "Learning for Life Sharing Sessions",
@@ -399,6 +402,15 @@
         markedAt: serverTimestamp()
       }, { merge: true });
       return documentId;
+    };
+    window.watchLflAttendance = (participantName,listener) => {
+      const sessionKeys=["morning-plenary","breakout-1","breakout-2"];
+      const unsubscribers=sessionKeys.map(sessionKey=>onSnapshot(
+        doc(database,"lflAttendance",attendanceDocumentId(participantName,sessionKey)),
+        snapshot=>listener(sessionKey,snapshot.exists() && snapshot.data()?.attendance===true),
+        error=>{ console.error("Attendance status could not be read:",error); listener(sessionKey,false); }
+      ));
+      return ()=>unsubscribers.forEach(unsubscribe=>unsubscribe());
     };
     window.saveLflRegistration = async (record) => {
       const safeName = record.participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -450,6 +462,9 @@
     let mismatchScan = null;
     let nativeMismatchPromptedFor = null;
     let attendanceToastTimer = null;
+    const attendanceStates = new Map();
+    const attendanceLoaded = new Set();
+    let attendanceWatchName = null, stopAttendanceWatch = null, firebaseWatchQueued = false;
     if (pendingAttendance) {
       status.textContent = "Session QR scanned. Enter your name and department to continue.";
     }
@@ -565,9 +580,43 @@
     populateSessionSelect(selfSession1, session1Options);
     populateSessionSelect(selfSession2, session2Options);
 
+    function ensureAttendanceWatch() {
+      const participantName=selectedParticipant?.name;
+      if(!participantName) {
+        if(stopAttendanceWatch) stopAttendanceWatch();
+        stopAttendanceWatch=null;
+        attendanceWatchName=null;
+        attendanceStates.clear();
+        attendanceLoaded.clear();
+        return;
+      }
+      if(attendanceWatchName===participantName) return;
+      if(stopAttendanceWatch) stopAttendanceWatch();
+      stopAttendanceWatch=null;
+      attendanceWatchName=null;
+      attendanceStates.clear();
+      attendanceLoaded.clear();
+      if(!window.watchLflAttendance) {
+        if(!firebaseWatchQueued) {
+          firebaseWatchQueued=true;
+          window.addEventListener("lflFirebaseReady",()=>{ firebaseWatchQueued=false; ensureAttendanceWatch(); },{once:true});
+        }
+        return;
+      }
+      attendanceWatchName=participantName;
+      ["morning-plenary","breakout-1","breakout-2"].forEach(key=>localStorage.removeItem(`lflAttendance:${participantName}:${key}`));
+      stopAttendanceWatch=window.watchLflAttendance(participantName,(sessionKey,marked)=>{
+        if(selectedParticipant?.name!==participantName) return;
+        attendanceStates.set(sessionKey,marked);
+        attendanceLoaded.add(sessionKey);
+        render();
+      });
+    }
+
     function sessionCard(label, time, session, start, end, sessionKey) {
       if (!session) return `<article class="card"><div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div><h3 class="empty">Allocation not listed in the participant directory.</h3></article>`;
-      const savedAttendance = localStorage.getItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`) === "marked";
+      const savedAttendance = attendanceStates.get(sessionKey) === true;
+      const attendanceIsLoaded = attendanceLoaded.has(sessionKey);
       const scanMatches = pendingAttendance === sessionKey
         && (!pendingWorkshop || pendingWorkshop === session.title);
       return `<article class="card" data-session-card="${sessionKey}">
@@ -576,7 +625,9 @@
         ${session.presenter ? `<div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>` : ""}
         <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(session.venue)}</span></div>
         ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions${session.presenter ? `\nPresenter(s): ${session.presenter}` : ""}`)}
-        ${savedAttendance
+        ${!attendanceIsLoaded
+          ? `<button class="attendance-button" type="button" disabled>Checking attendance…</button>`
+          : savedAttendance
           ? `<button class="attendance-button marked" type="button" disabled>Attendance marked ✓</button>`
           : scanMatches
             ? `<button class="attendance-button" type="button" data-attendance="${sessionKey}">Confirm scanned attendance</button>`
@@ -611,9 +662,11 @@
     function render() {
       updateFullSchedule();
       if (!selectedParticipant) {
+        ensureAttendanceWatch();
         results.classList.remove("visible");
         return;
       }
+      ensureAttendanceWatch();
       const reflection = data.departments.find(item => item.name === department.value);
       const scannedSession = pendingAttendance === "morning-plenary"
         ? plenarySession
@@ -735,7 +788,9 @@
           deviceId,
           attendance: true
         });
-        localStorage.setItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`, "marked");
+        attendanceStates.set(sessionKey,true);
+        attendanceLoaded.add(sessionKey);
+        localStorage.removeItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`);
         button.textContent = "Attendance marked ✓";
         button.classList.add("marked");
         clearPendingScan();
