@@ -22,6 +22,9 @@
     .connection { padding: 8px 12px; border-radius: 999px; color: #805e13; font-size: .75rem; font-weight: 800; background: #fff1bd; }
     .connection.live { color: #285f55; background: var(--mint); }
     .connection.error { color: #8a352d; background: #fde8de; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .super-admin-button { padding: 7px 10px; border: 1px solid rgba(39,111,120,.2); border-radius: 999px; color: var(--teal); font-size: .68rem; font-weight: 800; background: rgba(255,255,255,.72); cursor: pointer; }
+    .super-admin-button.unlocked { color: #285f55; background: var(--mint); }
     .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 18px; }
     .stat { padding: 17px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.82); }
     .stat span { display: block; color: var(--muted); font-size: .72rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
@@ -41,6 +44,8 @@
     tbody tr:hover { background: rgba(223,245,232,.55); }
     .pill { display: inline-block; padding: 4px 7px; border-radius: 999px; font-size: .67rem; font-weight: 800; background: var(--mint); }
     .empty { padding: 34px; color: var(--muted); text-align: center; }
+    .delete-button { padding: 6px 9px; border: 0; border-radius: 8px; color: #8a352d; font-size: .7rem; font-weight: 800; background: #fde8de; cursor: pointer; }
+    .delete-button:hover, .delete-button:focus { color: white; background: var(--coral); }
     .note { margin: 12px 2px 0; color: var(--muted); font-size: .72rem; }
     .qr-selector { max-width: 680px; margin: 0 auto 14px; padding: 15px; border-radius: 16px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
     .qr-selector select { width: 100%; }
@@ -72,7 +77,10 @@
   <main class="shell">
     <header class="header">
       <div><p class="eyebrow">Learning for Life · Admin</p><h1>Attendance dashboard</h1></div>
-      <span class="connection" id="connection">Connecting to Firestore…</span>
+      <div class="header-actions">
+        <span class="connection" id="connection">Connecting to Firestore…</span>
+        <button class="super-admin-button" id="super-admin-button" type="button">Super admin</button>
+      </div>
     </header>
     <section class="stats" aria-label="Summary">
       <article class="stat"><span>Original registrants</span><strong id="original-count">0</strong></article>
@@ -93,7 +101,7 @@
       <button class="tab" type="button" data-panel="registrants">Registrants</button>
     </nav>
     <section class="panel" id="attendance-panel" hidden>
-      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Type</th><th>Department</th><th>Workshop</th><th>Presenter</th><th>Venue</th><th>Marked at</th></tr></thead><tbody id="attendance-body"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Type</th><th>Department</th><th>Workshop</th><th>Presenter</th><th>Venue</th><th>Marked at</th><th id="attendance-action-header" hidden>Action</th></tr></thead><tbody id="attendance-body"></tbody></table></div>
     </section>
     <section class="panel" id="registrants-panel" hidden>
       <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
@@ -111,16 +119,21 @@
   <script src="participant-data.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-    import { collection, getFirestore, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+    import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+    import { collection, deleteDoc, doc, getFirestore, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
     const app = initializeApp({
       apiKey: "AIzaSyBIytzQZuv8hSjJM0IkSwWHi_ENFTKPPXE", authDomain: "workshop-9cbb7.firebaseapp.com",
       projectId: "workshop-9cbb7", storageBucket: "workshop-9cbb7.firebasestorage.app",
       messagingSenderId: "294313831122", appId: "1:294313831122:web:423336ef8232a064445b0b",
       measurementId: "G-BJ2XRRPLLJ"
     });
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
     const db = getFirestore(app);
     const data = window.LFL_DATA || { participants: [], departments: [] };
     let attendance = [], newRegistrations = [], attendanceReady = false, registrationsReady = false;
+    const superAdminEmail = "tan_seng_kwang@moe.edu.sg";
+    let currentUser = null, superAdminUnlocked = false;
     const $ = selector => document.querySelector(selector);
     const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
     const dateText = value => value?.toDate ? value.toDate().toLocaleString("en-SG",{dateStyle:"medium",timeStyle:"short"}) : "—";
@@ -167,7 +180,14 @@
       $("#attendance-1").textContent=attendance.filter(r=>r.sessionKey==="breakout-1").length;
       $("#attendance-2").textContent=attendance.filter(r=>r.sessionKey==="breakout-2").length;
       const attendanceRows=filtered(attendance,"attendance");
-      $("#attendance-body").innerHTML=attendanceRows.length ? attendanceRows.map(r=>`<tr><td><strong>${esc(r.participantName)}</strong></td><td><span class="pill">${esc(r.participantType)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.sessionTitle)}</td><td>${esc(r.presenter)}</td><td>${esc(r.venue)}</td><td>${esc(dateText(r.markedAt))}</td></tr>`).join("") : '<tr><td colspan="7" class="empty">No attendance records match these filters.</td></tr>';
+      $("#attendance-action-header").hidden=!superAdminUnlocked;
+      $("#super-admin-button").classList.toggle("unlocked",superAdminUnlocked);
+      $("#super-admin-button").textContent=superAdminUnlocked
+        ? "Super admin ✓"
+        : currentUser
+          ? "Not authorised · Sign out"
+          : "Super admin";
+      $("#attendance-body").innerHTML=attendanceRows.length ? attendanceRows.map(r=>`<tr><td><strong>${esc(r.participantName)}</strong></td><td><span class="pill">${esc(r.participantType)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.sessionTitle)}</td><td>${esc(r.presenter)}</td><td>${esc(r.venue)}</td><td>${esc(dateText(r.markedAt))}</td>${superAdminUnlocked ? `<td><button class="delete-button" type="button" data-delete-attendance="${esc(r.id)}" data-delete-name="${esc(r.participantName)}" data-delete-session="${esc(r.sessionTitle)}">Delete</button></td>` : ""}</tr>`).join("") : `<tr><td colspan="${superAdminUnlocked ? 8 : 7}" class="empty">No attendance records match these filters.</td></tr>`;
       const registrationRows=filtered([...original,...newRegistrations.map(r=>({name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt}))],"registrants");
       $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">No registrants match these filters.</td></tr>';
     }
@@ -175,6 +195,9 @@
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
     ["#workshop-filter","#department-filter","#sort-by"].forEach(id => $(id).addEventListener("change",render));
     $("#clear-filters").addEventListener("click",()=>{ $("#workshop-filter").value=""; $("#department-filter").value=""; $("#sort-by").value="name"; render(); });
+    $("#super-admin-button").addEventListener("click",async()=>{ try { if(currentUser) await signOut(auth); else await signInWithPopup(auth,googleProvider); } catch(error) { console.error(error); alert("Google sign-in could not be completed."); } });
+    onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && user.email?.toLocaleLowerCase()===superAdminEmail); render(); });
+    $("#attendance-body").addEventListener("click",async event=>{ const button=event.target.closest("[data-delete-attendance]"); if(!button||!superAdminUnlocked) return; const message=`Delete ${button.dataset.deleteName}'s attendance for ${button.dataset.deleteSession}?`; if(!confirm(message)) return; button.disabled=true; button.textContent="Deleting…"; try { await deleteDoc(doc(db,"lflAttendance",button.dataset.deleteAttendance)); } catch(error) { button.disabled=false; button.textContent="Retry delete"; console.error(error); alert("Attendance could not be deleted."); } });
     document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; $("#qr-panel").hidden=button.dataset.panel!=="qr"; }));
     render();
   </script>

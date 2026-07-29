@@ -59,7 +59,9 @@ service cloud.firestore {
     match /lflAttendance/{recordId} {
       allow read: if true;
       allow create, update: if validAttendance();
-      allow delete: if false;
+      allow delete: if request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'tan_seng_kwang@moe.edu.sg';
     }
 
     match /lflRegistrations/{recordId} {
