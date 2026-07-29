@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function validText(value, maximum) {
+      return value is string && value.size() > 0 && value.size() <= maximum;
+    }
+
+    function validAttendance() {
+      return request.resource.data.keys().hasOnly([
+          'attendance', 'department', 'deviceId', 'eventDate', 'eventName',
+          'markedAt', 'participantName', 'participantType', 'presenter',
+          'sessionKey', 'sessionTitle', 'venue'
+        ])
+        && request.resource.data.attendance == true
+        && request.resource.data.eventDate == '2026-08-04'
+        && request.resource.data.eventName == 'Learning for Life Sharing Sessions'
+        && request.resource.data.sessionKey in [
+          'morning-plenary', 'breakout-1', 'breakout-2'
+        ]
+        && request.resource.data.participantType in [
+          'registered', 'self-selected'
+        ]
+        && validText(request.resource.data.participantName, 120)
+        && validText(request.resource.data.sessionTitle, 300)
+        && validText(request.resource.data.venue, 80)
+        && validText(request.resource.data.deviceId, 100)
+        && request.resource.data.department is string
+        && request.resource.data.department.size() <= 150
+        && request.resource.data.presenter is string
+        && request.resource.data.presenter.size() <= 200
+        && request.resource.data.markedAt == request.time;
+    }
+
+    function validRegistration() {
+      return request.resource.data.keys().hasOnly([
+          'department', 'deviceId', 'eventDate', 'eventName',
+          'participantName', 'participantType', 'registeredAt',
+          'session1Presenter', 'session1Title', 'session1Venue',
+          'session2Presenter', 'session2Title', 'session2Venue'
+        ])
+        && request.resource.data.eventDate == '2026-08-04'
+        && request.resource.data.eventName == 'Learning for Life Sharing Sessions'
+        && request.resource.data.participantType == 'self-selected'
+        && validText(request.resource.data.participantName, 120)
+        && validText(request.resource.data.department, 150)
+        && validText(request.resource.data.deviceId, 100)
+        && validText(request.resource.data.session1Title, 300)
+        && validText(request.resource.data.session1Venue, 80)
+        && validText(request.resource.data.session2Title, 300)
+        && validText(request.resource.data.session2Venue, 80)
+        && request.resource.data.session1Presenter is string
+        && request.resource.data.session1Presenter.size() <= 200
+        && request.resource.data.session2Presenter is string
+        && request.resource.data.session2Presenter.size() <= 200
+        && request.resource.data.registeredAt == request.time;
+    }
+
+    match /lflAttendance/{recordId} {
+      allow read: if true;
+      allow create, update: if validAttendance();
+      allow delete: if false;
+    }
+
+    match /lflRegistrations/{recordId} {
+      allow read: if true;
+      allow create, update: if validRegistration();
+      allow delete: if false;
+    }
+  }
+}
