@@ -25,6 +25,8 @@
     .header-actions { display: flex; align-items: center; gap: 8px; }
     .super-admin-button { padding: 7px 10px; border: 1px solid rgba(39,111,120,.2); border-radius: 999px; color: var(--teal); font-size: .68rem; font-weight: 800; background: rgba(255,255,255,.72); cursor: pointer; }
     .super-admin-button.unlocked { color: #285f55; background: var(--mint); }
+    .auth-status { max-width: 260px; color: var(--muted); font-size: .66rem; line-height: 1.3; text-align: right; }
+    .auth-status.error { color: #a33c32; }
     .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 18px; }
     .stat { padding: 17px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.82); }
     .stat span { display: block; color: var(--muted); font-size: .72rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
@@ -66,6 +68,8 @@
     @media(max-width:760px) {
       .shell { width: calc(100% - 18px); padding-top: 16px; }
       .header { align-items: flex-start; flex-direction: column; gap: 12px; }
+      .header-actions { width: 100%; flex-wrap: wrap; }
+      .auth-status { order: 3; width: 100%; max-width: none; text-align: left; }
       .stats { grid-template-columns: 1fr 1fr; }
       .controls { grid-template-columns: 1fr; }
       .clear { min-height: 40px; }
@@ -79,6 +83,7 @@
       <div><p class="eyebrow">Learning for Life · Admin</p><h1>Attendance dashboard</h1></div>
       <div class="header-actions">
         <span class="connection" id="connection">Connecting to Firestore…</span>
+        <span class="auth-status" id="auth-status" aria-live="polite"></span>
         <button class="super-admin-button" id="super-admin-button" type="button">Super admin</button>
       </div>
     </header>
@@ -129,6 +134,11 @@
     });
     const auth = getAuth(app);
     const googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({
+      prompt: "select_account",
+      login_hint: "tan_seng_kwang@moe.edu.sg",
+      hd: "moe.edu.sg"
+    });
     const db = getFirestore(app);
     const data = window.LFL_DATA || { participants: [], departments: [] };
     let attendance = [], newRegistrations = [], attendanceReady = false, registrationsReady = false;
@@ -195,8 +205,18 @@
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
     ["#workshop-filter","#department-filter","#sort-by"].forEach(id => $(id).addEventListener("change",render));
     $("#clear-filters").addEventListener("click",()=>{ $("#workshop-filter").value=""; $("#department-filter").value=""; $("#sort-by").value="name"; render(); });
-    $("#super-admin-button").addEventListener("click",async()=>{ try { if(currentUser) await signOut(auth); else await signInWithPopup(auth,googleProvider); } catch(error) { console.error(error); alert("Google sign-in could not be completed."); } });
-    onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && user.email?.toLocaleLowerCase()===superAdminEmail); render(); });
+    function authErrorText(error) {
+      const messages = {
+        "auth/popup-blocked": "The browser blocked the Google sign-in popup. Allow popups for this site and retry.",
+        "auth/popup-closed-by-user": "The Google sign-in window was closed before completion.",
+        "auth/unauthorized-domain": "This website domain is not authorised in Firebase Authentication.",
+        "auth/operation-not-allowed": "Google sign-in is not enabled for this Firebase project.",
+        "auth/network-request-failed": "The sign-in request could not reach Google. Check the network and retry."
+      };
+      return messages[error?.code] || `Google sign-in failed: ${error?.code || error?.message || "unknown error"}`;
+    }
+    $("#super-admin-button").addEventListener("click",async()=>{ $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); try { if(currentUser) await signOut(auth); else await signInWithPopup(auth,googleProvider); } catch(error) { console.error(error); $("#auth-status").textContent=authErrorText(error); $("#auth-status").classList.add("error"); } });
+    onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && user.email?.toLocaleLowerCase()===superAdminEmail); if(user&&!superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email || "unknown account"}. Only ${superAdminEmail} is authorised.`; $("#auth-status").classList.add("error"); } else if(superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email}`; $("#auth-status").classList.remove("error"); } else { $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); } render(); });
     $("#attendance-body").addEventListener("click",async event=>{ const button=event.target.closest("[data-delete-attendance]"); if(!button||!superAdminUnlocked) return; const message=`Delete ${button.dataset.deleteName}'s attendance for ${button.dataset.deleteSession}?`; if(!confirm(message)) return; button.disabled=true; button.textContent="Deleting…"; try { await deleteDoc(doc(db,"lflAttendance",button.dataset.deleteAttendance)); } catch(error) { button.disabled=false; button.textContent="Retry delete"; console.error(error); alert("Attendance could not be deleted."); } });
     document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; $("#qr-panel").hidden=button.dataset.panel!=="qr"; }));
     render();
