@@ -207,7 +207,7 @@
     const breakout1Options=qrSessionList.filter(session=>session.key==="breakout-1");
     const breakout2Options=qrSessionList.filter(session=>session.key==="breakout-2");
     const safeParticipantId=name=>`2026-08-04_${name.toLocaleLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "participant"}`;
-    const workshopSelect=(options,selected,name,slot)=>`<select class="workshop-edit" data-edit-name="${esc(name)}" data-session-slot="${slot}" data-previous-value="${esc(selected)}">${selected ? "" : '<option value="" selected>Choose a workshop…</option>'}${options.map(session=>`<option value="${esc(session.title)}"${session.title===selected ? " selected" : ""}>${esc(session.title)} · ${esc(session.venue)}</option>`).join("")}</select>`;
+    const workshopSelect=(options,selected,name,slot)=>`<select class="workshop-edit" data-edit-name="${esc(name)}" data-session-slot="${slot}" data-previous-value="${esc(selected)}"><option value=""${selected ? "" : " selected"}>No workshop</option>${options.map(session=>`<option value="${esc(session.title)}"${session.title===selected ? " selected" : ""}>${esc(session.title)} · ${esc(session.venue)}</option>`).join("")}</select>`;
     function attendanceCode(key,title) {
       const characters="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let hash=2166136261;
@@ -326,15 +326,15 @@
       const secondSelect=row.querySelector('[data-session-slot="2"]');
       const firstTitle=firstSelect.value;
       const secondTitle=secondSelect.value;
-      const first=breakout1Options.find(session=>session.title===firstTitle);
-      const second=breakout2Options.find(session=>session.title===secondTitle);
-      if(!first||!second) return;
+      const first=firstTitle ? breakout1Options.find(session=>session.title===firstTitle) : null;
+      const second=secondTitle ? breakout2Options.find(session=>session.title===secondTitle) : null;
+      if((firstTitle&&!first)||(secondTitle&&!second)||(!first&&!second)) return;
       const selects=[...row.querySelectorAll(".workshop-edit")];
       if(selects.every(item=>item.value===item.dataset.previousValue)) return;
       pendingWorkshopChange={participantName,first,second,selects};
       $("#workshop-confirm-name").textContent=participantName;
-      $("#workshop-confirm-1").textContent=`${firstSelect.dataset.previousValue||"Not assigned"} → ${first.title} · ${first.venue}`;
-      $("#workshop-confirm-2").textContent=`${secondSelect.dataset.previousValue||"Not assigned"} → ${second.title} · ${second.venue}`;
+      $("#workshop-confirm-1").textContent=`${firstSelect.dataset.previousValue||"No workshop"} → ${first ? `${first.title} · ${first.venue}` : "No workshop"}`;
+      $("#workshop-confirm-2").textContent=`${secondSelect.dataset.previousValue||"No workshop"} → ${second ? `${second.title} · ${second.venue}` : "No workshop"}`;
       $("#workshop-confirm-dialog").hidden=false;
       requestAnimationFrame(()=>$("#workshop-confirm-save").focus());
     });
@@ -358,8 +358,8 @@
       try {
         await setDoc(doc(db,"lflWorkshopOverrides",safeParticipantId(participantName)),{
           participantName,
-          session1Title:first.title,session1Presenter:first.presenter||"",session1Venue:first.venue,
-          session2Title:second.title,session2Presenter:second.presenter||"",session2Venue:second.venue,
+          session1Title:first?.title||"",session1Presenter:first?.presenter||"",session1Venue:first?.venue||"",
+          session2Title:second?.title||"",session2Presenter:second?.presenter||"",session2Venue:second?.venue||"",
           updatedAt:serverTimestamp(),updatedBy:currentUser.email
         });
         $("#auth-status").textContent=`Workshop choices updated for ${participantName}.`;

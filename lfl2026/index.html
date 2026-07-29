@@ -304,15 +304,15 @@
         <p class="status" id="status" aria-live="polite">Enter at least two letters to search.</p>
         <button class="self-select-start" id="self-select-start" type="button">My name isn’t listed — choose sessions</button>
         <div class="self-select-panel" id="self-select-panel" hidden>
-          <p class="self-select-intro">Your name is not in the participant directory. Add your name by choosing both breakout workshops and your department.</p>
+          <p class="self-select-intro">Your name is not in the participant directory. Add your name by choosing at least one breakout workshop and your department.</p>
           <div class="self-select-grid">
             <div>
-              <label for="self-session-1">Preferred Breakout 1</label>
-              <select id="self-session-1"><option value="">Choose a session…</option></select>
+              <label for="self-session-1">Preferred Breakout 1 (optional)</label>
+              <select id="self-session-1"><option value="">No workshop</option></select>
             </div>
             <div>
-              <label for="self-session-2">Preferred Breakout 2</label>
-              <select id="self-session-2"><option value="">Choose a session…</option></select>
+              <label for="self-session-2">Preferred Breakout 2 (optional)</label>
+              <select id="self-session-2"><option value="">No workshop</option></select>
             </div>
           </div>
           <button class="generate-button" id="generate-schedule" type="button">Add my name and save my workshops</button>
@@ -602,7 +602,11 @@
         const overrides=JSON.parse(localStorage.getItem(`lflWorkshopOverrides:${participant.name}`));
         const first=session1Options.find(session=>session.title===overrides?.session1Title);
         const second=session2Options.find(session=>session.title===overrides?.session2Title);
-        return {...participant,session1:first||participant.session1,session2:second||participant.session2};
+        return {
+          ...participant,
+          session1:overrides?.session1Title==="" ? null : first||participant.session1,
+          session2:overrides?.session2Title==="" ? null : second||participant.session2
+        };
       } catch {
         return {...participant};
       }
@@ -675,8 +679,8 @@
         if(selectedParticipant?.name!==participantName || !override) return;
         const first=session1Options.find(session=>session.title===override.session1Title);
         const second=session2Options.find(session=>session.title===override.session2Title);
-        if(first) selectedParticipant.session1=first;
-        if(second) selectedParticipant.session2=second;
+        selectedParticipant.session1=first||null;
+        selectedParticipant.session2=second||null;
         localStorage.setItem(`lflWorkshopOverrides:${participantName}`,JSON.stringify({
           session1Title:selectedParticipant.session1?.title,
           session2Title:selectedParticipant.session2?.title
@@ -1103,15 +1107,15 @@
       selfSelectPanel.hidden = false;
       selfSelectStart.classList.remove("visible");
       suggestions.classList.remove("open");
-      status.textContent = "Choose both breakout sessions and your department.";
+      status.textContent = "Choose at least one breakout session and your department.";
       status.classList.remove("error");
     });
     generateSchedule.addEventListener("click", async () => {
       const name = search.value.trim();
       const first = selfSession1.value === "" ? null : session1Options[Number(selfSession1.value)];
       const second = selfSession2.value === "" ? null : session2Options[Number(selfSession2.value)];
-      if (!name || !first || !second || !department.value) {
-        status.textContent = "Enter your name and choose both sessions and a department.";
+      if (!name || (!first && !second) || !department.value) {
+        status.textContent = "Enter your name, choose at least one breakout session, and select a department.";
         status.classList.add("error");
         return;
       }
@@ -1129,12 +1133,12 @@
           participantName: name,
           participantType: "self-selected",
           department: department.value,
-          session1Title: first.title,
-          session1Presenter: first.presenter,
-          session1Venue: first.venue,
-          session2Title: second.title,
-          session2Presenter: second.presenter,
-          session2Venue: second.venue,
+          session1Title: first?.title||"",
+          session1Presenter: first?.presenter||"",
+          session1Venue: first?.venue||"",
+          session2Title: second?.title||"",
+          session2Presenter: second?.presenter||"",
+          session2Venue: second?.venue||"",
           deviceId
         });
       } catch (error) {
@@ -1148,8 +1152,8 @@
       localStorage.setItem("lflPersonalPlan", JSON.stringify({
         name,
         department: department.value,
-        session1Title: first.title,
-        session2Title: second.title
+        session1Title: first?.title||"",
+        session2Title: second?.title||""
       }));
       generateSchedule.disabled = false;
       generateSchedule.textContent = "Add my name and save my workshops";
@@ -1169,16 +1173,18 @@
       const saved = JSON.parse(localStorage.getItem("lflPersonalPlan"));
       const firstIndex = session1Options.findIndex(session => session.title === saved?.session1Title);
       const secondIndex = session2Options.findIndex(session => session.title === saved?.session2Title);
+      const validFirst = saved?.session1Title === "" || firstIndex >= 0;
+      const validSecond = saved?.session2Title === "" || secondIndex >= 0;
       const validDepartment = data.departments.some(item => item.name === saved?.department);
-      if (saved?.name && firstIndex >= 0 && secondIndex >= 0 && validDepartment) {
+      if (saved?.name && validFirst && validSecond && (firstIndex >= 0 || secondIndex >= 0) && validDepartment) {
         search.value = saved.name;
         department.value = saved.department;
-        selfSession1.value = String(firstIndex);
-        selfSession2.value = String(secondIndex);
+        selfSession1.value = firstIndex >= 0 ? String(firstIndex) : "";
+        selfSession2.value = secondIndex >= 0 ? String(secondIndex) : "";
         selectedParticipant = {
           name: saved.name,
-          session1: session1Options[firstIndex],
-          session2: session2Options[secondIndex],
+          session1: firstIndex >= 0 ? session1Options[firstIndex] : null,
+          session2: secondIndex >= 0 ? session2Options[secondIndex] : null,
           selfSelected: true
         };
         render();

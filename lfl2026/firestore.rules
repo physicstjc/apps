@@ -57,10 +57,16 @@ service cloud.firestore {
         && validText(request.resource.data.participantName, 120)
         && validText(request.resource.data.department, 150)
         && validText(request.resource.data.deviceId, 100)
-        && validText(request.resource.data.session1Title, 300)
-        && validText(request.resource.data.session1Venue, 80)
-        && validText(request.resource.data.session2Title, 300)
-        && validText(request.resource.data.session2Venue, 80)
+        && request.resource.data.session1Title is string
+        && request.resource.data.session1Title.size() <= 300
+        && request.resource.data.session1Venue is string
+        && request.resource.data.session1Venue.size() <= 80
+        && request.resource.data.session2Title is string
+        && request.resource.data.session2Title.size() <= 300
+        && request.resource.data.session2Venue is string
+        && request.resource.data.session2Venue.size() <= 80
+        && (request.resource.data.session1Title.size() > 0
+          || request.resource.data.session2Title.size() > 0)
         && request.resource.data.session1Presenter is string
         && request.resource.data.session1Presenter.size() <= 200
         && request.resource.data.session2Presenter is string
@@ -75,10 +81,16 @@ service cloud.firestore {
           'session2Venue', 'updatedAt', 'updatedBy'
         ])
         && validText(request.resource.data.participantName, 120)
-        && validText(request.resource.data.session1Title, 300)
-        && validText(request.resource.data.session1Venue, 80)
-        && validText(request.resource.data.session2Title, 300)
-        && validText(request.resource.data.session2Venue, 80)
+        && request.resource.data.session1Title is string
+        && request.resource.data.session1Title.size() <= 300
+        && request.resource.data.session1Venue is string
+        && request.resource.data.session1Venue.size() <= 80
+        && request.resource.data.session2Title is string
+        && request.resource.data.session2Title.size() <= 300
+        && request.resource.data.session2Venue is string
+        && request.resource.data.session2Venue.size() <= 80
+        && (request.resource.data.session1Title.size() > 0
+          || request.resource.data.session2Title.size() > 0)
         && request.resource.data.session1Presenter is string
         && request.resource.data.session1Presenter.size() <= 200
         && request.resource.data.session2Presenter is string
