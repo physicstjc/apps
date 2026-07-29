@@ -88,17 +88,17 @@
       <button class="clear" id="clear-filters" type="button">Clear filters</button>
     </section>
     <nav class="tabs" aria-label="Dashboard views">
-      <button class="tab active" type="button" data-panel="attendance">Attendance</button>
+      <button class="tab active" type="button" data-panel="qr">Session QR codes</button>
+      <button class="tab" type="button" data-panel="attendance">Attendance</button>
       <button class="tab" type="button" data-panel="registrants">Registrants</button>
-      <button class="tab" type="button" data-panel="qr">Session QR codes</button>
     </nav>
-    <section class="panel" id="attendance-panel">
+    <section class="panel" id="attendance-panel" hidden>
       <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Type</th><th>Department</th><th>Workshop</th><th>Presenter</th><th>Venue</th><th>Marked at</th></tr></thead><tbody id="attendance-body"></tbody></table></div>
     </section>
     <section class="panel" id="registrants-panel" hidden>
       <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
     </section>
-    <section class="panel" id="qr-panel" hidden>
+    <section class="panel" id="qr-panel">
       <div class="qr-selector">
         <label for="qr-session-select">Select a session QR code</label>
         <select id="qr-session-select"></select>
