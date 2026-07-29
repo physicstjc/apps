@@ -394,6 +394,20 @@
       </div>
     </div>
   </dialog>
+  <dialog class="scanner-dialog" id="native-attendance-confirm-dialog">
+    <div class="scanner-head">
+      <div><h2>Confirm attendance</h2><p>Session QR code recognised</p></div>
+    </div>
+    <div class="mismatch-body">
+      <p>Please confirm that the following attendance record is correct.</p>
+      <div class="mismatch-choice"><span>Participant</span><strong id="native-confirm-name"></strong></div>
+      <div class="mismatch-choice"><span>Session</span><strong id="native-confirm-session"></strong></div>
+      <div class="mismatch-actions">
+        <button class="mismatch-keep" id="native-confirm-cancel" type="button">Cancel</button>
+        <button class="mismatch-override" id="native-confirm-mark" type="button">Mark my attendance</button>
+      </div>
+    </div>
+  </dialog>
   <div class="attendance-toast" id="attendance-toast" role="status" aria-live="polite">
     <div class="attendance-toast-icon">✓</div>
     <div><strong>Attendance marked</strong><span id="attendance-toast-session"></span></div>
@@ -486,6 +500,7 @@
     const codeEntryInput = document.querySelector("#attendance-code-input");
     const codeEntryStatus = document.querySelector("#code-entry-status");
     const workshopMismatchDialog = document.querySelector("#workshop-mismatch-dialog");
+    const nativeAttendanceConfirmDialog = document.querySelector("#native-attendance-confirm-dialog");
     const attendanceToast = document.querySelector("#attendance-toast");
     const navButtons = document.querySelectorAll(".nav-button");
     let selectedParticipant = null;
@@ -498,6 +513,9 @@
     let codeSessionKey = null, codeSession = null, codeAttendanceButton = null;
     let mismatchScan = null;
     let nativeMismatchPromptedFor = null;
+    let nativeConfirmPromptedFor = null;
+    let pendingNativeConfirmation = null;
+    let restoredBrowserProfile = false;
     let attendanceToastTimer = null;
     const attendanceStates = new Map();
     const attendanceLoaded = new Set();
@@ -805,6 +823,16 @@
         if(scanned && scannedSession && button && (pendingAttendance==="breakout-1" || pendingAttendance==="breakout-2")) {
           nativeMismatchPromptedFor=selectedParticipant.name;
           requestAnimationFrame(()=>handleAttendanceCredential(scanned,pendingAttendance,scannedSession,button));
+        }
+      }
+      if(restoredBrowserProfile && pendingAttendance && scanMatches && nativeConfirmPromptedFor!==`${selectedParticipant.name}:${pendingAttendance}:${pendingWorkshop||""}`) {
+        const button=cards.querySelector(`[data-session-card="${pendingAttendance}"] [data-attendance="${pendingAttendance}"]`);
+        if(button && scannedSession) {
+          nativeConfirmPromptedFor=`${selectedParticipant.name}:${pendingAttendance}:${pendingWorkshop||""}`;
+          pendingNativeConfirmation={button,key:pendingAttendance,session:scannedSession};
+          document.querySelector("#native-confirm-name").textContent=selectedParticipant.name;
+          document.querySelector("#native-confirm-session").textContent=`${scannedSession.title} · ${sessionTime(pendingAttendance)} · ${scannedSession.venue}`;
+          requestAnimationFrame(()=>nativeAttendanceConfirmDialog.showModal());
         }
       }
       results.classList.add("visible");
@@ -1115,6 +1143,25 @@
       await markAttendance(choice.button,choice.key,choice.session);
       render();
     });
+    document.querySelector("#native-confirm-cancel").addEventListener("click",()=>{
+      pendingNativeConfirmation=null;
+      nativeAttendanceConfirmDialog.close();
+      clearPendingScan();
+      render();
+    });
+    document.querySelector("#native-confirm-mark").addEventListener("click",async()=>{
+      if(!pendingNativeConfirmation) return;
+      const confirmation=pendingNativeConfirmation;
+      pendingNativeConfirmation=null;
+      nativeAttendanceConfirmDialog.close();
+      await markAttendance(confirmation.button,confirmation.key,confirmation.session);
+    });
+    nativeAttendanceConfirmDialog.addEventListener("close",()=>{
+      if(!pendingNativeConfirmation) return;
+      pendingNativeConfirmation=null;
+      clearPendingScan();
+      render();
+    });
     search.addEventListener("keydown", event => {
       if (event.key === "Enter") {
         const first = suggestions.querySelector("button");
@@ -1225,6 +1272,7 @@
           session2: secondIndex >= 0 ? session2Options[secondIndex] : null,
           selfSelected: true
         };
+        restoredBrowserProfile = true;
         restoredPersonalPlan = true;
         saveParticipantProfile();
         render();
@@ -1241,6 +1289,7 @@
           search.value = participant.name;
           department.value = savedProfile.department;
           selectedParticipant = participantWithOverrides(participant);
+          restoredBrowserProfile = true;
           render();
         }
       } catch (error) {
