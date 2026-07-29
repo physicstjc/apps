@@ -48,6 +48,7 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
           'department', 'deviceId', 'eventDate', 'eventName',
           'participantName', 'participantType', 'registeredAt',
+          'registeredBy',
           'session1Presenter', 'session1Title', 'session1Venue',
           'session2Presenter', 'session2Title', 'session2Venue'
         ])
@@ -71,7 +72,10 @@ service cloud.firestore {
         && request.resource.data.session1Presenter.size() <= 200
         && request.resource.data.session2Presenter is string
         && request.resource.data.session2Presenter.size() <= 200
-        && request.resource.data.registeredAt == request.time;
+        && request.resource.data.registeredAt == request.time
+        && (!request.resource.data.keys().hasAny(['registeredBy'])
+          || (isSuperAdmin()
+            && request.resource.data.registeredBy == request.auth.token.email));
     }
 
     function validWorkshopOverride() {
