@@ -132,6 +132,16 @@
     .scanner-status { min-height: 20px; margin: 0 0 10px; color: var(--muted); font-size: .78rem; text-align: center; }
     .scanner-status.error { color: #a33c32; }
     .switch-camera { width: 100%; min-height: 42px; border: 0; border-radius: 10px; color: white; font-weight: 800; background: var(--teal); cursor: pointer; }
+    .mismatch-body { padding: 18px; background: white; }
+    .mismatch-body > p { margin: 0 0 14px; color: var(--muted); font-size: .84rem; line-height: 1.5; }
+    .mismatch-choice { padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--cream); }
+    .mismatch-choice + .mismatch-choice { margin-top: 9px; }
+    .mismatch-choice span { display: block; margin-bottom: 3px; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .mismatch-choice strong { display: block; font-size: .88rem; line-height: 1.4; }
+    .mismatch-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 16px; }
+    .mismatch-actions button { min-height: 44px; padding: 8px 10px; border: 0; border-radius: 10px; font-weight: 820; cursor: pointer; }
+    .mismatch-keep { color: var(--teal); background: var(--mint); }
+    .mismatch-override { color: white; background: linear-gradient(100deg,var(--orange),var(--coral)); }
     .attendance-toast { position: fixed; z-index: 100; left: 50%; bottom: max(22px,env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 11px; width: min(440px,calc(100% - 28px)); padding: 15px 17px; border: 1px solid rgba(86,170,165,.34); border-radius: 15px; color: #285f55; background: rgba(223,245,232,.97); box-shadow: 0 18px 50px rgba(32,54,59,.24); opacity: 0; pointer-events: none; transform: translate(-50%,24px) scale(.97); transition: opacity .25s ease,transform .25s ease; }
     .attendance-toast.visible { opacity: 1; transform: translate(-50%,0) scale(1); }
     .attendance-toast-icon { display: grid; flex: 0 0 auto; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: white; font-size: 1.2rem; font-weight: 900; background: var(--green); }
@@ -202,6 +212,7 @@
       .card-calendar-link { min-height: 37px; margin-top: 13px; font-size: .7rem; }
       .attendance-button { min-height: 37px; font-size: .7rem; }
       .scan-notice { padding: 10px 12px; font-size: .74rem; }
+      .mismatch-actions { grid-template-columns: 1fr; }
     }
     @media (max-width: 440px) {
       .brand { max-width: 76px; line-height: 1.15; }
@@ -313,6 +324,20 @@
       <button class="switch-camera" id="switch-camera" type="button">Switch to front camera</button>
     </div>
   </dialog>
+  <dialog class="scanner-dialog" id="workshop-mismatch-dialog">
+    <div class="scanner-head">
+      <div><h2>Different workshop scanned</h2><p>This is not your current workshop choice.</p></div>
+    </div>
+    <div class="mismatch-body">
+      <p>Would you like to switch to the workshop you scanned, or keep your original choice?</p>
+      <div class="mismatch-choice"><span>QR code scanned</span><strong id="mismatch-scanned"></strong></div>
+      <div class="mismatch-choice"><span>Your current workshop</span><strong id="mismatch-assigned"></strong></div>
+      <div class="mismatch-actions">
+        <button class="mismatch-keep" id="mismatch-keep" type="button">Keep my workshop</button>
+        <button class="mismatch-override" id="mismatch-override" type="button">Switch and mark attendance</button>
+      </div>
+    </div>
+  </dialog>
   <div class="attendance-toast" id="attendance-toast" role="status" aria-live="polite">
     <div class="attendance-toast-icon">✓</div>
     <div><strong>Attendance marked</strong><span id="attendance-toast-session"></span></div>
@@ -379,6 +404,7 @@
     const scannerVideo = document.querySelector("#scanner-video");
     const scannerCanvas = document.querySelector("#scanner-canvas");
     const scannerStatus = document.querySelector("#scanner-status");
+    const workshopMismatchDialog = document.querySelector("#workshop-mismatch-dialog");
     const attendanceToast = document.querySelector("#attendance-toast");
     const navButtons = document.querySelectorAll(".nav-button");
     let selectedParticipant = null;
@@ -388,6 +414,7 @@
     let pendingWorkshop = attendanceParameters.get("workshop");
     let cameraFacing = "environment", cameraStream = null, scannerFrame = null;
     let scannerSessionKey = null, scannerSession = null, scannerAttendanceButton = null;
+    let mismatchScan = null;
     let attendanceToastTimer = null;
     if (pendingAttendance) {
       status.textContent = "Session QR scanned. Enter your name and department to continue.";
@@ -463,6 +490,18 @@
 
     const session1Options = uniqueSessions("session1");
     const session2Options = uniqueSessions("session2");
+    const sessionTime = key => key === "breakout-1" ? "10:00–10:45" : key === "breakout-2" ? "11:00–11:45" : "9:00–9:40";
+    function participantWithOverrides(participant) {
+      if (!participant) return null;
+      try {
+        const overrides=JSON.parse(localStorage.getItem(`lflWorkshopOverrides:${participant.name}`));
+        const first=session1Options.find(session=>session.title===overrides?.session1Title);
+        const second=session2Options.find(session=>session.title===overrides?.session2Title);
+        return {...participant,session1:first||participant.session1,session2:second||participant.session2};
+      } catch {
+        return {...participant};
+      }
+    }
     function populateSessionSelect(select, sessions) {
       sessions.forEach((session, index) => {
         const option = document.createElement("option");
@@ -560,7 +599,7 @@
       selfSelectMode = false;
       selfSelectPanel.hidden = true;
       selfSelectStart.classList.remove("visible");
-      selectedParticipant = participant;
+      selectedParticipant = participantWithOverrides(participant);
       search.value = participant.name;
       suggestions.classList.remove("open");
       render();
@@ -568,7 +607,7 @@
 
     function updateSuggestions() {
       const query = search.value.trim().toLocaleLowerCase();
-      selectedParticipant = data.participants.find(item => item.name.toLocaleLowerCase() === query) || null;
+      selectedParticipant = participantWithOverrides(data.participants.find(item => item.name.toLocaleLowerCase() === query));
       suggestions.replaceChildren();
       if (query.length < 2) {
         suggestions.classList.remove("open");
@@ -655,15 +694,17 @@
       scannerVideo.srcObject = null;
     }
 
-    function scannedQrMatches(value) {
+    function readAttendanceQr(value) {
       try {
         const scanned = new URL(value);
-        return scanned.origin === "https://physicstjc.github.io"
-          && scanned.pathname.replace(/\/+$/, "") === "/apps/lfl2026"
-          && scanned.searchParams.get("attendance") === scannerSessionKey
-          && scanned.searchParams.get("workshop") === scannerSession?.title;
+        if (scanned.origin !== "https://physicstjc.github.io" || scanned.pathname.replace(/\/+$/, "") !== "/apps/lfl2026") return null;
+        const key=scanned.searchParams.get("attendance");
+        const title=scanned.searchParams.get("workshop");
+        const options=key==="breakout-1" ? session1Options : key==="breakout-2" ? session2Options : key==="morning-plenary" ? [plenarySession] : [];
+        const session=options.find(item=>item.title===title);
+        return session ? {key,title,session} : null;
       } catch {
-        return false;
+        return null;
       }
     }
 
@@ -681,13 +722,23 @@
       const image = context.getImageData(0, 0, scannerCanvas.width, scannerCanvas.height);
       const result = window.jsQR?.(image.data, image.width, image.height, { inversionAttempts: "dontInvert" });
       if (result) {
-        if (scannedQrMatches(result.data)) {
+        const scanned=readAttendanceQr(result.data);
+        if (scanned?.key===scannerSessionKey && scanned.title===scannerSession?.title) {
           const button = scannerAttendanceButton;
           const key = scannerSessionKey;
           const session = scannerSession;
           stopScanner();
           scannerDialog.close();
           await markAttendance(button, key, session);
+          return;
+        }
+        if (scanned?.key===scannerSessionKey && (scanned.key==="breakout-1" || scanned.key==="breakout-2")) {
+          mismatchScan={...scanned,assigned:scannerSession,button:scannerAttendanceButton};
+          stopScanner();
+          scannerDialog.close();
+          document.querySelector("#mismatch-scanned").textContent=`${scanned.session.title} · ${sessionTime(scanned.key)} · ${scanned.session.venue}`;
+          document.querySelector("#mismatch-assigned").textContent=`${scannerSession.title} · ${sessionTime(scanned.key)} · ${scannerSession.venue}`;
+          workshopMismatchDialog.showModal();
           return;
         }
         scannerStatus.textContent = "That QR code is for a different session. Please scan this workshop’s code.";
@@ -746,6 +797,38 @@
     document.querySelector("#scanner-close").addEventListener("click",()=>{ stopScanner(); scannerDialog.close(); });
     document.querySelector("#switch-camera").addEventListener("click",async()=>{ cameraFacing=cameraFacing==="environment"?"user":"environment"; await startScannerCamera(); });
     scannerDialog.addEventListener("close",stopScanner);
+    document.querySelector("#mismatch-keep").addEventListener("click",()=>{
+      if(!mismatchScan) return;
+      workshopMismatchDialog.close();
+      scanNotice.textContent=`Your workshop is ${mismatchScan.assigned.title}, ${sessionTime(mismatchScan.key)}, at ${mismatchScan.assigned.venue}.`;
+      scanNotice.classList.add("visible");
+      scanNotice.classList.remove("error");
+      mismatchScan=null;
+    });
+    document.querySelector("#mismatch-override").addEventListener("click",async()=>{
+      if(!mismatchScan || !selectedParticipant) return;
+      const choice=mismatchScan;
+      workshopMismatchDialog.close();
+      if(choice.key==="breakout-1") selectedParticipant.session1=choice.session;
+      if(choice.key==="breakout-2") selectedParticipant.session2=choice.session;
+      localStorage.setItem(`lflWorkshopOverrides:${selectedParticipant.name}`,JSON.stringify({
+        session1Title:selectedParticipant.session1?.title,
+        session2Title:selectedParticipant.session2?.title
+      }));
+      try {
+        const savedPlan=JSON.parse(localStorage.getItem("lflPersonalPlan")||"null");
+        if(savedPlan?.name===selectedParticipant.name) {
+          savedPlan.session1Title=selectedParticipant.session1?.title;
+          savedPlan.session2Title=selectedParticipant.session2?.title;
+          localStorage.setItem("lflPersonalPlan",JSON.stringify(savedPlan));
+        }
+      } catch {
+        localStorage.removeItem("lflPersonalPlan");
+      }
+      mismatchScan=null;
+      await markAttendance(choice.button,choice.key,choice.session);
+      render();
+    });
     search.addEventListener("keydown", event => {
       if (event.key === "Enter") {
         const first = suggestions.querySelector("button");
