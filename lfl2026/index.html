@@ -115,6 +115,10 @@
     .attendance-button:disabled { cursor: wait; opacity: .72; }
     .attendance-button.marked { color: #285f55; background: var(--mint); cursor: default; opacity: 1; }
     .attendance-button.error { color: #8a352d; background: #fde8de; opacity: 1; }
+    .scan-notice { display: none; margin: 0 0 12px; padding: 12px 15px; border: 1px solid rgba(86,170,165,.3); border-radius: 13px; color: #285f55; font-size: .82rem; font-weight: 720; background: var(--mint); }
+    .scan-notice.visible { display: block; }
+    .scan-notice.error { color: #8a352d; border-color: rgba(233,120,98,.3); background: #fde8de; }
+    .scan-required { margin-top: 12px; color: var(--muted); font-size: .72rem; font-style: italic; text-align: center; }
     .schedule-heading { max-width: 720px; margin-bottom: 28px; }
     .schedule-heading h1 { margin-bottom: 16px; }
     .schedule-heading p { color: var(--muted); font-size: 1.04rem; line-height: 1.6; }
@@ -179,6 +183,7 @@
       .footer { margin-top: 20px; font-size: .68rem; }
       .card-calendar-link { min-height: 37px; margin-top: 13px; font-size: .7rem; }
       .attendance-button { min-height: 37px; font-size: .7rem; }
+      .scan-notice { padding: 10px 12px; font-size: .74rem; }
     }
     @media (max-width: 440px) {
       .brand { max-width: 76px; line-height: 1.15; }
@@ -251,6 +256,7 @@
           <div><p>Your programme</p><h2 id="person-name"></h2></div>
           <button class="edit-details" id="edit-details" type="button">Change details</button>
         </div>
+        <div class="scan-notice" id="scan-notice"></div>
         <div class="cards" id="cards"></div>
       </section>
     </div>
@@ -330,9 +336,16 @@
     const selfSession1 = document.querySelector("#self-session-1");
     const selfSession2 = document.querySelector("#self-session-2");
     const generateSchedule = document.querySelector("#generate-schedule");
+    const scanNotice = document.querySelector("#scan-notice");
     const navButtons = document.querySelectorAll(".nav-button");
     let selectedParticipant = null;
     let selfSelectMode = false;
+    const attendanceParameters = new URLSearchParams(location.search);
+    let pendingAttendance = attendanceParameters.get("attendance");
+    let pendingWorkshop = attendanceParameters.get("workshop");
+    if (pendingAttendance) {
+      status.textContent = "Session QR scanned. Enter your name and department to continue.";
+    }
     const plenarySession = {
       title: "Morning Plenary",
       presenter: "",
@@ -418,13 +431,19 @@
     function sessionCard(label, time, session, start, end, sessionKey) {
       if (!session) return `<article class="card"><div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div><h3 class="empty">Allocation not listed in the participant directory.</h3></article>`;
       const savedAttendance = localStorage.getItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`) === "marked";
+      const scanMatches = pendingAttendance === sessionKey
+        && (!pendingWorkshop || pendingWorkshop === session.title);
       return `<article class="card">
         <div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div>
         <h3>${escapeHtml(session.title)}</h3>
         ${session.presenter ? `<div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>` : ""}
         <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(session.venue)}</span></div>
         ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions${session.presenter ? `\nPresenter(s): ${session.presenter}` : ""}`)}
-        <button class="attendance-button${savedAttendance ? " marked" : ""}" type="button" data-attendance="${sessionKey}" ${savedAttendance ? "disabled" : ""}>${savedAttendance ? "Attendance marked ✓" : "Mark attendance"}</button>
+        ${savedAttendance
+          ? `<button class="attendance-button marked" type="button" disabled>Attendance marked ✓</button>`
+          : scanMatches
+            ? `<button class="attendance-button" type="button" data-attendance="${sessionKey}">Confirm scanned attendance</button>`
+            : '<p class="scan-required">Scan this session’s QR code to mark attendance.</p>'}
       </article>`;
     }
 
@@ -456,6 +475,22 @@
         return;
       }
       const reflection = data.departments.find(item => item.name === department.value);
+      const scannedSession = pendingAttendance === "morning-plenary"
+        ? plenarySession
+        : pendingAttendance === "breakout-1"
+          ? selectedParticipant.session1
+          : pendingAttendance === "breakout-2"
+            ? selectedParticipant.session2
+            : null;
+      const scanMatches = scannedSession
+        && (!pendingWorkshop || scannedSession.title === pendingWorkshop);
+      scanNotice.classList.toggle("visible", Boolean(pendingAttendance));
+      scanNotice.classList.toggle("error", Boolean(pendingAttendance && !scanMatches));
+      scanNotice.textContent = !pendingAttendance
+        ? ""
+        : scanMatches
+          ? `QR scanned for ${scannedSession.title}. Confirm attendance on that session card.`
+          : "This QR code does not match your assigned or selected workshop.";
       const reflectionCard = `<article class="card reflection">
         <div class="session-meta"><span class="tag">Department reflection</span><span class="time">11:50–12:30</span></div>
         <h3>${reflection ? escapeHtml(reflection.name) : '<span class="empty">Select your department above.</span>'}</h3>
@@ -548,6 +583,13 @@
         localStorage.setItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`, "marked");
         button.textContent = "Attendance marked ✓";
         button.classList.add("marked");
+        pendingAttendance = null;
+        pendingWorkshop = null;
+        const cleanUrl = new URL(location.href);
+        cleanUrl.searchParams.delete("attendance");
+        cleanUrl.searchParams.delete("workshop");
+        history.replaceState(null, "", cleanUrl);
+        scanNotice.classList.remove("visible", "error");
       } catch (error) {
         button.disabled = false;
         button.textContent = "Try marking attendance again";
