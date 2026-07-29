@@ -300,7 +300,7 @@
         <p class="status" id="status" aria-live="polite">Enter at least two letters to search.</p>
         <button class="self-select-start" id="self-select-start" type="button">My name isn’t listed — choose sessions</button>
         <div class="self-select-panel" id="self-select-panel" hidden>
-          <p class="self-select-intro">Your name is not in the participant directory. Add your name by choosing at least one breakout workshop and your department.</p>
+          <p class="self-select-intro">Your name is not in the participant directory. Select your department, then choose zero, one, or two breakout workshops.</p>
           <div class="self-select-grid">
             <div>
               <label for="self-session-1">Preferred Breakout 1 (optional)</label>
@@ -311,7 +311,7 @@
               <select id="self-session-2"><option value="">No workshop</option></select>
             </div>
           </div>
-          <button class="generate-button" id="generate-schedule" type="button">Add my name and save my workshops</button>
+          <button class="generate-button" id="generate-schedule" type="button">Add my name and save my schedule</button>
         </div>
       </section>
 
@@ -876,7 +876,7 @@
       suggestions.classList.toggle("open", matches.length > 0 && !selectedParticipant);
       status.textContent = matches.length
         ? `${matches.length} ${matches.length === 1 ? "match" : "matches"} found.`
-        : "No matching participant found. Add your name and choose both workshops below.";
+        : "No matching participant found. Add your name below; breakout workshops are optional.";
       status.classList.toggle("error", matches.length === 0);
       selfSelectStart.classList.remove("visible");
       if(matches.length===0) {
@@ -1186,15 +1186,15 @@
       selfSelectPanel.hidden = false;
       selfSelectStart.classList.remove("visible");
       suggestions.classList.remove("open");
-      status.textContent = "Choose at least one breakout session and your department.";
+      status.textContent = "Select your department. Both breakout workshops are optional.";
       status.classList.remove("error");
     });
     generateSchedule.addEventListener("click", async () => {
       const name = search.value.trim();
       const first = selfSession1.value === "" ? null : session1Options[Number(selfSession1.value)];
       const second = selfSession2.value === "" ? null : session2Options[Number(selfSession2.value)];
-      if (!name || (!first && !second) || !department.value) {
-        status.textContent = "Enter your name, choose at least one breakout session, and select a department.";
+      if (!name || !department.value) {
+        status.textContent = "Enter your name and select a department. Breakout workshops are optional.";
         status.classList.add("error");
         return;
       }
@@ -1237,7 +1237,7 @@
       localStorage.setItem(savedDepartmentKey, department.value);
       saveParticipantProfile();
       generateSchedule.disabled = false;
-      generateSchedule.textContent = "Add my name and save my workshops";
+      generateSchedule.textContent = "Add my name and save my schedule";
       selfSelectPanel.hidden = true;
       render();
     });
@@ -1258,7 +1258,7 @@
       const validFirst = saved?.session1Title === "" || firstIndex >= 0;
       const validSecond = saved?.session2Title === "" || secondIndex >= 0;
       const validDepartment = data.departments.some(item => item.name === saved?.department);
-      if (saved?.name && validFirst && validSecond && (firstIndex >= 0 || secondIndex >= 0) && validDepartment) {
+      if (saved?.name && validFirst && validSecond && validDepartment) {
         search.value = saved.name;
         department.value = saved.department;
         selfSession1.value = firstIndex >= 0 ? String(firstIndex) : "";
