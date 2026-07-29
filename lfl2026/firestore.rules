@@ -6,6 +6,18 @@ service cloud.firestore {
       return value is string && value.size() > 0 && value.size() <= maximum;
     }
 
+    function isSuperAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'tan_seng_kwang@moe.edu.sg',
+          'ang_lai_neo_jismyl@moe.edu.sg',
+          'tay_chiew_hsia_joanne@moe.edu.sg',
+          'chee_yao_rong_brendon@moe.edu.sg',
+          'varella_alan_joseph@moe.edu.sg'
+        ];
+    }
+
     function validAttendance() {
       return request.resource.data.keys().hasOnly([
           'attendance', 'department', 'deviceId', 'eventDate', 'eventName',
@@ -56,24 +68,41 @@ service cloud.firestore {
         && request.resource.data.registeredAt == request.time;
     }
 
+    function validWorkshopOverride() {
+      return request.resource.data.keys().hasOnly([
+          'participantName', 'session1Presenter', 'session1Title',
+          'session1Venue', 'session2Presenter', 'session2Title',
+          'session2Venue', 'updatedAt', 'updatedBy'
+        ])
+        && validText(request.resource.data.participantName, 120)
+        && validText(request.resource.data.session1Title, 300)
+        && validText(request.resource.data.session1Venue, 80)
+        && validText(request.resource.data.session2Title, 300)
+        && validText(request.resource.data.session2Venue, 80)
+        && request.resource.data.session1Presenter is string
+        && request.resource.data.session1Presenter.size() <= 200
+        && request.resource.data.session2Presenter is string
+        && request.resource.data.session2Presenter.size() <= 200
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy == request.auth.token.email;
+    }
+
     match /lflAttendance/{recordId} {
       allow read: if true;
       allow create, update: if validAttendance();
-      allow delete: if request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in [
-          'tan_seng_kwang@moe.edu.sg',
-          'ang_lai_neo_jismyl@moe.edu.sg',
-          'tay_chiew_hsia_joanne@moe.edu.sg',
-          'chee_yao_rong_brendon@moe.edu.sg',
-          'varella_alan_joseph@moe.edu.sg'
-        ];
+      allow delete: if isSuperAdmin();
     }
 
     match /lflRegistrations/{recordId} {
       allow read: if true;
       allow create, update: if validRegistration();
       allow delete: if false;
+    }
+
+    match /lflWorkshopOverrides/{recordId} {
+      allow read: if true;
+      allow create, update: if isSuperAdmin() && validWorkshopOverride();
+      allow delete: if isSuperAdmin();
     }
   }
 }

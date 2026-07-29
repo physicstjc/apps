@@ -414,6 +414,10 @@
       const safeName = participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       return `2026-08-04_${sessionKey}_${safeName || "participant"}`;
     };
+    const workshopOverrideDocumentId = participantName => {
+      const safeName = participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return `2026-08-04_${safeName || "participant"}`;
+    };
     window.saveLflAttendance = async (record) => {
       const documentId = attendanceDocumentId(record.participantName,record.sessionKey);
       await setDoc(doc(database, "lflAttendance", documentId), {
@@ -433,6 +437,11 @@
       ));
       return ()=>unsubscribers.forEach(unsubscribe=>unsubscribe());
     };
+    window.watchLflWorkshopOverride = (participantName,listener) => onSnapshot(
+      doc(database,"lflWorkshopOverrides",workshopOverrideDocumentId(participantName)),
+      snapshot=>listener(snapshot.exists() ? snapshot.data() : null),
+      error=>{ console.error("Workshop changes could not be read:",error); listener(null); }
+    );
     window.saveLflRegistration = async (record) => {
       const safeName = record.participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const documentId = `2026-08-04_${safeName || "participant"}_${record.deviceId.replace(/[^a-z0-9-]+/gi, "-")}`;
@@ -486,6 +495,7 @@
     const attendanceStates = new Map();
     const attendanceLoaded = new Set();
     let attendanceWatchName = null, stopAttendanceWatch = null, firebaseWatchQueued = false;
+    let workshopOverrideWatchName = null, stopWorkshopOverrideWatch = null, workshopOverrideWatchQueued = false;
     if (pendingAttendance) {
       status.textContent = "Session QR scanned. Enter your name and department to continue.";
     }
@@ -634,6 +644,40 @@
       });
     }
 
+    function ensureWorkshopOverrideWatch() {
+      const participantName=selectedParticipant?.name;
+      if(!participantName) {
+        if(stopWorkshopOverrideWatch) stopWorkshopOverrideWatch();
+        stopWorkshopOverrideWatch=null;
+        workshopOverrideWatchName=null;
+        return;
+      }
+      if(workshopOverrideWatchName===participantName) return;
+      if(stopWorkshopOverrideWatch) stopWorkshopOverrideWatch();
+      stopWorkshopOverrideWatch=null;
+      workshopOverrideWatchName=null;
+      if(!window.watchLflWorkshopOverride) {
+        if(!workshopOverrideWatchQueued) {
+          workshopOverrideWatchQueued=true;
+          window.addEventListener("lflFirebaseReady",()=>{ workshopOverrideWatchQueued=false; ensureWorkshopOverrideWatch(); },{once:true});
+        }
+        return;
+      }
+      workshopOverrideWatchName=participantName;
+      stopWorkshopOverrideWatch=window.watchLflWorkshopOverride(participantName,override=>{
+        if(selectedParticipant?.name!==participantName || !override) return;
+        const first=session1Options.find(session=>session.title===override.session1Title);
+        const second=session2Options.find(session=>session.title===override.session2Title);
+        if(first) selectedParticipant.session1=first;
+        if(second) selectedParticipant.session2=second;
+        localStorage.setItem(`lflWorkshopOverrides:${participantName}`,JSON.stringify({
+          session1Title:selectedParticipant.session1?.title,
+          session2Title:selectedParticipant.session2?.title
+        }));
+        render();
+      });
+    }
+
     function sessionCard(label, time, session, start, end, sessionKey) {
       if (!session) return `<article class="card"><div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div><h3 class="empty">Allocation not listed in the participant directory.</h3></article>`;
       const savedAttendance = attendanceStates.get(sessionKey) === true;
@@ -689,10 +733,12 @@
       updateFullSchedule();
       if (!selectedParticipant) {
         ensureAttendanceWatch();
+        ensureWorkshopOverrideWatch();
         results.classList.remove("visible");
         return;
       }
       ensureAttendanceWatch();
+      ensureWorkshopOverrideWatch();
       const reflection = data.departments.find(item => item.name === department.value);
       const scannedSession = pendingAttendance === "morning-plenary"
         ? plenarySession
