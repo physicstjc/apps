@@ -49,6 +49,8 @@
     .empty { padding: 34px; color: var(--muted); text-align: center; }
     .delete-button { padding: 6px 9px; border: 0; border-radius: 8px; color: #8a352d; font-size: .7rem; font-weight: 800; background: #fde8de; cursor: pointer; }
     .delete-button:hover, .delete-button:focus { color: white; background: var(--coral); }
+    .workshop-edit { min-width: 250px; min-height: 38px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: .75rem; background: white; }
+    .workshop-edit:disabled { cursor: wait; opacity: .65; }
     .note { margin: 12px 2px 0; color: var(--muted); font-size: .72rem; }
     .qr-selector { max-width: 680px; margin: 0 auto 14px; padding: 15px; border-radius: 16px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
     .qr-selector select { width: 100%; }
@@ -135,7 +137,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-    import { collection, deleteDoc, doc, getFirestore, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+    import { collection, deleteDoc, doc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
     const app = initializeApp({
       apiKey: "AIzaSyBIytzQZuv8hSjJM0IkSwWHi_ENFTKPPXE", authDomain: "workshop-9cbb7.firebaseapp.com",
       projectId: "workshop-9cbb7", storageBucket: "workshop-9cbb7.firebasestorage.app",
@@ -150,7 +152,7 @@
     });
     const db = getFirestore(app);
     const data = window.LFL_DATA || { participants: [], departments: [] };
-    let attendance = [], newRegistrations = [], attendanceReady = false, registrationsReady = false;
+    let attendance = [], newRegistrations = [], workshopOverrides = [], attendanceReady = false, registrationsReady = false, overridesReady = false;
     const superAdminEmails = new Set([
       "tan_seng_kwang@moe.edu.sg",
       "ang_lai_neo_jismyl@moe.edu.sg",
@@ -167,11 +169,15 @@
     const qrSessions = new Map();
     qrSessions.set("morning-plenary:Morning Plenary",{key:"morning-plenary",title:"Morning Plenary",time:"9:00–9:40",venue:"LT1"});
     data.participants.forEach(p => {
-      if(p.session1) qrSessions.set(`breakout-1:${p.session1.title}`,{key:"breakout-1",title:p.session1.title,time:"10:00–10:45",venue:p.session1.venue});
-      if(p.session2) qrSessions.set(`breakout-2:${p.session2.title}`,{key:"breakout-2",title:p.session2.title,time:"11:00–11:45",venue:p.session2.venue});
+      if(p.session1) qrSessions.set(`breakout-1:${p.session1.title}`,{key:"breakout-1",title:p.session1.title,presenter:p.session1.presenter,time:"10:00–10:45",venue:p.session1.venue});
+      if(p.session2) qrSessions.set(`breakout-2:${p.session2.title}`,{key:"breakout-2",title:p.session2.title,presenter:p.session2.presenter,time:"11:00–11:45",venue:p.session2.venue});
     });
     const qrOrder={"morning-plenary":0,"breakout-1":1,"breakout-2":2};
     const qrSessionList=[...qrSessions.values()].sort((a,b) => qrOrder[a.key]-qrOrder[b.key] || a.title.localeCompare(b.title));
+    const breakout1Options=qrSessionList.filter(session=>session.key==="breakout-1");
+    const breakout2Options=qrSessionList.filter(session=>session.key==="breakout-2");
+    const safeParticipantId=name=>`2026-08-04_${name.toLocaleLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "participant"}`;
+    const workshopSelect=(options,selected,name,slot)=>`<select class="workshop-edit" data-edit-name="${esc(name)}" data-session-slot="${slot}">${selected ? "" : '<option value="" selected>Choose a workshop…</option>'}${options.map(session=>`<option value="${esc(session.title)}"${session.title===selected ? " selected" : ""}>${esc(session.title)} · ${esc(session.venue)}</option>`).join("")}</select>`;
     function attendanceCode(key,title) {
       const characters="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let hash=2166136261;
@@ -232,7 +238,7 @@
     $("#original-count").textContent = original.length;
 
     function updateConnection() {
-      if(attendanceReady && registrationsReady) { $("#connection").textContent="Live data connected"; $("#connection").className="connection live"; }
+      if(attendanceReady && registrationsReady && overridesReady) { $("#connection").textContent="Live data connected"; $("#connection").className="connection live"; }
     }
     function filtered(rows, kind) {
       const name=$("#name-filter").value.trim().toLocaleLowerCase(), workshop=$("#workshop-filter").value, department=$("#department-filter").value, sort=$("#sort-by").value;
@@ -254,11 +260,17 @@
           ? "Not authorised · Sign out"
           : "Super admin";
       $("#attendance-body").innerHTML=attendanceRows.length ? attendanceRows.map(r=>`<tr><td><strong>${esc(r.participantName)}</strong></td><td><span class="pill">${esc(r.participantType)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.sessionTitle)}</td><td>${esc(r.presenter)}</td><td>${esc(r.venue)}</td><td>${esc(dateText(r.markedAt))}</td>${superAdminUnlocked ? `<td><button class="delete-button" type="button" data-delete-attendance="${esc(r.id)}" data-delete-name="${esc(r.participantName)}" data-delete-session="${esc(r.sessionTitle)}">Delete</button></td>` : ""}</tr>`).join("") : `<tr><td colspan="${superAdminUnlocked ? 8 : 7}" class="empty">No attendance records match these filters.</td></tr>`;
-      const registrationRows=filtered([...original,...newRegistrations.map(r=>({name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt}))],"registrants");
-      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">No registrants match these filters.</td></tr>';
+      const overrideByName=new Map(workshopOverrides.map(override=>[override.participantName.toLocaleLowerCase(),override]));
+      const registrants=[...original,...newRegistrations.map(r=>({name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt}))].map(registrant=>{
+        const override=overrideByName.get(registrant.name.toLocaleLowerCase());
+        return override ? {...registrant,...override,name:registrant.name} : registrant;
+      });
+      const registrationRows=filtered(registrants,"registrants");
+      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span></td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">No registrants match these filters.</td></tr>';
     }
     onSnapshot(collection(db,"lflAttendance"), snap => { attendance=snap.docs.map(d=>({id:d.id,...d.data()})); attendanceReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Attendance read failed"; $("#connection").className="connection error"; console.error(error); });
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
+    onSnapshot(collection(db,"lflWorkshopOverrides"), snap => { workshopOverrides=snap.docs.map(d=>({id:d.id,...d.data()})); overridesReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Workshop changes read failed"; $("#connection").className="connection error"; console.error(error); });
     ["#workshop-filter","#department-filter","#sort-by"].forEach(id => $(id).addEventListener("change",render));
     $("#name-filter").addEventListener("input",render);
     $("#clear-filters").addEventListener("click",()=>{ $("#name-filter").value=""; $("#workshop-filter").value=""; $("#department-filter").value=""; $("#sort-by").value="name"; render(); });
@@ -275,6 +287,35 @@
     $("#super-admin-button").addEventListener("click",async()=>{ $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); try { if(currentUser) await signOut(auth); else await signInWithPopup(auth,googleProvider); } catch(error) { console.error(error); $("#auth-status").textContent=authErrorText(error); $("#auth-status").classList.add("error"); } });
     onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && superAdminEmails.has(user.email?.toLocaleLowerCase())); if(user&&!superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email || "unknown account"}. This account is not authorised as a super admin.`; $("#auth-status").classList.add("error"); } else if(superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email}`; $("#auth-status").classList.remove("error"); } else { $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); } render(); });
     $("#attendance-body").addEventListener("click",async event=>{ const button=event.target.closest("[data-delete-attendance]"); if(!button||!superAdminUnlocked) return; const message=`Delete ${button.dataset.deleteName}'s attendance for ${button.dataset.deleteSession}?`; if(!confirm(message)) return; button.disabled=true; button.textContent="Deleting…"; try { await deleteDoc(doc(db,"lflAttendance",button.dataset.deleteAttendance)); } catch(error) { button.disabled=false; button.textContent="Retry delete"; console.error(error); alert("Attendance could not be deleted."); } });
+    $("#registrants-body").addEventListener("change",async event=>{
+      const select=event.target.closest("[data-edit-name]");
+      if(!select||!superAdminUnlocked||!currentUser) return;
+      const row=select.closest("tr");
+      const participantName=select.dataset.editName;
+      const firstTitle=row.querySelector('[data-session-slot="1"]').value;
+      const secondTitle=row.querySelector('[data-session-slot="2"]').value;
+      const first=breakout1Options.find(session=>session.title===firstTitle);
+      const second=breakout2Options.find(session=>session.title===secondTitle);
+      if(!first||!second) return;
+      const selects=[...row.querySelectorAll(".workshop-edit")];
+      selects.forEach(item=>item.disabled=true);
+      $("#auth-status").textContent=`Saving workshop change for ${participantName}…`;
+      $("#auth-status").classList.remove("error");
+      try {
+        await setDoc(doc(db,"lflWorkshopOverrides",safeParticipantId(participantName)),{
+          participantName,
+          session1Title:first.title,session1Presenter:first.presenter||"",session1Venue:first.venue,
+          session2Title:second.title,session2Presenter:second.presenter||"",session2Venue:second.venue,
+          updatedAt:serverTimestamp(),updatedBy:currentUser.email
+        });
+        $("#auth-status").textContent=`Workshop choices updated for ${participantName}.`;
+      } catch(error) {
+        selects.forEach(item=>item.disabled=false);
+        $("#auth-status").textContent="Workshop change could not be saved.";
+        $("#auth-status").classList.add("error");
+        console.error(error);
+      }
+    });
     document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; $("#qr-panel").hidden=button.dataset.panel!=="qr"; $("#dashboard-controls").hidden=button.dataset.panel==="qr"; }));
     render();
   </script>
