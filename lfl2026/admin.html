@@ -146,13 +146,18 @@
     const googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({
       prompt: "select_account",
-      login_hint: "tan_seng_kwang@moe.edu.sg",
       hd: "moe.edu.sg"
     });
     const db = getFirestore(app);
     const data = window.LFL_DATA || { participants: [], departments: [] };
     let attendance = [], newRegistrations = [], attendanceReady = false, registrationsReady = false;
-    const superAdminEmail = "tan_seng_kwang@moe.edu.sg";
+    const superAdminEmails = new Set([
+      "tan_seng_kwang@moe.edu.sg",
+      "ang_lai_neo_jismyl@moe.edu.sg",
+      "tay_chiew_hsia_joanne@moe.edu.sg",
+      "chee_yao_rong_brendon@moe.edu.sg",
+      "varella_alan_joseph@moe.edu.sg"
+    ]);
     let currentUser = null, superAdminUnlocked = false;
     const $ = selector => document.querySelector(selector);
     const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
@@ -268,7 +273,7 @@
       return messages[error?.code] || `Google sign-in failed: ${error?.code || error?.message || "unknown error"}`;
     }
     $("#super-admin-button").addEventListener("click",async()=>{ $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); try { if(currentUser) await signOut(auth); else await signInWithPopup(auth,googleProvider); } catch(error) { console.error(error); $("#auth-status").textContent=authErrorText(error); $("#auth-status").classList.add("error"); } });
-    onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && user.email?.toLocaleLowerCase()===superAdminEmail); if(user&&!superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email || "unknown account"}. Only ${superAdminEmail} is authorised.`; $("#auth-status").classList.add("error"); } else if(superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email}`; $("#auth-status").classList.remove("error"); } else { $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); } render(); });
+    onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && superAdminEmails.has(user.email?.toLocaleLowerCase())); if(user&&!superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email || "unknown account"}. This account is not authorised as a super admin.`; $("#auth-status").classList.add("error"); } else if(superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email}`; $("#auth-status").classList.remove("error"); } else { $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); } render(); });
     $("#attendance-body").addEventListener("click",async event=>{ const button=event.target.closest("[data-delete-attendance]"); if(!button||!superAdminUnlocked) return; const message=`Delete ${button.dataset.deleteName}'s attendance for ${button.dataset.deleteSession}?`; if(!confirm(message)) return; button.disabled=true; button.textContent="Deleting…"; try { await deleteDoc(doc(db,"lflAttendance",button.dataset.deleteAttendance)); } catch(error) { button.disabled=false; button.textContent="Retry delete"; console.error(error); alert("Attendance could not be deleted."); } });
     document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; $("#qr-panel").hidden=button.dataset.panel!=="qr"; $("#dashboard-controls").hidden=button.dataset.panel==="qr"; }));
     render();

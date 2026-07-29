@@ -61,7 +61,13 @@ service cloud.firestore {
       allow create, update: if validAttendance();
       allow delete: if request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email == 'tan_seng_kwang@moe.edu.sg';
+        && request.auth.token.email in [
+          'tan_seng_kwang@moe.edu.sg',
+          'ang_lai_neo_jismyl@moe.edu.sg',
+          'tay_chiew_hsia_joanne@moe.edu.sg',
+          'chee_yao_rong_brendon@moe.edu.sg',
+          'varella_alan_joseph@moe.edu.sg'
+        ];
     }
 
     match /lflRegistrations/{recordId} {
