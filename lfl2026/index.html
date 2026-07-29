@@ -119,6 +119,19 @@
     .scan-notice.visible { display: block; }
     .scan-notice.error { color: #8a352d; border-color: rgba(233,120,98,.3); background: #fde8de; }
     .scan-required { margin-top: 12px; color: var(--muted); font-size: .72rem; font-style: italic; text-align: center; }
+    .scanner-dialog { width: min(560px,calc(100% - 20px)); padding: 0; border: 0; border-radius: 19px; color: var(--ink); overflow: hidden; box-shadow: 0 28px 80px rgba(32,54,59,.38); }
+    .scanner-dialog::backdrop { background: rgba(32,54,59,.72); backdrop-filter: blur(5px); }
+    .scanner-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 17px; color: white; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
+    .scanner-head h2 { margin: 0 0 3px; font-size: 1.05rem; }
+    .scanner-head p { margin: 0; color: rgba(255,255,255,.8); font-size: .74rem; }
+    .scanner-close { flex: 0 0 auto; width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: white; font-size: 1.2rem; background: transparent; cursor: pointer; }
+    .camera-frame { position: relative; aspect-ratio: 4/3; overflow: hidden; background: #15282c; }
+    .camera-frame video { width: 100%; height: 100%; object-fit: cover; }
+    .camera-guide { position: absolute; inset: 17%; border: 3px solid var(--gold); border-radius: 18px; box-shadow: 0 0 0 999px rgba(0,0,0,.24); pointer-events: none; }
+    .scanner-foot { padding: 14px 17px 17px; background: white; }
+    .scanner-status { min-height: 20px; margin: 0 0 10px; color: var(--muted); font-size: .78rem; text-align: center; }
+    .scanner-status.error { color: #a33c32; }
+    .switch-camera { width: 100%; min-height: 42px; border: 0; border-radius: 10px; color: white; font-weight: 800; background: var(--teal); cursor: pointer; }
     .schedule-heading { max-width: 720px; margin-bottom: 28px; }
     .schedule-heading h1 { margin-bottom: 16px; }
     .schedule-heading p { color: var(--muted); font-size: 1.04rem; line-height: 1.6; }
@@ -280,7 +293,23 @@
     <p class="footer">Learning for Life (LfL) Sharing Sessions · 4 August 2026 · TJC</p>
   </main>
 
+  <dialog class="scanner-dialog" id="scanner-dialog">
+    <div class="scanner-head">
+      <div><h2>Scan attendance QR</h2><p id="scanner-session-name"></p></div>
+      <button class="scanner-close" id="scanner-close" type="button" aria-label="Close scanner">×</button>
+    </div>
+    <div class="camera-frame">
+      <video id="scanner-video" playsinline muted></video>
+      <div class="camera-guide" aria-hidden="true"></div>
+      <canvas id="scanner-canvas" hidden></canvas>
+    </div>
+    <div class="scanner-foot">
+      <p class="scanner-status" id="scanner-status" aria-live="polite">Point the camera at this session’s QR code.</p>
+      <button class="switch-camera" id="switch-camera" type="button">Switch to front camera</button>
+    </div>
+  </dialog>
   <script src="participant-data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
     import { doc, getFirestore, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
@@ -337,12 +366,18 @@
     const selfSession2 = document.querySelector("#self-session-2");
     const generateSchedule = document.querySelector("#generate-schedule");
     const scanNotice = document.querySelector("#scan-notice");
+    const scannerDialog = document.querySelector("#scanner-dialog");
+    const scannerVideo = document.querySelector("#scanner-video");
+    const scannerCanvas = document.querySelector("#scanner-canvas");
+    const scannerStatus = document.querySelector("#scanner-status");
     const navButtons = document.querySelectorAll(".nav-button");
     let selectedParticipant = null;
     let selfSelectMode = false;
     const attendanceParameters = new URLSearchParams(location.search);
     let pendingAttendance = attendanceParameters.get("attendance");
     let pendingWorkshop = attendanceParameters.get("workshop");
+    let cameraFacing = "environment", cameraStream = null, scannerFrame = null;
+    let scannerSessionKey = null, scannerSession = null, scannerAttendanceButton = null;
     if (pendingAttendance) {
       status.textContent = "Session QR scanned. Enter your name and department to continue.";
     }
@@ -443,7 +478,7 @@
           ? `<button class="attendance-button marked" type="button" disabled>Attendance marked ✓</button>`
           : scanMatches
             ? `<button class="attendance-button" type="button" data-attendance="${sessionKey}">Confirm scanned attendance</button>`
-            : '<p class="scan-required">Scan this session’s QR code to mark attendance.</p>'}
+            : `<button class="attendance-button" type="button" data-scan-attendance="${sessionKey}">Scan QR to mark attendance</button>`}
       </article>`;
     }
 
@@ -548,17 +583,15 @@
       render();
     }
 
-    search.addEventListener("input", updateSuggestions);
-    cards.addEventListener("click", async event => {
-      const button = event.target.closest("[data-attendance]");
-      if (!button || button.classList.contains("marked")) return;
-      const sessionKey = button.dataset.attendance;
-      const session = sessionKey === "morning-plenary"
+    function sessionForKey(sessionKey) {
+      return sessionKey === "morning-plenary"
         ? plenarySession
         : sessionKey === "breakout-1"
           ? selectedParticipant?.session1
           : selectedParticipant?.session2;
-      if (!selectedParticipant || !session) return;
+    }
+
+    async function markAttendance(button, sessionKey, session) {
       button.disabled = true;
       button.classList.remove("error");
       button.textContent = "Marking attendance…";
@@ -596,7 +629,107 @@
         button.classList.add("error");
         console.error("Attendance could not be saved:", error);
       }
+    }
+
+    function stopScanner() {
+      if (scannerFrame) cancelAnimationFrame(scannerFrame);
+      scannerFrame = null;
+      if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+      scannerVideo.srcObject = null;
+    }
+
+    function scannedQrMatches(value) {
+      try {
+        const scanned = new URL(value);
+        return scanned.origin === "https://physicstjc.github.io"
+          && scanned.pathname.replace(/\/+$/, "") === "/apps/lfl2026"
+          && scanned.searchParams.get("attendance") === scannerSessionKey
+          && scanned.searchParams.get("workshop") === scannerSession?.title;
+      } catch {
+        return false;
+      }
+    }
+
+    async function scanCameraFrame() {
+      if (!cameraStream || scannerVideo.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        scannerFrame = requestAnimationFrame(scanCameraFrame);
+        return;
+      }
+      const maximumWidth = 640;
+      const scale = Math.min(1, maximumWidth / scannerVideo.videoWidth);
+      scannerCanvas.width = Math.round(scannerVideo.videoWidth * scale);
+      scannerCanvas.height = Math.round(scannerVideo.videoHeight * scale);
+      const context = scannerCanvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(scannerVideo, 0, 0, scannerCanvas.width, scannerCanvas.height);
+      const image = context.getImageData(0, 0, scannerCanvas.width, scannerCanvas.height);
+      const result = window.jsQR?.(image.data, image.width, image.height, { inversionAttempts: "dontInvert" });
+      if (result) {
+        if (scannedQrMatches(result.data)) {
+          const button = scannerAttendanceButton;
+          const key = scannerSessionKey;
+          const session = scannerSession;
+          stopScanner();
+          scannerDialog.close();
+          await markAttendance(button, key, session);
+          return;
+        }
+        scannerStatus.textContent = "That QR code is for a different session. Please scan this workshop’s code.";
+        scannerStatus.classList.add("error");
+      }
+      scannerFrame = requestAnimationFrame(scanCameraFrame);
+    }
+
+    async function startScannerCamera() {
+      stopScanner();
+      scannerStatus.textContent = `Opening ${cameraFacing === "environment" ? "back" : "front"} camera…`;
+      scannerStatus.classList.remove("error");
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: cameraFacing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+        scannerVideo.srcObject = cameraStream;
+        await scannerVideo.play();
+        document.querySelector("#switch-camera").textContent = cameraFacing === "environment"
+          ? "Switch to front camera"
+          : "Switch to back camera";
+        scannerStatus.textContent = "Point the camera at this session’s QR code.";
+        scannerFrame = requestAnimationFrame(scanCameraFrame);
+      } catch (error) {
+        scannerStatus.textContent = "Camera access failed. Check browser permission and try again.";
+        scannerStatus.classList.add("error");
+        console.error(error);
+      }
+    }
+
+    search.addEventListener("input", updateSuggestions);
+    cards.addEventListener("click", async event => {
+      const confirmButton = event.target.closest("[data-attendance]");
+      if (confirmButton && !confirmButton.classList.contains("marked")) {
+        const key = confirmButton.dataset.attendance;
+        const session = sessionForKey(key);
+        if (selectedParticipant && session) await markAttendance(confirmButton, key, session);
+        return;
+      }
+      const scanButton = event.target.closest("[data-scan-attendance]");
+      if (!scanButton) return;
+      scannerSessionKey = scanButton.dataset.scanAttendance;
+      scannerSession = sessionForKey(scannerSessionKey);
+      scannerAttendanceButton = scanButton;
+      if (!selectedParticipant || !scannerSession) return;
+      cameraFacing = "environment";
+      document.querySelector("#scanner-session-name").textContent = scannerSession.title;
+      scannerDialog.showModal();
+      await startScannerCamera();
     });
+    document.querySelector("#scanner-close").addEventListener("click",()=>{ stopScanner(); scannerDialog.close(); });
+    document.querySelector("#switch-camera").addEventListener("click",async()=>{ cameraFacing=cameraFacing==="environment"?"user":"environment"; await startScannerCamera(); });
+    scannerDialog.addEventListener("close",stopScanner);
     search.addEventListener("keydown", event => {
       if (event.key === "Enter") {
         const first = suggestions.querySelector("button");
