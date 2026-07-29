@@ -22,7 +22,7 @@
     .connection { padding: 8px 12px; border-radius: 999px; color: #805e13; font-size: .75rem; font-weight: 800; background: #fff1bd; }
     .connection.live { color: #285f55; background: var(--mint); }
     .connection.error { color: #8a352d; background: #fde8de; }
-    .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
+    .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 18px; }
     .stat { padding: 17px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.82); }
     .stat span { display: block; color: var(--muted); font-size: .72rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
     .stat strong { display: block; margin-top: 5px; color: var(--teal); font-size: 1.8rem; }
@@ -61,6 +61,7 @@
     <section class="stats" aria-label="Summary">
       <article class="stat"><span>Original registrants</span><strong id="original-count">0</strong></article>
       <article class="stat"><span>New registrations</span><strong id="new-count">0</strong></article>
+      <article class="stat"><span>Plenary attendance</span><strong id="attendance-plenary">0</strong></article>
       <article class="stat"><span>Breakout 1 attendance</span><strong id="attendance-1">0</strong></article>
       <article class="stat"><span>Breakout 2 attendance</span><strong id="attendance-2">0</strong></article>
     </section>
@@ -100,6 +101,7 @@
     const dateText = value => value?.toDate ? value.toDate().toLocaleString("en-SG",{dateStyle:"medium",timeStyle:"short"}) : "—";
     const original = data.participants.map(p => ({ name:p.name, source:"Original directory", department:"", session1Title:p.session1?.title||"", session1Venue:p.session1?.venue||"", session2Title:p.session2?.title||"", session2Venue:p.session2?.venue||"", registeredAt:null }));
     const workshops = new Set();
+    workshops.add("Morning Plenary");
     data.participants.forEach(p => { if(p.session1?.title) workshops.add(p.session1.title); if(p.session2?.title) workshops.add(p.session2.title); });
     [...workshops].sort().forEach(title => $("#workshop-filter").add(new Option(title,title)));
     data.departments.forEach(d => $("#department-filter").add(new Option(d.name,d.name)));
@@ -116,6 +118,7 @@
     }
     function render() {
       $("#new-count").textContent=newRegistrations.length;
+      $("#attendance-plenary").textContent=attendance.filter(r=>r.sessionKey==="morning-plenary").length;
       $("#attendance-1").textContent=attendance.filter(r=>r.sessionKey==="breakout-1").length;
       $("#attendance-2").textContent=attendance.filter(r=>r.sessionKey==="breakout-2").length;
       const attendanceRows=filtered(attendance,"attendance");

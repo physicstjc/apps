@@ -333,6 +333,11 @@
     const navButtons = document.querySelectorAll(".nav-button");
     let selectedParticipant = null;
     let selfSelectMode = false;
+    const plenarySession = {
+      title: "Morning Plenary",
+      presenter: "",
+      venue: "LT1"
+    };
 
     function showView(viewName, updateHash = true) {
       document.querySelector("#personal-view").hidden = viewName !== "personal";
@@ -416,9 +421,9 @@
       return `<article class="card">
         <div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div>
         <h3>${escapeHtml(session.title)}</h3>
-        <div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>
+        ${session.presenter ? `<div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>` : ""}
         <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(session.venue)}</span></div>
-        ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions\nPresenter(s): ${session.presenter}`)}
+        ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions${session.presenter ? `\nPresenter(s): ${session.presenter}` : ""}`)}
         <button class="attendance-button${savedAttendance ? " marked" : ""}" type="button" data-attendance="${sessionKey}" ${savedAttendance ? "disabled" : ""}>${savedAttendance ? "Attendance marked ✓" : "Mark attendance"}</button>
       </article>`;
     }
@@ -460,7 +465,8 @@
       </article>`;
       document.querySelector("#person-name").textContent = selectedParticipant.name;
       document.querySelector("#initials").textContent = selectedParticipant.name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
-      cards.innerHTML = sessionCard("Breakout 1", "10:00–10:45", selectedParticipant.session1, "20260804T100000", "20260804T104500", "breakout-1")
+      cards.innerHTML = sessionCard("Morning plenary", "9:00–9:40", plenarySession, "20260804T090000", "20260804T094000", "morning-plenary")
+        + sessionCard("Breakout 1", "10:00–10:45", selectedParticipant.session1, "20260804T100000", "20260804T104500", "breakout-1")
         + sessionCard("Breakout 2", "11:00–11:45", selectedParticipant.session2, "20260804T110000", "20260804T114500", "breakout-2")
         + reflectionCard;
       results.classList.add("visible");
@@ -512,7 +518,11 @@
       const button = event.target.closest("[data-attendance]");
       if (!button || button.classList.contains("marked")) return;
       const sessionKey = button.dataset.attendance;
-      const session = sessionKey === "breakout-1" ? selectedParticipant?.session1 : selectedParticipant?.session2;
+      const session = sessionKey === "morning-plenary"
+        ? plenarySession
+        : sessionKey === "breakout-1"
+          ? selectedParticipant?.session1
+          : selectedParticipant?.session2;
       if (!selectedParticipant || !session) return;
       button.disabled = true;
       button.classList.remove("error");
