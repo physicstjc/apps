@@ -448,6 +448,7 @@
     let scannerSessionKey = null, scannerSession = null, scannerAttendanceButton = null;
     let codeSessionKey = null, codeSession = null, codeAttendanceButton = null;
     let mismatchScan = null;
+    let nativeMismatchPromptedFor = null;
     let attendanceToastTimer = null;
     if (pendingAttendance) {
       status.textContent = "Session QR scanned. Enter your name and department to continue.";
@@ -569,7 +570,7 @@
       const savedAttendance = localStorage.getItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`) === "marked";
       const scanMatches = pendingAttendance === sessionKey
         && (!pendingWorkshop || pendingWorkshop === session.title);
-      return `<article class="card">
+      return `<article class="card" data-session-card="${sessionKey}">
         <div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div>
         <h3>${escapeHtml(session.title)}</h3>
         ${session.presenter ? `<div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>` : ""}
@@ -643,6 +644,14 @@
         + sessionCard("Breakout 1", "10:00–10:45", selectedParticipant.session1, "20260804T100000", "20260804T104500", "breakout-1")
         + sessionCard("Breakout 2", "11:00–11:45", selectedParticipant.session2, "20260804T110000", "20260804T114500", "breakout-2")
         + reflectionCard;
+      if(pendingAttendance && !scanMatches && pendingWorkshop && nativeMismatchPromptedFor!==selectedParticipant.name) {
+        const scanned=[...attendanceCodes.values()].find(item=>item.key===pendingAttendance && item.title===pendingWorkshop);
+        const button=cards.querySelector(`[data-session-card="${pendingAttendance}"] .attendance-button`);
+        if(scanned && scannedSession && button && (pendingAttendance==="breakout-1" || pendingAttendance==="breakout-2")) {
+          nativeMismatchPromptedFor=selectedParticipant.name;
+          requestAnimationFrame(()=>handleAttendanceCredential(scanned,pendingAttendance,scannedSession,button));
+        }
+      }
       results.classList.add("visible");
       status.textContent = reflection ? "Your complete programme is ready." : "Name found. Now select your department.";
       status.classList.remove("error");
@@ -695,6 +704,15 @@
           : selectedParticipant?.session2;
     }
 
+    function clearPendingScan() {
+      pendingAttendance = null;
+      pendingWorkshop = null;
+      const cleanUrl = new URL(location.href);
+      cleanUrl.searchParams.delete("attendance");
+      cleanUrl.searchParams.delete("workshop");
+      history.replaceState(null, "", cleanUrl);
+    }
+
     async function markAttendance(button, sessionKey, session) {
       button.disabled = true;
       button.classList.remove("error");
@@ -720,12 +738,7 @@
         localStorage.setItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`, "marked");
         button.textContent = "Attendance marked ✓";
         button.classList.add("marked");
-        pendingAttendance = null;
-        pendingWorkshop = null;
-        const cleanUrl = new URL(location.href);
-        cleanUrl.searchParams.delete("attendance");
-        cleanUrl.searchParams.delete("workshop");
-        history.replaceState(null, "", cleanUrl);
+        clearPendingScan();
         scanNotice.classList.remove("visible", "error");
         document.querySelector("#attendance-toast-session").textContent = session.title;
         attendanceToast.classList.add("visible");
@@ -896,6 +909,7 @@
       scanNotice.textContent=`Your workshop is ${mismatchScan.assigned.title}, ${sessionTime(mismatchScan.key)}, at ${mismatchScan.assigned.venue}.`;
       scanNotice.classList.add("visible");
       scanNotice.classList.remove("error");
+      clearPendingScan();
       mismatchScan=null;
     });
     document.querySelector("#mismatch-override").addEventListener("click",async()=>{
