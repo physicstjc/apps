@@ -132,8 +132,8 @@
     .attendance-options { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
     .attendance-options .attendance-button { margin-top: 0; }
     .attendance-method-label { margin: 15px 0 7px; color: var(--forest); font-size: .72rem; font-weight: 850; text-align: center; }
-    .code-button { color: var(--teal); border: 1px solid rgba(39,111,120,.24); background: white; }
-    .code-button:hover, .code-button:focus { color: white; background: var(--teal); }
+    .code-button { color: var(--forest); border: 1px solid rgba(39,111,120,.24); background: white; }
+    .code-button:hover, .code-button:focus { color: white; background: var(--forest); }
     .scan-notice { display: none; margin: 0 0 12px; padding: 12px 15px; border: 1px solid rgba(86,170,165,.3); border-radius: 13px; color: #285f55; font-size: .82rem; font-weight: 720; background: var(--mint); }
     .scan-notice.visible { display: block; }
     .scan-notice.error { color: #8a352d; border-color: rgba(233,120,98,.3); background: #fde8de; }
@@ -150,7 +150,7 @@
     .scanner-foot { padding: 14px 17px 17px; background: white; }
     .scanner-status { min-height: 20px; margin: 0 0 10px; color: var(--muted); font-size: .78rem; text-align: center; }
     .scanner-status.error { color: #a33c32; }
-    .switch-camera { width: 100%; min-height: 42px; border: 0; border-radius: 10px; color: white; font-weight: 800; background: var(--teal); cursor: pointer; }
+    .switch-camera { width: 100%; min-height: 42px; border: 0; border-radius: 10px; color: white; font-weight: 800; background: var(--forest); cursor: pointer; }
     .mismatch-body { padding: 18px; background: white; }
     .mismatch-body > p { margin: 0 0 14px; color: var(--muted); font-size: .84rem; line-height: 1.5; }
     .mismatch-choice { padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--cream); }
@@ -159,17 +159,17 @@
     .mismatch-choice strong { display: block; font-size: .88rem; line-height: 1.4; }
     .mismatch-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 16px; }
     .mismatch-actions button { min-height: 44px; padding: 8px 10px; border: 0; border-radius: 10px; font-weight: 820; cursor: pointer; }
-    .mismatch-keep { color: var(--teal); background: var(--mint); }
+    .mismatch-keep { color: var(--forest); background: var(--mint); }
     .mismatch-override { color: white; background: linear-gradient(100deg,var(--orange),var(--coral)); }
     .code-entry-body { padding: 20px; text-align: center; background: white; }
     .code-entry-body label { color: var(--ink); font-size: .78rem; }
-    .attendance-code-input { width: min(100%,250px); margin: 10px auto 8px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 12px; color: var(--teal); font-size: 2rem; font-weight: 900; letter-spacing: .2em; text-align: center; text-transform: uppercase; }
-    .attendance-code-input:focus { border-color: var(--aqua); outline: 3px solid rgba(86,170,165,.18); }
+    .attendance-code-input { width: min(100%,250px); margin: 10px auto 8px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 12px; color: var(--forest); font-size: 2rem; font-weight: 900; letter-spacing: .2em; text-align: center; text-transform: uppercase; }
+    .attendance-code-input:focus { border-color: var(--green); outline: 3px solid rgba(86,170,165,.18); }
     .code-entry-status { min-height: 20px; margin: 0 0 10px; color: #a33c32; font-size: .75rem; }
     .code-entry-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .code-entry-actions button { min-height: 43px; border: 0; border-radius: 10px; font-weight: 820; cursor: pointer; }
-    .code-cancel { color: var(--teal); background: var(--mint); }
-    .code-submit { color: white; background: var(--teal); }
+    .code-cancel { color: var(--forest); background: var(--mint); }
+    .code-submit { color: white; background: var(--forest); }
     .attendance-toast { position: fixed; z-index: 100; left: 50%; bottom: max(22px,env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 11px; width: min(440px,calc(100% - 28px)); padding: 15px 17px; border: 1px solid rgba(86,170,165,.34); border-radius: 15px; color: #285f55; background: rgba(223,245,232,.97); box-shadow: 0 18px 50px rgba(32,54,59,.24); opacity: 0; pointer-events: none; transform: translate(-50%,24px) scale(.97); transition: opacity .25s ease,transform .25s ease; }
     .attendance-toast.visible { opacity: 1; transform: translate(-50%,0) scale(1); }
     .attendance-toast-icon { display: grid; flex: 0 0 auto; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: white; font-size: 1.2rem; font-weight: 900; background: var(--green); }
