@@ -51,6 +51,7 @@
     .delete-button:hover, .delete-button:focus { color: white; background: var(--coral); }
     .workshop-edit { min-width: 250px; min-height: 38px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: .75rem; background: white; }
     .workshop-edit:disabled { cursor: wait; opacity: .65; }
+    .audit-meta { color: var(--muted); font-size: .68rem; white-space: nowrap; }
     .note { margin: 12px 2px 0; color: var(--muted); font-size: .72rem; }
     .qr-selector { max-width: 680px; margin: 0 auto 14px; padding: 15px; border-radius: 16px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
     .qr-selector select { width: 100%; }
@@ -120,7 +121,7 @@
       <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Type</th><th>Department</th><th>Workshop</th><th>Presenter</th><th>Venue</th><th>Marked at</th><th id="attendance-action-header" hidden>Action</th></tr></thead><tbody id="attendance-body"></tbody></table></div>
     </section>
     <section class="panel" id="registrants-panel" hidden>
-      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th><th>Last workshop edit</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
     </section>
     <section class="panel" id="qr-panel">
       <div class="qr-selector">
@@ -266,7 +267,7 @@
         return override ? {...registrant,...override,name:registrant.name} : registrant;
       });
       const registrationRows=filtered(registrants,"registrants");
-      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span></td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">No registrants match these filters.</td></tr>';
+      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span></td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td><td>${r.updatedBy ? `<strong>${esc(r.updatedBy)}</strong><br><span class="audit-meta">${esc(dateText(r.updatedAt))}</span>` : "—"}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">No registrants match these filters.</td></tr>';
     }
     onSnapshot(collection(db,"lflAttendance"), snap => { attendance=snap.docs.map(d=>({id:d.id,...d.data()})); attendanceReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Attendance read failed"; $("#connection").className="connection error"; console.error(error); });
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
