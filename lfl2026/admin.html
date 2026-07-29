@@ -52,6 +52,14 @@
     .workshop-edit { min-width: 250px; min-height: 38px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: .75rem; background: white; }
     .workshop-edit:disabled { cursor: wait; opacity: .65; }
     .audit-meta { color: var(--muted); font-size: .68rem; white-space: nowrap; }
+    .registrant-tools { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+    .add-registrant-button { min-height: 40px; padding: 0 15px; border: 0; border-radius: 10px; color: white; font-weight: 850; background: var(--teal); cursor: pointer; }
+    .add-registrant-button:hover, .add-registrant-button:focus-visible { background: var(--purple); }
+    .add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .add-grid .wide { grid-column: 1 / -1; }
+    .add-grid label { color: var(--teal); }
+    .add-grid input, .add-grid select { border: 1px solid var(--line); }
+    .form-error { min-height: 1.3em; margin: 10px 0 0; color: #a33c32; font-size: .75rem; font-weight: 700; }
     .confirm-overlay { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(32,54,59,.7); backdrop-filter: blur(5px); }
     .confirm-overlay[hidden] { display: none; }
     .confirm-dialog { width: min(560px,100%); max-height: calc(100dvh - 32px); border-radius: 18px; color: var(--ink); overflow: auto; box-shadow: 0 28px 80px rgba(32,54,59,.38); }
@@ -100,6 +108,8 @@
       .controls { grid-template-columns: 1fr; }
       .clear { min-height: 40px; }
       .confirm-actions { grid-template-columns: 1fr; }
+      .add-grid { grid-template-columns: 1fr; }
+      .add-grid .wide { grid-column: auto; }
       table { min-width: 900px; }
     }
   </style>
@@ -137,6 +147,7 @@
       <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Type</th><th>Department</th><th>Workshop</th><th>Presenter</th><th>Venue</th><th>Marked at</th><th id="attendance-action-header" hidden>Action</th></tr></thead><tbody id="attendance-body"></tbody></table></div>
     </section>
     <section class="panel" id="registrants-panel" hidden>
+      <div class="registrant-tools" id="registrant-tools" hidden><button class="add-registrant-button" id="add-registrant-button" type="button">Add new registrant</button></div>
       <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th><th>Last workshop edit</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
     </section>
     <section class="panel" id="qr-panel">
@@ -156,11 +167,30 @@
       <div class="confirm-body">
         <div class="confirm-change"><strong>Breakout 1</strong><span id="workshop-confirm-1"></span></div>
         <div class="confirm-change"><strong>Breakout 2</strong><span id="workshop-confirm-2"></span></div>
+        <p class="form-error" id="workshop-confirm-warning"></p>
         <div class="confirm-actions">
           <button class="confirm-cancel" id="workshop-confirm-cancel" type="button">Cancel</button>
           <button class="confirm-save" id="workshop-confirm-save" type="button">Confirm and save</button>
         </div>
       </div>
+    </section>
+  </div>
+  <div class="confirm-overlay" id="add-registrant-dialog" role="dialog" aria-modal="true" aria-labelledby="add-registrant-title" hidden>
+    <section class="confirm-dialog">
+      <div class="confirm-head"><h2 id="add-registrant-title">Add new registrant</h2><p>Create a participant record and assign at least one breakout.</p></div>
+      <form class="confirm-body" id="add-registrant-form">
+        <div class="add-grid">
+          <div class="wide"><label for="add-registrant-name">Participant name</label><input id="add-registrant-name" maxlength="120" autocomplete="off" required></div>
+          <div><label for="add-registrant-department">Department</label><select id="add-registrant-department" required></select></div>
+          <div><label for="add-registrant-session-1">Breakout 1 (optional)</label><select id="add-registrant-session-1"></select></div>
+          <div><label for="add-registrant-session-2">Breakout 2 (optional)</label><select id="add-registrant-session-2"></select></div>
+        </div>
+        <p class="form-error" id="add-registrant-error" aria-live="polite"></p>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="add-registrant-cancel" type="button">Cancel</button>
+          <button class="confirm-save" id="add-registrant-save" type="submit">Add registrant</button>
+        </div>
+      </form>
     </section>
   </div>
   <script src="participant-data.js"></script>
@@ -208,6 +238,10 @@
     const breakout2Options=qrSessionList.filter(session=>session.key==="breakout-2");
     const safeParticipantId=name=>`2026-08-04_${name.toLocaleLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "participant"}`;
     const workshopSelect=(options,selected,name,slot)=>`<select class="workshop-edit" data-edit-name="${esc(name)}" data-session-slot="${slot}" data-previous-value="${esc(selected)}"><option value=""${selected ? "" : " selected"}>No workshop</option>${options.map(session=>`<option value="${esc(session.title)}"${session.title===selected ? " selected" : ""}>${esc(session.title)} · ${esc(session.venue)}</option>`).join("")}</select>`;
+    const fillWorkshopSelect=(select,options)=>{ select.innerHTML='<option value="">No workshop</option>'; options.forEach(session=>select.add(new Option(`${session.title} · ${session.venue}`,session.title))); };
+    data.departments.forEach(department=>$("#add-registrant-department").add(new Option(department.name,department.name)));
+    fillWorkshopSelect($("#add-registrant-session-1"),breakout1Options);
+    fillWorkshopSelect($("#add-registrant-session-2"),breakout2Options);
     function attendanceCode(key,title) {
       const characters="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let hash=2166136261;
@@ -283,6 +317,7 @@
       $("#attendance-2").textContent=attendance.filter(r=>r.sessionKey==="breakout-2").length;
       const attendanceRows=filtered(attendance,"attendance");
       $("#attendance-action-header").hidden=!superAdminUnlocked;
+      $("#registrant-tools").hidden=!superAdminUnlocked;
       $("#super-admin-button").classList.toggle("unlocked",superAdminUnlocked);
       $("#super-admin-button").textContent=superAdminUnlocked
         ? "Super admin ✓"
@@ -291,12 +326,12 @@
           : "Super admin";
       $("#attendance-body").innerHTML=attendanceRows.length ? attendanceRows.map(r=>`<tr><td><strong>${esc(r.participantName)}</strong></td><td><span class="pill">${esc(r.participantType)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.sessionTitle)}</td><td>${esc(r.presenter)}</td><td>${esc(r.venue)}</td><td>${esc(dateText(r.markedAt))}</td>${superAdminUnlocked ? `<td><button class="delete-button" type="button" data-delete-attendance="${esc(r.id)}" data-delete-name="${esc(r.participantName)}" data-delete-session="${esc(r.sessionTitle)}">Delete</button></td>` : ""}</tr>`).join("") : `<tr><td colspan="${superAdminUnlocked ? 8 : 7}" class="empty">No attendance records match these filters.</td></tr>`;
       const overrideByName=new Map(workshopOverrides.map(override=>[override.participantName.toLocaleLowerCase(),override]));
-      const registrants=[...original,...newRegistrations.map(r=>({name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt}))].map(registrant=>{
+      const registrants=[...original,...newRegistrations.map(r=>({name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt,registeredBy:r.registeredBy}))].map(registrant=>{
         const override=overrideByName.get(registrant.name.toLocaleLowerCase());
         return override ? {...registrant,...override,name:registrant.name} : registrant;
       });
       const registrationRows=filtered(registrants,"registrants");
-      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span></td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td><td>${r.updatedBy ? `<strong>${esc(r.updatedBy)}</strong><br><span class="audit-meta">${esc(dateText(r.updatedAt))}</span>` : "—"}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">No registrants match these filters.</td></tr>';
+      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span>${r.registeredBy ? `<br><span class="audit-meta">Added by ${esc(r.registeredBy)}</span>` : ""}</td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td><td>${r.updatedBy ? `<strong>${esc(r.updatedBy)}</strong><br><span class="audit-meta">${esc(dateText(r.updatedAt))}</span>` : "—"}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">No registrants match these filters.</td></tr>';
     }
     onSnapshot(collection(db,"lflAttendance"), snap => { attendance=snap.docs.map(d=>({id:d.id,...d.data()})); attendanceReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Attendance read failed"; $("#connection").className="connection error"; console.error(error); });
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
@@ -328,13 +363,17 @@
       const secondTitle=secondSelect.value;
       const first=firstTitle ? breakout1Options.find(session=>session.title===firstTitle) : null;
       const second=secondTitle ? breakout2Options.find(session=>session.title===secondTitle) : null;
-      if((firstTitle&&!first)||(secondTitle&&!second)||(!first&&!second)) return;
+      if((firstTitle&&!first)||(secondTitle&&!second)) return;
       const selects=[...row.querySelectorAll(".workshop-edit")];
-      if(selects.every(item=>item.value===item.dataset.previousValue)) return;
+      const firstChanged=firstTitle!==firstSelect.dataset.previousValue;
+      const secondChanged=secondTitle!==secondSelect.dataset.previousValue;
+      if(!firstChanged&&!secondChanged) return;
       pendingWorkshopChange={participantName,first,second,selects};
       $("#workshop-confirm-name").textContent=participantName;
-      $("#workshop-confirm-1").textContent=`${firstSelect.dataset.previousValue||"No workshop"} → ${first ? `${first.title} · ${first.venue}` : "No workshop"}`;
-      $("#workshop-confirm-2").textContent=`${secondSelect.dataset.previousValue||"No workshop"} → ${second ? `${second.title} · ${second.venue}` : "No workshop"}`;
+      $("#workshop-confirm-1").textContent=firstChanged ? `${firstSelect.dataset.previousValue||"No workshop"} → ${first ? `${first.title} · ${first.venue}` : "No workshop"}` : "No change";
+      $("#workshop-confirm-2").textContent=secondChanged ? `${secondSelect.dataset.previousValue||"No workshop"} → ${second ? `${second.title} · ${second.venue}` : "No workshop"}` : "No change";
+      $("#workshop-confirm-warning").textContent=!first&&!second ? "At least one breakout must be selected before this change can be saved." : "";
+      $("#workshop-confirm-save").disabled=!first&&!second;
       $("#workshop-confirm-dialog").hidden=false;
       requestAnimationFrame(()=>$("#workshop-confirm-save").focus());
     });
@@ -343,9 +382,11 @@
       pendingWorkshopChange.selects.forEach(item=>{ item.value=item.dataset.previousValue; });
       pendingWorkshopChange=null;
       $("#workshop-confirm-dialog").hidden=true;
+      $("#workshop-confirm-save").disabled=false;
+      $("#workshop-confirm-warning").textContent="";
     }
     $("#workshop-confirm-cancel").addEventListener("click",cancelWorkshopChange);
-    document.addEventListener("keydown",event=>{ if(event.key==="Escape"&&!$("#workshop-confirm-dialog").hidden) cancelWorkshopChange(); });
+    document.addEventListener("keydown",event=>{ if(event.key!=="Escape") return; if(!$("#workshop-confirm-dialog").hidden) cancelWorkshopChange(); else if(!$("#add-registrant-dialog").hidden) closeAddRegistrant(); });
     $("#workshop-confirm-save").addEventListener("click",async()=>{
       if(!pendingWorkshopChange||!superAdminUnlocked||!currentUser) return;
       const {participantName,first,second,selects}=pendingWorkshopChange;
@@ -373,6 +414,51 @@
       } finally {
         $("#workshop-confirm-save").disabled=false;
         $("#workshop-confirm-save").textContent="Confirm and save";
+      }
+    });
+    function closeAddRegistrant() {
+      $("#add-registrant-dialog").hidden=true;
+      $("#add-registrant-form").reset();
+      $("#add-registrant-error").textContent="";
+    }
+    $("#add-registrant-button").addEventListener("click",()=>{
+      if(!superAdminUnlocked) return;
+      $("#add-registrant-dialog").hidden=false;
+      requestAnimationFrame(()=>$("#add-registrant-name").focus());
+    });
+    $("#add-registrant-cancel").addEventListener("click",closeAddRegistrant);
+    $("#add-registrant-form").addEventListener("submit",async event=>{
+      event.preventDefault();
+      if(!superAdminUnlocked||!currentUser) return;
+      const participantName=$("#add-registrant-name").value.trim();
+      const department=$("#add-registrant-department").value;
+      const first=breakout1Options.find(session=>session.title===$("#add-registrant-session-1").value)||null;
+      const second=breakout2Options.find(session=>session.title===$("#add-registrant-session-2").value)||null;
+      const allNames=[...original.map(item=>item.name),...newRegistrations.map(item=>item.participantName)];
+      if(!participantName||!department) { $("#add-registrant-error").textContent="Enter a name and select a department."; return; }
+      if(!first&&!second) { $("#add-registrant-error").textContent="Select at least one breakout workshop."; return; }
+      if(allNames.some(name=>name.toLocaleLowerCase()===participantName.toLocaleLowerCase())) { $("#add-registrant-error").textContent="A registrant with this name already exists."; return; }
+      const button=$("#add-registrant-save");
+      button.disabled=true;
+      button.textContent="Adding…";
+      $("#add-registrant-error").textContent="";
+      try {
+        await setDoc(doc(db,"lflRegistrations",`${safeParticipantId(participantName)}_admin`),{
+          participantName,department,participantType:"self-selected",
+          deviceId:`admin-${currentUser.email}`,
+          session1Title:first?.title||"",session1Presenter:first?.presenter||"",session1Venue:first?.venue||"",
+          session2Title:second?.title||"",session2Presenter:second?.presenter||"",session2Venue:second?.venue||"",
+          eventName:"Learning for Life Sharing Sessions",eventDate:"2026-08-04",
+          registeredAt:serverTimestamp(),registeredBy:currentUser.email
+        });
+        closeAddRegistrant();
+        $("#auth-status").textContent=`Added ${participantName}.`;
+      } catch(error) {
+        console.error(error);
+        $("#add-registrant-error").textContent="The registrant could not be added.";
+      } finally {
+        button.disabled=false;
+        button.textContent="Add registrant";
       }
     });
     document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; $("#qr-panel").hidden=button.dataset.panel!=="qr"; $("#dashboard-controls").hidden=button.dataset.panel==="qr"; }));
