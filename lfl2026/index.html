@@ -115,6 +115,10 @@
     .attendance-button:disabled { cursor: wait; opacity: .72; }
     .attendance-button.marked { color: #285f55; background: var(--mint); cursor: default; opacity: 1; }
     .attendance-button.error { color: #8a352d; background: #fde8de; opacity: 1; }
+    .attendance-options { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
+    .attendance-options .attendance-button { margin-top: 0; }
+    .code-button { color: var(--teal); border: 1px solid rgba(39,111,120,.24); background: white; }
+    .code-button:hover, .code-button:focus { color: white; background: var(--teal); }
     .scan-notice { display: none; margin: 0 0 12px; padding: 12px 15px; border: 1px solid rgba(86,170,165,.3); border-radius: 13px; color: #285f55; font-size: .82rem; font-weight: 720; background: var(--mint); }
     .scan-notice.visible { display: block; }
     .scan-notice.error { color: #8a352d; border-color: rgba(233,120,98,.3); background: #fde8de; }
@@ -142,6 +146,15 @@
     .mismatch-actions button { min-height: 44px; padding: 8px 10px; border: 0; border-radius: 10px; font-weight: 820; cursor: pointer; }
     .mismatch-keep { color: var(--teal); background: var(--mint); }
     .mismatch-override { color: white; background: linear-gradient(100deg,var(--orange),var(--coral)); }
+    .code-entry-body { padding: 20px; text-align: center; background: white; }
+    .code-entry-body label { color: var(--ink); font-size: .78rem; }
+    .attendance-code-input { width: min(100%,250px); margin: 10px auto 8px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 12px; color: var(--teal); font-size: 2rem; font-weight: 900; letter-spacing: .2em; text-align: center; text-transform: uppercase; }
+    .attendance-code-input:focus { border-color: var(--aqua); outline: 3px solid rgba(86,170,165,.18); }
+    .code-entry-status { min-height: 20px; margin: 0 0 10px; color: #a33c32; font-size: .75rem; }
+    .code-entry-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .code-entry-actions button { min-height: 43px; border: 0; border-radius: 10px; font-weight: 820; cursor: pointer; }
+    .code-cancel { color: var(--teal); background: var(--mint); }
+    .code-submit { color: white; background: var(--teal); }
     .attendance-toast { position: fixed; z-index: 100; left: 50%; bottom: max(22px,env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 11px; width: min(440px,calc(100% - 28px)); padding: 15px 17px; border: 1px solid rgba(86,170,165,.34); border-radius: 15px; color: #285f55; background: rgba(223,245,232,.97); box-shadow: 0 18px 50px rgba(32,54,59,.24); opacity: 0; pointer-events: none; transform: translate(-50%,24px) scale(.97); transition: opacity .25s ease,transform .25s ease; }
     .attendance-toast.visible { opacity: 1; transform: translate(-50%,0) scale(1); }
     .attendance-toast-icon { display: grid; flex: 0 0 auto; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: white; font-size: 1.2rem; font-weight: 900; background: var(--green); }
@@ -211,6 +224,7 @@
       .footer { margin-top: 20px; font-size: .68rem; }
       .card-calendar-link { min-height: 37px; margin-top: 13px; font-size: .7rem; }
       .attendance-button { min-height: 37px; font-size: .7rem; }
+      .attendance-options { grid-template-columns: 1fr; }
       .scan-notice { padding: 10px 12px; font-size: .74rem; }
       .mismatch-actions { grid-template-columns: 1fr; }
     }
@@ -324,6 +338,21 @@
       <button class="switch-camera" id="switch-camera" type="button">Switch to front camera</button>
     </div>
   </dialog>
+  <dialog class="scanner-dialog" id="code-entry-dialog">
+    <div class="scanner-head">
+      <div><h2>Enter attendance code</h2><p id="code-entry-session"></p></div>
+      <button class="scanner-close" id="code-entry-close" type="button" aria-label="Close code entry">×</button>
+    </div>
+    <form class="code-entry-body" id="code-entry-form">
+      <label for="attendance-code-input">Enter the four-character code shown at the workshop</label>
+      <input class="attendance-code-input" id="attendance-code-input" type="text" inputmode="text" maxlength="4" minlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+      <p class="code-entry-status" id="code-entry-status" aria-live="polite"></p>
+      <div class="code-entry-actions">
+        <button class="code-cancel" id="code-entry-cancel" type="button">Cancel</button>
+        <button class="code-submit" type="submit">Check code</button>
+      </div>
+    </form>
+  </dialog>
   <dialog class="scanner-dialog" id="workshop-mismatch-dialog">
     <div class="scanner-head">
       <div><h2>Different workshop scanned</h2><p>This is not your current workshop choice.</p></div>
@@ -404,6 +433,9 @@
     const scannerVideo = document.querySelector("#scanner-video");
     const scannerCanvas = document.querySelector("#scanner-canvas");
     const scannerStatus = document.querySelector("#scanner-status");
+    const codeEntryDialog = document.querySelector("#code-entry-dialog");
+    const codeEntryInput = document.querySelector("#attendance-code-input");
+    const codeEntryStatus = document.querySelector("#code-entry-status");
     const workshopMismatchDialog = document.querySelector("#workshop-mismatch-dialog");
     const attendanceToast = document.querySelector("#attendance-toast");
     const navButtons = document.querySelectorAll(".nav-button");
@@ -414,6 +446,7 @@
     let pendingWorkshop = attendanceParameters.get("workshop");
     let cameraFacing = "environment", cameraStream = null, scannerFrame = null;
     let scannerSessionKey = null, scannerSession = null, scannerAttendanceButton = null;
+    let codeSessionKey = null, codeSession = null, codeAttendanceButton = null;
     let mismatchScan = null;
     let attendanceToastTimer = null;
     if (pendingAttendance) {
@@ -491,6 +524,24 @@
     const session1Options = uniqueSessions("session1");
     const session2Options = uniqueSessions("session2");
     const sessionTime = key => key === "breakout-1" ? "10:00–10:45" : key === "breakout-2" ? "11:00–11:45" : "9:00–9:40";
+    function attendanceCode(key,title) {
+      const characters="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let hash=2166136261;
+      for(const character of `${key}|${title}`) {
+        hash^=character.charCodeAt(0);
+        hash=Math.imul(hash,16777619)>>>0;
+      }
+      let code="";
+      for(let index=0;index<4;index++) {
+        code+=characters[hash&31];
+        hash>>>=5;
+      }
+      return code;
+    }
+    const attendanceCodes=new Map();
+    [{key:"morning-plenary",session:plenarySession},...session1Options.map(session=>({key:"breakout-1",session})),...session2Options.map(session=>({key:"breakout-2",session}))].forEach(item=>{
+      attendanceCodes.set(attendanceCode(item.key,item.session.title),{key:item.key,title:item.session.title,session:item.session});
+    });
     function participantWithOverrides(participant) {
       if (!participant) return null;
       try {
@@ -528,7 +579,10 @@
           ? `<button class="attendance-button marked" type="button" disabled>Attendance marked ✓</button>`
           : scanMatches
             ? `<button class="attendance-button" type="button" data-attendance="${sessionKey}">Confirm scanned attendance</button>`
-            : `<button class="attendance-button" type="button" data-scan-attendance="${sessionKey}">Scan QR to mark attendance</button>`}
+            : `<div class="attendance-options">
+                <button class="attendance-button" type="button" data-scan-attendance="${sessionKey}">Scan QR code</button>
+                <button class="attendance-button code-button" type="button" data-code-attendance="${sessionKey}">Enter 4-character code</button>
+              </div>`}
       </article>`;
     }
 
@@ -708,6 +762,21 @@
       }
     }
 
+    async function handleAttendanceCredential(entered,expectedKey,expectedSession,button) {
+      if(entered?.key===expectedKey && entered.title===expectedSession?.title) {
+        await markAttendance(button,expectedKey,expectedSession);
+        return true;
+      }
+      if(entered?.key===expectedKey && (entered.key==="breakout-1" || entered.key==="breakout-2")) {
+        mismatchScan={...entered,assigned:expectedSession,button};
+        document.querySelector("#mismatch-scanned").textContent=`${entered.session.title} · ${sessionTime(entered.key)} · ${entered.session.venue}`;
+        document.querySelector("#mismatch-assigned").textContent=`${expectedSession.title} · ${sessionTime(entered.key)} · ${expectedSession.venue}`;
+        workshopMismatchDialog.showModal();
+        return true;
+      }
+      return false;
+    }
+
     async function scanCameraFrame() {
       if (!cameraStream || scannerVideo.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
         scannerFrame = requestAnimationFrame(scanCameraFrame);
@@ -723,22 +792,10 @@
       const result = window.jsQR?.(image.data, image.width, image.height, { inversionAttempts: "dontInvert" });
       if (result) {
         const scanned=readAttendanceQr(result.data);
-        if (scanned?.key===scannerSessionKey && scanned.title===scannerSession?.title) {
-          const button = scannerAttendanceButton;
-          const key = scannerSessionKey;
-          const session = scannerSession;
+        if(scanned && (scanned.key===scannerSessionKey)) {
           stopScanner();
           scannerDialog.close();
-          await markAttendance(button, key, session);
-          return;
-        }
-        if (scanned?.key===scannerSessionKey && (scanned.key==="breakout-1" || scanned.key==="breakout-2")) {
-          mismatchScan={...scanned,assigned:scannerSession,button:scannerAttendanceButton};
-          stopScanner();
-          scannerDialog.close();
-          document.querySelector("#mismatch-scanned").textContent=`${scanned.session.title} · ${sessionTime(scanned.key)} · ${scanned.session.venue}`;
-          document.querySelector("#mismatch-assigned").textContent=`${scannerSession.title} · ${sessionTime(scanned.key)} · ${scannerSession.venue}`;
-          workshopMismatchDialog.showModal();
+          await handleAttendanceCredential(scanned,scannerSessionKey,scannerSession,scannerAttendanceButton);
           return;
         }
         scannerStatus.textContent = "That QR code is for a different session. Please scan this workshop’s code.";
@@ -783,6 +840,19 @@
         if (selectedParticipant && session) await markAttendance(confirmButton, key, session);
         return;
       }
+      const codeButton = event.target.closest("[data-code-attendance]");
+      if(codeButton) {
+        codeSessionKey=codeButton.dataset.codeAttendance;
+        codeSession=sessionForKey(codeSessionKey);
+        codeAttendanceButton=codeButton;
+        if(!selectedParticipant || !codeSession) return;
+        codeEntryInput.value="";
+        codeEntryStatus.textContent="";
+        document.querySelector("#code-entry-session").textContent=codeSession.title;
+        codeEntryDialog.showModal();
+        requestAnimationFrame(()=>codeEntryInput.focus());
+        return;
+      }
       const scanButton = event.target.closest("[data-scan-attendance]");
       if (!scanButton) return;
       scannerSessionKey = scanButton.dataset.scanAttendance;
@@ -797,6 +867,29 @@
     document.querySelector("#scanner-close").addEventListener("click",()=>{ stopScanner(); scannerDialog.close(); });
     document.querySelector("#switch-camera").addEventListener("click",async()=>{ cameraFacing=cameraFacing==="environment"?"user":"environment"; await startScannerCamera(); });
     scannerDialog.addEventListener("close",stopScanner);
+    codeEntryInput.addEventListener("input",()=>{
+      codeEntryInput.value=codeEntryInput.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,4);
+      codeEntryStatus.textContent="";
+    });
+    document.querySelector("#code-entry-form").addEventListener("submit",async event=>{
+      event.preventDefault();
+      const entered=attendanceCodes.get(codeEntryInput.value);
+      if(!entered) {
+        codeEntryStatus.textContent="Code not recognised. Check the four characters and try again.";
+        codeEntryInput.select();
+        return;
+      }
+      if(entered.key!==codeSessionKey) {
+        codeEntryStatus.textContent=`That code is for a different time slot. Enter the code for ${sessionTime(codeSessionKey)}.`;
+        codeEntryInput.select();
+        return;
+      }
+      codeEntryDialog.close();
+      await handleAttendanceCredential(entered,codeSessionKey,codeSession,codeAttendanceButton);
+    });
+    const closeCodeEntry=()=>codeEntryDialog.close();
+    document.querySelector("#code-entry-close").addEventListener("click",closeCodeEntry);
+    document.querySelector("#code-entry-cancel").addEventListener("click",closeCodeEntry);
     document.querySelector("#mismatch-keep").addEventListener("click",()=>{
       if(!mismatchScan) return;
       workshopMismatchDialog.close();
