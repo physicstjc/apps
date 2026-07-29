@@ -118,6 +118,10 @@
     .footer { margin-top: 28px; color: var(--muted); font-size: .8rem; text-align: center; }
     .card-calendar-link { display: flex; align-items: center; justify-content: center; min-height: 39px; margin-top: 18px; padding: 7px 10px; border: 1px solid rgba(86,170,165,.35); border-radius: 10px; color: var(--forest); font-size: .75rem; font-weight: 800; text-align: center; text-decoration: none; background: linear-gradient(100deg, rgba(223,245,232,.82), rgba(189,230,237,.5)); }
     .card-calendar-link:hover, .card-calendar-link:focus { color: white; border-color: transparent; background: linear-gradient(100deg, #429da3, #65618a 72%, #76517f); }
+    .synopsis-toggle { width: 100%; min-height: 38px; margin-top: 15px; padding: 7px 10px; border: 1px solid rgba(118,81,127,.25); border-radius: 10px; color: var(--purple); font-size: .75rem; font-weight: 820; background: rgba(240,228,242,.6); cursor: pointer; }
+    .synopsis-toggle:hover, .synopsis-toggle:focus { color: white; background: var(--purple); }
+    .session-synopsis { margin: 10px 0 0; padding: 13px; border-radius: 11px; color: var(--ink); font-size: .8rem; line-height: 1.55; background: rgba(255,255,255,.82); }
+    .session-synopsis[hidden] { display: none; }
     .attendance-button { width: 100%; min-height: 39px; margin-top: 8px; padding: 7px 10px; border: 0; border-radius: 10px; color: white; font-size: .75rem; font-weight: 820; background: linear-gradient(100deg, var(--orange), var(--coral)); cursor: pointer; }
     .attendance-button:hover, .attendance-button:focus { filter: brightness(.94); box-shadow: 0 0 0 3px rgba(233,120,98,.16); }
     .attendance-button:disabled { cursor: wait; opacity: .72; }
@@ -386,6 +390,7 @@
     <div><strong>Attendance marked</strong><span id="attendance-toast-session"></span></div>
   </div>
   <script src="participant-data.js"></script>
+  <script src="session-synopses.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
@@ -631,6 +636,8 @@
       if (!session) return `<article class="card"><div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div><h3 class="empty">Allocation not listed in the participant directory.</h3></article>`;
       const savedAttendance = attendanceStates.get(sessionKey) === true;
       const attendanceIsLoaded = attendanceLoaded.has(sessionKey);
+      const synopsis = window.LFL_SYNOPSES?.[session.title];
+      const synopsisId = `synopsis-${sessionKey}`;
       const scanMatches = pendingAttendance === sessionKey
         && (!pendingWorkshop || pendingWorkshop === session.title);
       return `<article class="card" data-session-card="${sessionKey}">
@@ -638,6 +645,8 @@
         <h3>${escapeHtml(session.title)}</h3>
         ${session.presenter ? `<div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>` : ""}
         <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(session.venue)}</span></div>
+        ${synopsis ? `<button class="synopsis-toggle" type="button" aria-expanded="false" aria-controls="${synopsisId}" data-synopsis-target="${synopsisId}">Show session synopsis</button>
+        <p class="session-synopsis" id="${synopsisId}" hidden>${escapeHtml(synopsis)}</p>` : ""}
         ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions${session.presenter ? `\nPresenter(s): ${session.presenter}` : ""}`)}
         ${!attendanceIsLoaded
           ? `<button class="attendance-button" type="button" disabled>Checking attendance…</button>`
@@ -927,6 +936,15 @@
 
     search.addEventListener("input", updateSuggestions);
     cards.addEventListener("click", async event => {
+      const synopsisButton = event.target.closest("[data-synopsis-target]");
+      if(synopsisButton) {
+        const synopsis=document.getElementById(synopsisButton.dataset.synopsisTarget);
+        const willShow=synopsis.hidden;
+        synopsis.hidden=!willShow;
+        synopsisButton.setAttribute("aria-expanded",String(willShow));
+        synopsisButton.textContent=willShow ? "Hide session synopsis" : "Show session synopsis";
+        return;
+      }
       const confirmButton = event.target.closest("[data-attendance]");
       if (confirmButton && !confirmButton.classList.contains("marked")) {
         const key = confirmButton.dataset.attendance;
