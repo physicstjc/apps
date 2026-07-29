@@ -77,6 +77,14 @@
     .suggestion:hover, .suggestion:focus { background: var(--mint); }
     .status { min-height: 24px; margin: 14px 2px 0; color: #d8e5dd; font-size: .88rem; }
     .status.error { color: #ffd5cc; }
+    .self-select-start { display: none; margin-top: 10px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; color: white; font-size: .8rem; font-weight: 750; background: rgba(255,255,255,.12); cursor: pointer; }
+    .self-select-start.visible { display: inline-flex; }
+    .self-select-start:hover, .self-select-start:focus { color: var(--forest); background: white; }
+    .self-select-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.2); }
+    .self-select-panel[hidden] { display: none; }
+    .self-select-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .generate-button { width: 100%; min-height: 46px; margin-top: 10px; border: 0; border-radius: 11px; color: var(--forest); font-weight: 850; background: var(--gold); cursor: pointer; }
+    .generate-button:hover, .generate-button:focus { filter: brightness(1.06); box-shadow: 0 0 0 3px rgba(239,196,90,.22); }
     .results { display: none; margin-top: 28px; animation: rise .35s ease both; }
     .results.visible { display: block; }
     .person { display: flex; align-items: center; gap: 13px; margin: 0 0 16px; }
@@ -100,13 +108,13 @@
     .detail svg { width: 18px; height: 18px; color: var(--green); }
     .empty { color: var(--muted); font-style: italic; }
     .footer { margin-top: 28px; color: var(--muted); font-size: .8rem; text-align: center; }
-    .calendar-panel { display: none; margin-top: 16px; padding: 20px; border: 1px solid rgba(86,170,165,.3); border-radius: 19px; background: linear-gradient(120deg, rgba(223,245,232,.82), rgba(189,230,237,.6)); }
-    .calendar-panel.visible { display: block; }
-    .calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-    .calendar-heading h3 { margin: 0; color: var(--forest); font-size: 1rem; }
-    .calendar-heading p { margin: 4px 0 0; color: var(--muted); font-size: .8rem; }
-    .calendar-button { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 46px; padding: 9px 14px; border: 0; border-radius: 11px; color: white; font-size: .84rem; font-weight: 800; text-align: center; background: linear-gradient(100deg, #429da3, #65618a 72%, #76517f); cursor: pointer; }
-    .calendar-button:hover, .calendar-button:focus { filter: brightness(.92); box-shadow: 0 0 0 3px rgba(86,170,165,.2); }
+    .card-calendar-link { display: flex; align-items: center; justify-content: center; min-height: 39px; margin-top: 18px; padding: 7px 10px; border: 1px solid rgba(86,170,165,.35); border-radius: 10px; color: var(--forest); font-size: .75rem; font-weight: 800; text-align: center; text-decoration: none; background: linear-gradient(100deg, rgba(223,245,232,.82), rgba(189,230,237,.5)); }
+    .card-calendar-link:hover, .card-calendar-link:focus { color: white; border-color: transparent; background: linear-gradient(100deg, #429da3, #65618a 72%, #76517f); }
+    .attendance-button { width: 100%; min-height: 39px; margin-top: 8px; padding: 7px 10px; border: 0; border-radius: 10px; color: white; font-size: .75rem; font-weight: 820; background: linear-gradient(100deg, var(--orange), var(--coral)); cursor: pointer; }
+    .attendance-button:hover, .attendance-button:focus { filter: brightness(.94); box-shadow: 0 0 0 3px rgba(233,120,98,.16); }
+    .attendance-button:disabled { cursor: wait; opacity: .72; }
+    .attendance-button.marked { color: #285f55; background: var(--mint); cursor: default; opacity: 1; }
+    .attendance-button.error { color: #8a352d; background: #fde8de; opacity: 1; }
     .schedule-heading { max-width: 720px; margin-bottom: 28px; }
     .schedule-heading h1 { margin-bottom: 16px; }
     .schedule-heading p { color: var(--muted); font-size: 1.04rem; line-height: 1.6; }
@@ -146,6 +154,9 @@
       label { margin-bottom: 5px; font-size: .7rem; }
       input, select { min-height: 45px; padding: 0 12px; border-radius: 10px; font-size: .9rem; }
       .status { min-height: 18px; margin: 9px 1px 0; font-size: .74rem; }
+      .self-select-start { margin-top: 7px; font-size: .72rem; }
+      .self-select-grid { grid-template-columns: 1fr; gap: 8px; }
+      .generate-button { min-height: 42px; font-size: .78rem; }
       .results { margin-top: 18px; }
       .person { margin-bottom: 11px; }
       .initials { width: 37px; height: 37px; font-size: .8rem; }
@@ -166,10 +177,8 @@
       .schedule-list { gap: 7px; }
       .schedule-item { grid-template-columns: 92px 1fr; padding: 13px 14px; border-radius: 12px; font-size: .82rem; }
       .footer { margin-top: 20px; font-size: .68rem; }
-      .calendar-panel { margin-top: 10px; padding: 14px; border-radius: 15px; }
-      .calendar-heading { margin-bottom: 10px; }
-      .calendar-heading p { font-size: .72rem; }
-      .calendar-button { min-height: 42px; font-size: .75rem; }
+      .card-calendar-link { min-height: 37px; margin-top: 13px; font-size: .7rem; }
+      .attendance-button { min-height: 37px; font-size: .7rem; }
     }
     @media (max-width: 440px) {
       .brand { max-width: 76px; line-height: 1.15; }
@@ -220,6 +229,20 @@
           </div>
         </div>
         <p class="status" id="status" aria-live="polite">Enter at least two letters to search.</p>
+        <button class="self-select-start" id="self-select-start" type="button">My name isn’t listed — choose sessions</button>
+        <div class="self-select-panel" id="self-select-panel" hidden>
+          <div class="self-select-grid">
+            <div>
+              <label for="self-session-1">Preferred Breakout 1</label>
+              <select id="self-session-1"><option value="">Choose a session…</option></select>
+            </div>
+            <div>
+              <label for="self-session-2">Preferred Breakout 2</label>
+              <select id="self-session-2"><option value="">Choose a session…</option></select>
+            </div>
+          </div>
+          <button class="generate-button" id="generate-schedule" type="button">Generate my personal schedule</button>
+        </div>
       </section>
 
       <section class="results" id="results" aria-live="polite">
@@ -229,15 +252,6 @@
           <button class="edit-details" id="edit-details" type="button">Change details</button>
         </div>
         <div class="cards" id="cards"></div>
-        <section class="calendar-panel" id="calendar-panel" aria-label="Add sessions to Google Calendar">
-          <div class="calendar-heading">
-            <div>
-              <h3>Add your sessions to Google Calendar</h3>
-              <p>One calendar file contains all three sessions.</p>
-            </div>
-          </div>
-          <button class="calendar-button" id="calendar-button" type="button">Add all 3 sessions to Google Calendar</button>
-        </section>
       </section>
     </div>
 
@@ -261,6 +275,46 @@
   </main>
 
   <script src="participant-data.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+    import { doc, getFirestore, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBIytzQZuv8hSjJM0IkSwWHi_ENFTKPPXE",
+      authDomain: "workshop-9cbb7.firebaseapp.com",
+      projectId: "workshop-9cbb7",
+      storageBucket: "workshop-9cbb7.firebasestorage.app",
+      messagingSenderId: "294313831122",
+      appId: "1:294313831122:web:423336ef8232a064445b0b",
+      measurementId: "G-BJ2XRRPLLJ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getFirestore(app);
+    window.saveLflAttendance = async (record) => {
+      const safeName = record.participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const documentId = `2026-08-04_${record.sessionKey}_${safeName || "participant"}`;
+      await setDoc(doc(database, "lflAttendance", documentId), {
+        ...record,
+        eventName: "Learning for Life Sharing Sessions",
+        eventDate: "2026-08-04",
+        markedAt: serverTimestamp()
+      }, { merge: true });
+      return documentId;
+    };
+    window.saveLflRegistration = async (record) => {
+      const safeName = record.participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const documentId = `2026-08-04_${safeName || "participant"}_${record.deviceId.replace(/[^a-z0-9-]+/gi, "-")}`;
+      await setDoc(doc(database, "lflRegistrations", documentId), {
+        ...record,
+        eventName: "Learning for Life Sharing Sessions",
+        eventDate: "2026-08-04",
+        registeredAt: serverTimestamp()
+      }, { merge: true });
+      return documentId;
+    };
+    window.dispatchEvent(new Event("lflFirebaseReady"));
+  </script>
   <script>
     const data = window.LFL_DATA || { participants: [], departments: [] };
     const search = document.querySelector("#name-search");
@@ -271,11 +325,14 @@
     const cards = document.querySelector("#cards");
     const finder = document.querySelector(".finder");
     const editDetails = document.querySelector("#edit-details");
-    const calendarPanel = document.querySelector("#calendar-panel");
-    const calendarButton = document.querySelector("#calendar-button");
+    const selfSelectStart = document.querySelector("#self-select-start");
+    const selfSelectPanel = document.querySelector("#self-select-panel");
+    const selfSession1 = document.querySelector("#self-session-1");
+    const selfSession2 = document.querySelector("#self-session-2");
+    const generateSchedule = document.querySelector("#generate-schedule");
     const navButtons = document.querySelectorAll(".nav-button");
     let selectedParticipant = null;
-    let calendarEvents = [];
+    let selfSelectMode = false;
 
     function showView(viewName, updateHash = true) {
       document.querySelector("#personal-view").hidden = viewName !== "personal";
@@ -307,45 +364,21 @@
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'
       : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
 
-    function escapeCalendarText(value) {
-      return String(value || "")
-        .replace(/\\/g, "\\\\")
-        .replace(/\n/g, "\\n")
-        .replace(/,/g, "\\,")
-        .replace(/;/g, "\\;");
+    function googleCalendarUrl(title, start, end, location, details) {
+      const parameters = new URLSearchParams({
+        action: "TEMPLATE",
+        text: title,
+        dates: `${start}/${end}`,
+        ctz: "Asia/Singapore",
+        location: `TJC · ${location}`,
+        details
+      });
+      return `https://calendar.google.com/calendar/render?${parameters.toString()}`;
     }
 
-    function downloadCalendar() {
-      if (!calendarEvents.length) return;
-      const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-      const eventBlocks = calendarEvents.map((event, index) => [
-        "BEGIN:VEVENT",
-        `UID:lfl-2026-${index + 1}-${selectedParticipant.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}@tjc`,
-        `DTSTAMP:${stamp}`,
-        `DTSTART;TZID=Asia/Singapore:${event.start}`,
-        `DTEND;TZID=Asia/Singapore:${event.end}`,
-        `SUMMARY:${escapeCalendarText(event.title)}`,
-        `LOCATION:${escapeCalendarText(`TJC · ${event.location}`)}`,
-        `DESCRIPTION:${escapeCalendarText(event.details)}`,
-        "END:VEVENT"
-      ].join("\r\n")).join("\r\n");
-      const calendar = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "PRODID:-//TJC//Learning for Life 2026//EN",
-        "CALSCALE:GREGORIAN",
-        "METHOD:PUBLISH",
-        eventBlocks,
-        "END:VCALENDAR"
-      ].join("\r\n");
-      const file = new Blob([calendar], { type: "text/calendar;charset=utf-8" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(file);
-      link.download = "Learning-for-Life-2026-sessions.ics";
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    function calendarLink(title, start, end, location, details) {
+      const url = googleCalendarUrl(title, start, end, location, details);
+      return `<a class="card-calendar-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Add to Google Calendar</a>`;
     }
 
     data.departments.forEach(item => {
@@ -355,13 +388,38 @@
       department.append(option);
     });
 
-    function sessionCard(label, time, session) {
+    function uniqueSessions(key) {
+      const sessions = new Map();
+      data.participants.forEach(participant => {
+        const session = participant[key];
+        if (session && !sessions.has(session.title)) sessions.set(session.title, session);
+      });
+      return [...sessions.values()].sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+    const session1Options = uniqueSessions("session1");
+    const session2Options = uniqueSessions("session2");
+    function populateSessionSelect(select, sessions) {
+      sessions.forEach((session, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = `${session.title} · ${session.venue}`;
+        select.append(option);
+      });
+    }
+    populateSessionSelect(selfSession1, session1Options);
+    populateSessionSelect(selfSession2, session2Options);
+
+    function sessionCard(label, time, session, start, end, sessionKey) {
       if (!session) return `<article class="card"><div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div><h3 class="empty">Allocation not listed in the participant directory.</h3></article>`;
+      const savedAttendance = localStorage.getItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`) === "marked";
       return `<article class="card">
         <div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div>
         <h3>${escapeHtml(session.title)}</h3>
         <div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>
         <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(session.venue)}</span></div>
+        ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions\nPresenter(s): ${session.presenter}`)}
+        <button class="attendance-button${savedAttendance ? " marked" : ""}" type="button" data-attendance="${sessionKey}" ${savedAttendance ? "disabled" : ""}>${savedAttendance ? "Attendance marked ✓" : "Mark attendance"}</button>
       </article>`;
     }
 
@@ -375,47 +433,14 @@
         <div class="session-meta"><span class="tag">Department reflection</span><span class="time">11:50–12:30</span></div>
         <h3>${reflection ? escapeHtml(reflection.name) : '<span class="empty">Select your department above.</span>'}</h3>
         ${reflection ? `<div class="detail">${icon("person")}<span><strong>Facilitator</strong><br>${escapeHtml(reflection.facilitator)}</span></div>
-        <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(reflection.venue)}</span></div>` : ""}
+        <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(reflection.venue)}</span></div>
+        ${calendarLink(`LfL · Department Reflection · ${reflection.name}`, "20260804T115000", "20260804T123000", reflection.venue, `Learning for Life Sharing Sessions\nFacilitator: ${reflection.facilitator}`)}` : ""}
       </article>`;
       document.querySelector("#person-name").textContent = selectedParticipant.name;
       document.querySelector("#initials").textContent = selectedParticipant.name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
-      cards.innerHTML = sessionCard("Breakout 1", "10:00–10:45", selectedParticipant.session1)
-        + sessionCard("Breakout 2", "11:00–11:45", selectedParticipant.session2)
+      cards.innerHTML = sessionCard("Breakout 1", "10:00–10:45", selectedParticipant.session1, "20260804T100000", "20260804T104500", "breakout-1")
+        + sessionCard("Breakout 2", "11:00–11:45", selectedParticipant.session2, "20260804T110000", "20260804T114500", "breakout-2")
         + reflectionCard;
-      if (reflection) {
-        const first = selectedParticipant.session1;
-        const second = selectedParticipant.session2;
-        calendarEvents = [
-          ...(first ? [{
-            title: `LfL · ${first.title}`,
-            start: "20260804T100000",
-            end: "20260804T104500",
-            location: first.venue,
-            details: `Learning for Life Sharing Sessions\nPresenter(s): ${first.presenter}`
-          }] : []),
-          ...(second ? [{
-            title: `LfL · ${second.title}`,
-            start: "20260804T110000",
-            end: "20260804T114500",
-            location: second.venue,
-            details: `Learning for Life Sharing Sessions\nPresenter(s): ${second.presenter}`
-          }] : []),
-          {
-            title: `LfL · Department Reflection · ${reflection.name}`,
-            start: "20260804T115000",
-            end: "20260804T123000",
-            location: reflection.venue,
-            details: `Learning for Life Sharing Sessions\nFacilitator: ${reflection.facilitator}`
-          }
-        ];
-        calendarButton.textContent = calendarEvents.length === 3
-          ? "Add all 3 sessions to Google Calendar"
-          : `Add ${calendarEvents.length} available sessions to Google Calendar`;
-        calendarPanel.classList.add("visible");
-      } else {
-        calendarPanel.classList.remove("visible");
-        calendarEvents = [];
-      }
       results.classList.add("visible");
       status.textContent = reflection ? "Your complete programme is ready." : "Name found. Now select your department.";
       status.classList.remove("error");
@@ -423,6 +448,9 @@
     }
 
     function choose(participant) {
+      selfSelectMode = false;
+      selfSelectPanel.hidden = true;
+      selfSelectStart.classList.remove("visible");
       selectedParticipant = participant;
       search.value = participant.name;
       suggestions.classList.remove("open");
@@ -452,10 +480,49 @@
       suggestions.classList.toggle("open", matches.length > 0 && !selectedParticipant);
       status.textContent = matches.length ? `${matches.length} ${matches.length === 1 ? "match" : "matches"} found.` : "No matching participant found.";
       status.classList.toggle("error", matches.length === 0);
+      selfSelectStart.classList.toggle("visible", matches.length === 0);
+      if (matches.length > 0 && !selfSelectMode) selfSelectPanel.hidden = true;
       render();
     }
 
     search.addEventListener("input", updateSuggestions);
+    cards.addEventListener("click", async event => {
+      const button = event.target.closest("[data-attendance]");
+      if (!button || button.classList.contains("marked")) return;
+      const sessionKey = button.dataset.attendance;
+      const session = sessionKey === "breakout-1" ? selectedParticipant?.session1 : selectedParticipant?.session2;
+      if (!selectedParticipant || !session) return;
+      button.disabled = true;
+      button.classList.remove("error");
+      button.textContent = "Marking attendance…";
+      try {
+        if (!window.saveLflAttendance) throw new Error("Attendance service is still loading.");
+        let deviceId = localStorage.getItem("lflDeviceId");
+        if (!deviceId) {
+          deviceId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          localStorage.setItem("lflDeviceId", deviceId);
+        }
+        await window.saveLflAttendance({
+          participantName: selectedParticipant.name,
+          participantType: selectedParticipant.selfSelected ? "self-selected" : "registered",
+          department: department.value,
+          sessionKey,
+          sessionTitle: session.title,
+          presenter: session.presenter,
+          venue: session.venue,
+          deviceId,
+          attendance: true
+        });
+        localStorage.setItem(`lflAttendance:${selectedParticipant.name}:${sessionKey}`, "marked");
+        button.textContent = "Attendance marked ✓";
+        button.classList.add("marked");
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Try marking attendance again";
+        button.classList.add("error");
+        console.error("Attendance could not be saved:", error);
+      }
+    });
     search.addEventListener("keydown", event => {
       if (event.key === "Enter") {
         const first = suggestions.querySelector("button");
@@ -464,12 +531,94 @@
       if (event.key === "Escape") suggestions.classList.remove("open");
     });
     department.addEventListener("change", render);
-    calendarButton.addEventListener("click", downloadCalendar);
+    selfSelectStart.addEventListener("click", () => {
+      selfSelectMode = true;
+      selfSelectPanel.hidden = false;
+      selfSelectStart.classList.remove("visible");
+      suggestions.classList.remove("open");
+      status.textContent = "Choose both breakout sessions and your department.";
+      status.classList.remove("error");
+    });
+    generateSchedule.addEventListener("click", async () => {
+      const name = search.value.trim();
+      const first = selfSession1.value === "" ? null : session1Options[Number(selfSession1.value)];
+      const second = selfSession2.value === "" ? null : session2Options[Number(selfSession2.value)];
+      if (!name || !first || !second || !department.value) {
+        status.textContent = "Enter your name and choose both sessions and a department.";
+        status.classList.add("error");
+        return;
+      }
+      selectedParticipant = { name, session1: first, session2: second, selfSelected: true };
+      let deviceId = localStorage.getItem("lflDeviceId");
+      if (!deviceId) {
+        deviceId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem("lflDeviceId", deviceId);
+      }
+      generateSchedule.disabled = true;
+      generateSchedule.textContent = "Saving registration…";
+      try {
+        if (!window.saveLflRegistration) throw new Error("Registration service is still loading.");
+        await window.saveLflRegistration({
+          participantName: name,
+          participantType: "self-selected",
+          department: department.value,
+          session1Title: first.title,
+          session1Presenter: first.presenter,
+          session1Venue: first.venue,
+          session2Title: second.title,
+          session2Presenter: second.presenter,
+          session2Venue: second.venue,
+          deviceId
+        });
+      } catch (error) {
+        generateSchedule.disabled = false;
+        generateSchedule.textContent = "Retry saving my registration";
+        status.textContent = "Your choices are on this device, but could not be saved online. Please retry.";
+        status.classList.add("error");
+        console.error("Registration could not be saved:", error);
+        return;
+      }
+      localStorage.setItem("lflPersonalPlan", JSON.stringify({
+        name,
+        department: department.value,
+        session1Title: first.title,
+        session2Title: second.title
+      }));
+      generateSchedule.disabled = false;
+      generateSchedule.textContent = "Generate my personal schedule";
+      selfSelectPanel.hidden = true;
+      render();
+    });
     editDetails.addEventListener("click", () => {
       finder.hidden = false;
       status.textContent = "Update your name or department.";
+      if (selectedParticipant?.selfSelected) {
+        selfSelectMode = true;
+        selfSelectPanel.hidden = false;
+      }
       requestAnimationFrame(() => search.focus());
     });
+    try {
+      const saved = JSON.parse(localStorage.getItem("lflPersonalPlan"));
+      const firstIndex = session1Options.findIndex(session => session.title === saved?.session1Title);
+      const secondIndex = session2Options.findIndex(session => session.title === saved?.session2Title);
+      const validDepartment = data.departments.some(item => item.name === saved?.department);
+      if (saved?.name && firstIndex >= 0 && secondIndex >= 0 && validDepartment) {
+        search.value = saved.name;
+        department.value = saved.department;
+        selfSession1.value = String(firstIndex);
+        selfSession2.value = String(secondIndex);
+        selectedParticipant = {
+          name: saved.name,
+          session1: session1Options[firstIndex],
+          session2: session2Options[secondIndex],
+          selfSelected: true
+        };
+        render();
+      }
+    } catch {
+      localStorage.removeItem("lflPersonalPlan");
+    }
     document.addEventListener("click", event => {
       if (!event.target.closest(".input-wrap")) suggestions.classList.remove("open");
     });

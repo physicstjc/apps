@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>LfL Attendance Admin</title>
+  <style>
+    :root {
+      --ink: #20363b; --muted: #607b7d; --teal: #276f78; --aqua: #56aaa5;
+      --mint: #dff5e8; --cream: #fff9e8; --gold: #efc45a; --orange: #f59a4c;
+      --coral: #e97862; --purple: #76517f; --sky: #bde6ed; --line: #d5e8e6;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; color: var(--ink); background: radial-gradient(circle at 8% 4%, rgba(189,230,237,.8), transparent 26rem), linear-gradient(145deg,#fffdf5,#effaf5); }
+    button, select { font: inherit; }
+    .shell { width: min(1400px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 60px; }
+    .header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 24px; }
+    .eyebrow { margin: 0 0 6px; color: var(--aqua); font-size: .72rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2rem,5vw,3.8rem); line-height: 1; color: var(--teal); }
+    .connection { padding: 8px 12px; border-radius: 999px; color: #805e13; font-size: .75rem; font-weight: 800; background: #fff1bd; }
+    .connection.live { color: #285f55; background: var(--mint); }
+    .connection.error { color: #8a352d; background: #fde8de; }
+    .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
+    .stat { padding: 17px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.82); }
+    .stat span { display: block; color: var(--muted); font-size: .72rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+    .stat strong { display: block; margin-top: 5px; color: var(--teal); font-size: 1.8rem; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; padding: 16px; border-radius: 17px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
+    label { display: block; margin-bottom: 5px; color: white; font-size: .7rem; font-weight: 750; }
+    select, .clear { width: 100%; min-height: 43px; padding: 0 11px; border: 0; border-radius: 10px; color: var(--ink); background: white; }
+    .clear { align-self: end; padding: 0 16px; color: var(--teal); font-weight: 800; cursor: pointer; }
+    .tabs { display: flex; gap: 6px; margin: 20px 0 10px; }
+    .tab { padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-weight: 750; background: white; cursor: pointer; }
+    .tab.active { color: white; border-color: var(--teal); background: var(--teal); }
+    .panel[hidden] { display: none; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.88); }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th { position: sticky; top: 0; z-index: 1; padding: 12px; color: white; text-align: left; white-space: nowrap; background: var(--teal); }
+    td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tbody tr:hover { background: rgba(223,245,232,.55); }
+    .pill { display: inline-block; padding: 4px 7px; border-radius: 999px; font-size: .67rem; font-weight: 800; background: var(--mint); }
+    .empty { padding: 34px; color: var(--muted); text-align: center; }
+    .note { margin: 12px 2px 0; color: var(--muted); font-size: .72rem; }
+    @media(max-width:760px) {
+      .shell { width: calc(100% - 18px); padding-top: 16px; }
+      .header { align-items: flex-start; flex-direction: column; gap: 12px; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .controls { grid-template-columns: 1fr; }
+      .clear { min-height: 40px; }
+      table { min-width: 900px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="header">
+      <div><p class="eyebrow">Learning for Life · Admin</p><h1>Attendance dashboard</h1></div>
+      <span class="connection" id="connection">Connecting to Firestore…</span>
+    </header>
+    <section class="stats" aria-label="Summary">
+      <article class="stat"><span>Original registrants</span><strong id="original-count">0</strong></article>
+      <article class="stat"><span>New registrations</span><strong id="new-count">0</strong></article>
+      <article class="stat"><span>Breakout 1 attendance</span><strong id="attendance-1">0</strong></article>
+      <article class="stat"><span>Breakout 2 attendance</span><strong id="attendance-2">0</strong></article>
+    </section>
+    <section class="controls" aria-label="Filters and sorting">
+      <div><label for="workshop-filter">Workshop</label><select id="workshop-filter"><option value="">All workshops</option></select></div>
+      <div><label for="department-filter">Department</label><select id="department-filter"><option value="">All departments</option></select></div>
+      <div><label for="sort-by">Sort by</label><select id="sort-by"><option value="name">Participant name</option><option value="workshop">Workshop</option><option value="department">Department</option><option value="time">Latest attendance</option></select></div>
+      <button class="clear" id="clear-filters" type="button">Clear filters</button>
+    </section>
+    <nav class="tabs" aria-label="Dashboard views">
+      <button class="tab active" type="button" data-panel="attendance">Attendance</button>
+      <button class="tab" type="button" data-panel="registrants">Registrants</button>
+    </nav>
+    <section class="panel" id="attendance-panel">
+      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Type</th><th>Department</th><th>Workshop</th><th>Presenter</th><th>Venue</th><th>Marked at</th></tr></thead><tbody id="attendance-body"></tbody></table></div>
+    </section>
+    <section class="panel" id="registrants-panel" hidden>
+      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
+    </section>
+    <p class="note">This page is intentionally unlinked. It has no login, so anyone who knows its URL can view the attendance data.</p>
+  </main>
+  <script src="participant-data.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+    import { collection, getFirestore, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+    const app = initializeApp({
+      apiKey: "AIzaSyBIytzQZuv8hSjJM0IkSwWHi_ENFTKPPXE", authDomain: "workshop-9cbb7.firebaseapp.com",
+      projectId: "workshop-9cbb7", storageBucket: "workshop-9cbb7.firebasestorage.app",
+      messagingSenderId: "294313831122", appId: "1:294313831122:web:423336ef8232a064445b0b",
+      measurementId: "G-BJ2XRRPLLJ"
+    });
+    const db = getFirestore(app);
+    const data = window.LFL_DATA || { participants: [], departments: [] };
+    let attendance = [], newRegistrations = [], attendanceReady = false, registrationsReady = false;
+    const $ = selector => document.querySelector(selector);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+    const dateText = value => value?.toDate ? value.toDate().toLocaleString("en-SG",{dateStyle:"medium",timeStyle:"short"}) : "—";
+    const original = data.participants.map(p => ({ name:p.name, source:"Original directory", department:"", session1Title:p.session1?.title||"", session1Venue:p.session1?.venue||"", session2Title:p.session2?.title||"", session2Venue:p.session2?.venue||"", registeredAt:null }));
+    const workshops = new Set();
+    data.participants.forEach(p => { if(p.session1?.title) workshops.add(p.session1.title); if(p.session2?.title) workshops.add(p.session2.title); });
+    [...workshops].sort().forEach(title => $("#workshop-filter").add(new Option(title,title)));
+    data.departments.forEach(d => $("#department-filter").add(new Option(d.name,d.name)));
+    $("#original-count").textContent = original.length;
+
+    function updateConnection() {
+      if(attendanceReady && registrationsReady) { $("#connection").textContent="Live data connected"; $("#connection").className="connection live"; }
+    }
+    function filtered(rows, kind) {
+      const workshop=$("#workshop-filter").value, department=$("#department-filter").value, sort=$("#sort-by").value;
+      let result=rows.filter(r => (!department || r.department===department) && (!workshop || (kind==="attendance" ? r.sessionTitle===workshop : r.session1Title===workshop || r.session2Title===workshop)));
+      const value = r => sort==="workshop" ? (r.sessionTitle||r.session1Title||"") : sort==="department" ? r.department||"zzz" : sort==="time" ? -(r.markedAt?.seconds||r.registeredAt?.seconds||0) : (r.participantName||r.name||"");
+      return result.sort((a,b) => String(value(a)).localeCompare(String(value(b)),undefined,{numeric:true,sensitivity:"base"}));
+    }
+    function render() {
+      $("#new-count").textContent=newRegistrations.length;
+      $("#attendance-1").textContent=attendance.filter(r=>r.sessionKey==="breakout-1").length;
+      $("#attendance-2").textContent=attendance.filter(r=>r.sessionKey==="breakout-2").length;
+      const attendanceRows=filtered(attendance,"attendance");
+      $("#attendance-body").innerHTML=attendanceRows.length ? attendanceRows.map(r=>`<tr><td><strong>${esc(r.participantName)}</strong></td><td><span class="pill">${esc(r.participantType)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.sessionTitle)}</td><td>${esc(r.presenter)}</td><td>${esc(r.venue)}</td><td>${esc(dateText(r.markedAt))}</td></tr>`).join("") : '<tr><td colspan="7" class="empty">No attendance records match these filters.</td></tr>';
+      const registrationRows=filtered([...original,...newRegistrations.map(r=>({name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt}))],"registrants");
+      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">No registrants match these filters.</td></tr>';
+    }
+    onSnapshot(collection(db,"lflAttendance"), snap => { attendance=snap.docs.map(d=>({id:d.id,...d.data()})); attendanceReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Attendance read failed"; $("#connection").className="connection error"; console.error(error); });
+    onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
+    ["#workshop-filter","#department-filter","#sort-by"].forEach(id => $(id).addEventListener("change",render));
+    $("#clear-filters").addEventListener("click",()=>{ $("#workshop-filter").value=""; $("#department-filter").value=""; $("#sort-by").value="name"; render(); });
+    document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; }));
+    render();
+  </script>
+</body>
+</html>
