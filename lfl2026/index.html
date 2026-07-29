@@ -88,6 +88,7 @@
     .generate-button:hover, .generate-button:focus { filter: brightness(1.06); box-shadow: 0 0 0 3px rgba(239,196,90,.22); }
     .results { display: none; margin-top: 28px; animation: rise .35s ease both; }
     .results.visible { display: block; }
+    .session-list-heading { margin: 20px 0 11px; color: var(--forest); font-size: 1.05rem; font-weight: 900; letter-spacing: .01em; }
     .person { display: flex; align-items: center; gap: 13px; margin: 0 0 16px; }
     .initials { display: grid; place-items: center; width: 43px; height: 43px; border-radius: 50%; color: var(--forest); font-weight: 800; background: var(--gold); }
     .person > div { min-width: 0; }
@@ -95,10 +96,14 @@
     .person h2 { margin: 0; font-size: 1.42rem; }
     .edit-details { margin-left: auto; padding: 8px 12px; border: 1px solid rgba(18,55,42,.18); border-radius: 999px; color: var(--forest); font-size: .78rem; font-weight: 750; background: rgba(255,255,255,.72); cursor: pointer; }
     .edit-details:hover, .edit-details:focus { border-color: var(--green); background: var(--mint); }
-    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .card { position: relative; min-height: 285px; padding: 22px; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: rgba(255,255,255,.86); box-shadow: 0 10px 28px rgba(18,55,42,.07); }
-    .card::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: var(--green); }
+    .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .card { position: relative; min-height: 285px; padding: 22px; overflow: hidden; border: 2px solid rgba(86,170,165,.38); border-radius: 19px; background: linear-gradient(145deg,rgba(255,255,255,.98),rgba(223,245,232,.42)); box-shadow: 0 14px 34px rgba(18,55,42,.11); }
+    .card::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 7px; background: var(--green); }
+    .card:nth-child(2) { border-color: rgba(233,120,98,.38); background: linear-gradient(145deg,rgba(255,255,255,.98),rgba(253,232,222,.48)); }
     .card:nth-child(2)::before { background: var(--coral); }
+    .card:nth-child(3) { border-color: rgba(239,196,90,.55); background: linear-gradient(145deg,rgba(255,255,255,.98),rgba(255,249,232,.75)); }
+    .card:nth-child(3)::before { background: var(--gold); }
+    .card.reflection { border-color: rgba(118,81,127,.35); background: linear-gradient(145deg,rgba(255,255,255,.98),rgba(240,228,242,.58)); }
     .card.reflection::before { background: linear-gradient(90deg, var(--gold), var(--orange), var(--purple)); }
     .session-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 24px; }
     .tag { padding: 6px 9px; border-radius: 999px; color: var(--forest); font-size: .72rem; font-weight: 800; background: var(--mint); }
@@ -119,6 +124,7 @@
     .attendance-button.error { color: #8a352d; background: #fde8de; opacity: 1; }
     .attendance-options { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
     .attendance-options .attendance-button { margin-top: 0; }
+    .attendance-method-label { margin: 15px 0 7px; color: var(--forest); font-size: .72rem; font-weight: 850; text-align: center; }
     .code-button { color: var(--teal); border: 1px solid rgba(39,111,120,.24); background: white; }
     .code-button:hover, .code-button:focus { color: white; background: var(--teal); }
     .scan-notice { display: none; margin: 0 0 12px; padding: 12px 15px; border: 1px solid rgba(86,170,165,.3); border-radius: 13px; color: #285f55; font-size: .82rem; font-weight: 720; background: var(--mint); }
@@ -305,6 +311,7 @@
           <button class="edit-details" id="edit-details" type="button">Change details</button>
         </div>
         <div class="scan-notice" id="scan-notice"></div>
+        <h2 class="session-list-heading">Your four sessions</h2>
         <div class="cards" id="cards"></div>
       </section>
     </div>
@@ -635,10 +642,11 @@
           : savedAttendance
           ? `<button class="attendance-button marked" type="button" disabled>Attendance marked ✓</button>`
           : scanMatches
-            ? `<button class="attendance-button" type="button" data-attendance="${sessionKey}">Confirm scanned attendance</button>`
-            : `<div class="attendance-options">
-                <button class="attendance-button" type="button" data-scan-attendance="${sessionKey}">Scan QR code</button>
-                <button class="attendance-button code-button" type="button" data-code-attendance="${sessionKey}">Enter 4-character code</button>
+            ? `<button class="attendance-button" type="button" data-attendance="${sessionKey}">Confirm QR attendance</button>`
+            : `<p class="attendance-method-label">Mark attendance using either method:</p>
+              <div class="attendance-options">
+                <button class="attendance-button" type="button" data-scan-attendance="${sessionKey}">Scan attendance QR</button>
+                <button class="attendance-button code-button" type="button" data-code-attendance="${sessionKey}">Enter attendance code</button>
               </div>`}
       </article>`;
     }
@@ -690,7 +698,7 @@
           ? `QR scanned for ${scannedSession.title}. Confirm attendance on that session card.`
           : "This QR code does not match your assigned or selected workshop.";
       const reflectionCard = `<article class="card reflection">
-        <div class="session-meta"><span class="tag">Department reflection</span><span class="time">11:50–12:30</span></div>
+        <div class="session-meta"><span class="tag">Session 4 · Department reflection</span><span class="time">11:50–12:30</span></div>
         <h3>${reflection ? escapeHtml(reflection.name) : '<span class="empty">Select your department above.</span>'}</h3>
         ${reflection ? `<div class="detail">${icon("person")}<span><strong>Facilitator</strong><br>${escapeHtml(reflection.facilitator)}</span></div>
         <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(reflection.venue)}</span></div>
@@ -698,9 +706,9 @@
       </article>`;
       document.querySelector("#person-name").textContent = selectedParticipant.name;
       document.querySelector("#initials").textContent = selectedParticipant.name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
-      cards.innerHTML = sessionCard("Morning plenary", "9:00–9:40", plenarySession, "20260804T090000", "20260804T094000", "morning-plenary")
-        + sessionCard("Breakout 1", "10:00–10:45", selectedParticipant.session1, "20260804T100000", "20260804T104500", "breakout-1")
-        + sessionCard("Breakout 2", "11:00–11:45", selectedParticipant.session2, "20260804T110000", "20260804T114500", "breakout-2")
+      cards.innerHTML = sessionCard("Session 1 · Morning plenary", "9:00–9:40", plenarySession, "20260804T090000", "20260804T094000", "morning-plenary")
+        + sessionCard("Session 2 · Breakout 1", "10:00–10:45", selectedParticipant.session1, "20260804T100000", "20260804T104500", "breakout-1")
+        + sessionCard("Session 3 · Breakout 2", "11:00–11:45", selectedParticipant.session2, "20260804T110000", "20260804T114500", "breakout-2")
         + reflectionCard;
       if(pendingAttendance && !scanMatches && pendingWorkshop && nativeMismatchPromptedFor!==selectedParticipant.name) {
         const scanned=[...attendanceCodes.values()].find(item=>item.key===pendingAttendance && item.title===pendingWorkshop);
