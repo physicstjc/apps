@@ -135,6 +135,8 @@
     .attendance-method-label { margin: 15px 0 7px; color: var(--forest); font-size: .72rem; font-weight: 850; text-align: center; }
     .code-button { color: var(--forest); border: 1px solid rgba(39,111,120,.24); background: white; }
     .code-button:hover, .code-button:focus { color: white; background: var(--forest); }
+    .feedback-link { display: flex; align-items: center; justify-content: center; min-height: 39px; margin-top: 12px; padding: 7px 10px; border: 1px solid rgba(118,81,127,.28); border-radius: 10px; color: var(--purple); font-size: .75rem; font-weight: 820; text-align: center; text-decoration: none; background: rgba(240,228,242,.55); }
+    .feedback-link:hover, .feedback-link:focus-visible { color: white; border-color: var(--purple); background: var(--purple); }
     .scan-notice { display: none; margin: 0 0 12px; padding: 12px 15px; border: 1px solid rgba(86,170,165,.3); border-radius: 13px; color: #285f55; font-size: .82rem; font-weight: 720; background: var(--mint); }
     .scan-notice.visible { display: block; }
     .scan-notice.error { color: #8a352d; border-color: rgba(233,120,98,.3); background: #fde8de; }
@@ -747,6 +749,7 @@
                 <button class="attendance-button" type="button" data-scan-attendance="${sessionKey}">Scan attendance QR</button>
                 <button class="attendance-button code-button" type="button" data-code-attendance="${sessionKey}">Enter attendance code</button>
               </div>`}
+        ${sessionKey==="breakout-2" ? '<a class="feedback-link" href="https://forms.moe.edu.sg/forms/opY8Em" target="_blank" rel="noopener">Give feedback for the sharing sessions ↗</a>' : ""}
       </article>`;
     }
 
