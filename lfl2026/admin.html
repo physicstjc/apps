@@ -177,7 +177,7 @@
   </div>
   <div class="confirm-overlay" id="add-registrant-dialog" role="dialog" aria-modal="true" aria-labelledby="add-registrant-title" hidden>
     <section class="confirm-dialog">
-      <div class="confirm-head"><h2 id="add-registrant-title">Add new registrant</h2><p>Create a participant record and assign at least one breakout.</p></div>
+      <div class="confirm-head"><h2 id="add-registrant-title">Add new registrant</h2><p>Create a participant record. Both breakout workshops are optional.</p></div>
       <form class="confirm-body" id="add-registrant-form">
         <div class="add-grid">
           <div class="wide"><label for="add-registrant-name">Participant name</label><input id="add-registrant-name" maxlength="120" autocomplete="off" required></div>
@@ -372,8 +372,8 @@
       $("#workshop-confirm-name").textContent=participantName;
       $("#workshop-confirm-1").textContent=firstChanged ? `${firstSelect.dataset.previousValue||"No workshop"} → ${first ? `${first.title} · ${first.venue}` : "No workshop"}` : "No change";
       $("#workshop-confirm-2").textContent=secondChanged ? `${secondSelect.dataset.previousValue||"No workshop"} → ${second ? `${second.title} · ${second.venue}` : "No workshop"}` : "No change";
-      $("#workshop-confirm-warning").textContent=!first&&!second ? "At least one breakout must be selected before this change can be saved." : "";
-      $("#workshop-confirm-save").disabled=!first&&!second;
+      $("#workshop-confirm-warning").textContent="";
+      $("#workshop-confirm-save").disabled=false;
       $("#workshop-confirm-dialog").hidden=false;
       requestAnimationFrame(()=>$("#workshop-confirm-save").focus());
     });
@@ -436,7 +436,6 @@
       const second=breakout2Options.find(session=>session.title===$("#add-registrant-session-2").value)||null;
       const allNames=[...original.map(item=>item.name),...newRegistrations.map(item=>item.participantName)];
       if(!participantName||!department) { $("#add-registrant-error").textContent="Enter a name and select a department."; return; }
-      if(!first&&!second) { $("#add-registrant-error").textContent="Select at least one breakout workshop."; return; }
       if(allNames.some(name=>name.toLocaleLowerCase()===participantName.toLocaleLowerCase())) { $("#add-registrant-error").textContent="A registrant with this name already exists."; return; }
       const button=$("#add-registrant-save");
       button.disabled=true;
