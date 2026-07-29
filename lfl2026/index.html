@@ -83,6 +83,7 @@
     .self-select-start:hover, .self-select-start:focus { color: var(--forest); background: white; }
     .self-select-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.2); }
     .self-select-panel[hidden] { display: none; }
+    .self-select-intro { margin: 0 0 12px; color: white; font-size: .84rem; font-weight: 760; line-height: 1.45; }
     .self-select-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .generate-button { width: 100%; min-height: 46px; margin-top: 10px; border: 0; border-radius: 11px; color: var(--forest); font-weight: 850; background: var(--gold); cursor: pointer; }
     .generate-button:hover, .generate-button:focus { filter: brightness(1.06); box-shadow: 0 0 0 3px rgba(239,196,90,.22); }
@@ -290,6 +291,7 @@
         <p class="status" id="status" aria-live="polite">Enter at least two letters to search.</p>
         <button class="self-select-start" id="self-select-start" type="button">My name isn’t listed — choose sessions</button>
         <div class="self-select-panel" id="self-select-panel" hidden>
+          <p class="self-select-intro">Your name is not in the participant directory. Add your name by choosing both breakout workshops and your department.</p>
           <div class="self-select-grid">
             <div>
               <label for="self-session-1">Preferred Breakout 1</label>
@@ -300,7 +302,7 @@
               <select id="self-session-2"><option value="">Choose a session…</option></select>
             </div>
           </div>
-          <button class="generate-button" id="generate-schedule" type="button">Generate my personal schedule</button>
+          <button class="generate-button" id="generate-schedule" type="button">Add my name and save my workshops</button>
         </div>
       </section>
 
@@ -741,6 +743,9 @@
       if (query.length < 2) {
         suggestions.classList.remove("open");
         status.textContent = "Enter at least two letters to search.";
+        selfSelectMode = false;
+        selfSelectPanel.hidden = true;
+        selfSelectStart.classList.remove("visible");
         render();
         return;
       }
@@ -755,10 +760,18 @@
         suggestions.append(button);
       });
       suggestions.classList.toggle("open", matches.length > 0 && !selectedParticipant);
-      status.textContent = matches.length ? `${matches.length} ${matches.length === 1 ? "match" : "matches"} found.` : "No matching participant found.";
+      status.textContent = matches.length
+        ? `${matches.length} ${matches.length === 1 ? "match" : "matches"} found.`
+        : "No matching participant found. Add your name and choose both workshops below.";
       status.classList.toggle("error", matches.length === 0);
-      selfSelectStart.classList.toggle("visible", matches.length === 0);
-      if (matches.length > 0 && !selfSelectMode) selfSelectPanel.hidden = true;
+      selfSelectStart.classList.remove("visible");
+      if(matches.length===0) {
+        selfSelectMode = true;
+        selfSelectPanel.hidden = false;
+      } else if(!selectedParticipant) {
+        selfSelectMode = false;
+        selfSelectPanel.hidden = true;
+      }
       render();
     }
 
@@ -1066,7 +1079,7 @@
         session2Title: second.title
       }));
       generateSchedule.disabled = false;
-      generateSchedule.textContent = "Generate my personal schedule";
+      generateSchedule.textContent = "Add my name and save my workshops";
       selfSelectPanel.hidden = true;
       render();
     });
