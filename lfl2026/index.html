@@ -566,6 +566,18 @@
       department.append(option);
     });
     const savedDepartmentKey = "lflSelectedDepartment";
+    const savedParticipantKey = "lflParticipantProfile";
+    function saveParticipantProfile() {
+      if (!selectedParticipant?.name) return;
+      try {
+        localStorage.setItem(savedParticipantKey, JSON.stringify({
+          name: selectedParticipant.name,
+          department: department.value
+        }));
+      } catch (error) {
+        console.warn("Participant profile could not be saved:", error);
+      }
+    }
     try {
       const savedDepartment = localStorage.getItem(savedDepartmentKey);
       if (data.departments.some(item => item.name === savedDepartment)) department.value = savedDepartment;
@@ -808,12 +820,14 @@
       selectedParticipant = participantWithOverrides(participant);
       search.value = participant.name;
       suggestions.classList.remove("open");
+      saveParticipantProfile();
       render();
     }
 
     function updateSuggestions() {
       const query = search.value.trim().toLocaleLowerCase();
       selectedParticipant = participantWithOverrides(data.participants.find(item => item.name.toLocaleLowerCase() === query));
+      if (selectedParticipant) saveParticipantProfile();
       suggestions.replaceChildren();
       if (query.length < 2) {
         suggestions.classList.remove("open");
@@ -1117,6 +1131,7 @@
           savedPlan.department = department.value;
           localStorage.setItem("lflPersonalPlan", JSON.stringify(savedPlan));
         }
+        saveParticipantProfile();
       } catch (error) {
         console.warn("Department choice could not be saved:", error);
       }
@@ -1176,6 +1191,7 @@
         session2Title: second?.title||""
       }));
       localStorage.setItem(savedDepartmentKey, department.value);
+      saveParticipantProfile();
       generateSchedule.disabled = false;
       generateSchedule.textContent = "Add my name and save my workshops";
       selfSelectPanel.hidden = true;
@@ -1190,6 +1206,7 @@
       }
       requestAnimationFrame(() => search.focus());
     });
+    let restoredPersonalPlan = false;
     try {
       const saved = JSON.parse(localStorage.getItem("lflPersonalPlan"));
       const firstIndex = session1Options.findIndex(session => session.title === saved?.session1Title);
@@ -1208,10 +1225,28 @@
           session2: secondIndex >= 0 ? session2Options[secondIndex] : null,
           selfSelected: true
         };
+        restoredPersonalPlan = true;
+        saveParticipantProfile();
         render();
       }
     } catch {
       localStorage.removeItem("lflPersonalPlan");
+    }
+    if (!restoredPersonalPlan) {
+      try {
+        const savedProfile = JSON.parse(localStorage.getItem(savedParticipantKey) || "null");
+        const participant = data.participants.find(item => item.name.toLocaleLowerCase() === savedProfile?.name?.toLocaleLowerCase());
+        const validDepartment = data.departments.some(item => item.name === savedProfile?.department);
+        if (participant && validDepartment) {
+          search.value = participant.name;
+          department.value = savedProfile.department;
+          selectedParticipant = participantWithOverrides(participant);
+          render();
+        }
+      } catch (error) {
+        localStorage.removeItem(savedParticipantKey);
+        console.warn("Saved participant profile could not be restored:", error);
+      }
     }
     document.addEventListener("click", event => {
       if (!event.target.closest(".input-wrap")) suggestions.classList.remove("open");
