@@ -565,6 +565,13 @@
       option.textContent = item.name;
       department.append(option);
     });
+    const savedDepartmentKey = "lflSelectedDepartment";
+    try {
+      const savedDepartment = localStorage.getItem(savedDepartmentKey);
+      if (data.departments.some(item => item.name === savedDepartment)) department.value = savedDepartment;
+    } catch (error) {
+      console.warn("Saved department could not be restored:", error);
+    }
 
     function uniqueSessions(key) {
       const sessions = new Map();
@@ -1101,7 +1108,20 @@
       }
       if (event.key === "Escape") suggestions.classList.remove("open");
     });
-    department.addEventListener("change", render);
+    department.addEventListener("change", () => {
+      try {
+        if (department.value) localStorage.setItem(savedDepartmentKey, department.value);
+        else localStorage.removeItem(savedDepartmentKey);
+        const savedPlan = JSON.parse(localStorage.getItem("lflPersonalPlan") || "null");
+        if (savedPlan?.name) {
+          savedPlan.department = department.value;
+          localStorage.setItem("lflPersonalPlan", JSON.stringify(savedPlan));
+        }
+      } catch (error) {
+        console.warn("Department choice could not be saved:", error);
+      }
+      render();
+    });
     selfSelectStart.addEventListener("click", () => {
       selfSelectMode = true;
       selfSelectPanel.hidden = false;
@@ -1155,6 +1175,7 @@
         session1Title: first?.title||"",
         session2Title: second?.title||""
       }));
+      localStorage.setItem(savedDepartmentKey, department.value);
       generateSchedule.disabled = false;
       generateSchedule.textContent = "Add my name and save my workshops";
       selfSelectPanel.hidden = true;
