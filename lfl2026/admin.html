@@ -14,7 +14,7 @@
     }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; color: var(--ink); background: radial-gradient(circle at 8% 4%, rgba(189,230,237,.8), transparent 26rem), linear-gradient(145deg,#fffdf5,#effaf5); }
-    button, select { font: inherit; }
+    button, input, select { font: inherit; }
     .shell { width: min(1400px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 60px; }
     .header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 24px; }
     .eyebrow { margin: 0 0 6px; color: var(--aqua); font-size: .72rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
@@ -31,9 +31,10 @@
     .stat { padding: 17px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.82); }
     .stat span { display: block; color: var(--muted); font-size: .72rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
     .stat strong { display: block; margin-top: 5px; color: var(--teal); font-size: 1.8rem; }
-    .controls { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; padding: 16px; border-radius: 17px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
+    .controls { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr auto; gap: 10px; padding: 16px; border-radius: 17px; background: linear-gradient(125deg,#397f8c,#586187 72%,#76517f); }
+    .controls[hidden] { display: none; }
     label { display: block; margin-bottom: 5px; color: white; font-size: .7rem; font-weight: 750; }
-    select, .clear { width: 100%; min-height: 43px; padding: 0 11px; border: 0; border-radius: 10px; color: var(--ink); background: white; }
+    input, select, .clear { width: 100%; min-height: 43px; padding: 0 11px; border: 0; border-radius: 10px; color: var(--ink); background: white; }
     .clear { align-self: end; padding: 0 16px; color: var(--teal); font-weight: 800; cursor: pointer; }
     .tabs { display: flex; gap: 6px; margin: 20px 0 10px; }
     .tab { padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-weight: 750; background: white; cursor: pointer; }
@@ -101,7 +102,8 @@
       <article class="stat"><span>Breakout 1 attendance</span><strong id="attendance-1">0</strong></article>
       <article class="stat"><span>Breakout 2 attendance</span><strong id="attendance-2">0</strong></article>
     </section>
-    <section class="controls" aria-label="Filters and sorting">
+    <section class="controls" id="dashboard-controls" aria-label="Filters and sorting" hidden>
+      <div><label for="name-filter">Participant name</label><input id="name-filter" type="search" autocomplete="off" placeholder="Search by name…"></div>
       <div><label for="workshop-filter">Workshop</label><select id="workshop-filter"><option value="">All workshops</option></select></div>
       <div><label for="department-filter">Department</label><select id="department-filter"><option value="">All departments</option></select></div>
       <div><label for="sort-by">Sort by</label><select id="sort-by"><option value="name">Participant name</option><option value="workshop">Workshop</option><option value="department">Department</option><option value="time">Latest attendance</option></select></div>
@@ -228,8 +230,8 @@
       if(attendanceReady && registrationsReady) { $("#connection").textContent="Live data connected"; $("#connection").className="connection live"; }
     }
     function filtered(rows, kind) {
-      const workshop=$("#workshop-filter").value, department=$("#department-filter").value, sort=$("#sort-by").value;
-      let result=rows.filter(r => (!department || r.department===department) && (!workshop || (kind==="attendance" ? r.sessionTitle===workshop : r.session1Title===workshop || r.session2Title===workshop)));
+      const name=$("#name-filter").value.trim().toLocaleLowerCase(), workshop=$("#workshop-filter").value, department=$("#department-filter").value, sort=$("#sort-by").value;
+      let result=rows.filter(r => (!name || (r.participantName||r.name||"").toLocaleLowerCase().includes(name)) && (!department || r.department===department) && (!workshop || (kind==="attendance" ? r.sessionTitle===workshop : r.session1Title===workshop || r.session2Title===workshop)));
       const value = r => sort==="workshop" ? (r.sessionTitle||r.session1Title||"") : sort==="department" ? r.department||"zzz" : sort==="time" ? -(r.markedAt?.seconds||r.registeredAt?.seconds||0) : (r.participantName||r.name||"");
       return result.sort((a,b) => String(value(a)).localeCompare(String(value(b)),undefined,{numeric:true,sensitivity:"base"}));
     }
@@ -253,7 +255,8 @@
     onSnapshot(collection(db,"lflAttendance"), snap => { attendance=snap.docs.map(d=>({id:d.id,...d.data()})); attendanceReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Attendance read failed"; $("#connection").className="connection error"; console.error(error); });
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
     ["#workshop-filter","#department-filter","#sort-by"].forEach(id => $(id).addEventListener("change",render));
-    $("#clear-filters").addEventListener("click",()=>{ $("#workshop-filter").value=""; $("#department-filter").value=""; $("#sort-by").value="name"; render(); });
+    $("#name-filter").addEventListener("input",render);
+    $("#clear-filters").addEventListener("click",()=>{ $("#name-filter").value=""; $("#workshop-filter").value=""; $("#department-filter").value=""; $("#sort-by").value="name"; render(); });
     function authErrorText(error) {
       const messages = {
         "auth/popup-blocked": "The browser blocked the Google sign-in popup. Allow popups for this site and retry.",
@@ -267,7 +270,7 @@
     $("#super-admin-button").addEventListener("click",async()=>{ $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); try { if(currentUser) await signOut(auth); else await signInWithPopup(auth,googleProvider); } catch(error) { console.error(error); $("#auth-status").textContent=authErrorText(error); $("#auth-status").classList.add("error"); } });
     onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && user.email?.toLocaleLowerCase()===superAdminEmail); if(user&&!superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email || "unknown account"}. Only ${superAdminEmail} is authorised.`; $("#auth-status").classList.add("error"); } else if(superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email}`; $("#auth-status").classList.remove("error"); } else { $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); } render(); });
     $("#attendance-body").addEventListener("click",async event=>{ const button=event.target.closest("[data-delete-attendance]"); if(!button||!superAdminUnlocked) return; const message=`Delete ${button.dataset.deleteName}'s attendance for ${button.dataset.deleteSession}?`; if(!confirm(message)) return; button.disabled=true; button.textContent="Deleting…"; try { await deleteDoc(doc(db,"lflAttendance",button.dataset.deleteAttendance)); } catch(error) { button.disabled=false; button.textContent="Retry delete"; console.error(error); alert("Attendance could not be deleted."); } });
-    document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; $("#qr-panel").hidden=button.dataset.panel!=="qr"; }));
+    document.querySelectorAll(".tab").forEach(button => button.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===button)); $("#attendance-panel").hidden=button.dataset.panel!=="attendance"; $("#registrants-panel").hidden=button.dataset.panel!=="registrants"; $("#qr-panel").hidden=button.dataset.panel!=="qr"; $("#dashboard-controls").hidden=button.dataset.panel==="qr"; }));
     render();
   </script>
 </body>
