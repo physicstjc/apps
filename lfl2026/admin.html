@@ -60,7 +60,8 @@
     .qr-card h3 { min-height: 2.7em; margin: 0 0 5px; font-size: .92rem; line-height: 1.35; }
     .qr-card p { margin: 0 0 12px; color: var(--muted); font-size: .75rem; }
     .qr-card img { display: block; width: min(100%,360px); aspect-ratio: 1; margin: 0 auto 12px; }
-    .session-code-label { margin: 4px 0 2px; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .qr-attendance-label { margin: 14px 0 8px; color: var(--teal); font-size: .82rem; font-weight: 900; }
+    .session-code-label { margin: 8px 0 4px; color: var(--teal); font-size: .76rem; font-weight: 900; }
     .session-code { margin: 0 0 15px; color: var(--teal); font-size: clamp(2.6rem,9vw,4.5rem); font-weight: 950; letter-spacing: .18em; line-height: 1; }
     .qr-link { display: block; overflow: hidden; color: var(--muted); font-size: .63rem; text-overflow: ellipsis; white-space: nowrap; }
     @media print {
@@ -187,7 +188,7 @@
       target.searchParams.set("workshop",session.title);
       const qr=`https://quickchart.io/qr?size=360&margin=2&dark=276f78&light=ffffff&text=${encodeURIComponent(target.href)}`;
       selectedQr={session,target:target.href,downloadUrl:`https://quickchart.io/qr?size=1200&margin=3&dark=276f78&light=ffffff&format=png&text=${encodeURIComponent(target.href)}`};
-      $("#qr-display").innerHTML=`<article class="qr-card"><h3>${esc(session.title)}</h3><p>${esc(session.time)} · ${esc(session.venue)}</p><img src="${esc(qr)}" alt="Attendance QR code for ${esc(session.title)}"><div class="session-code-label">Attendance code</div><div class="session-code">${attendanceCode(session.key,session.title)}</div><span class="qr-link">${esc(target.href)}</span></article>`;
+      $("#qr-display").innerHTML=`<article class="qr-card"><h3>${esc(session.title)}</h3><p>${esc(session.time)} · ${esc(session.venue)}</p><div class="qr-attendance-label">Scan this QR code to mark attendance</div><img src="${esc(qr)}" alt="Attendance QR code for ${esc(session.title)}"><div class="session-code-label">Or enter this 4-character attendance code</div><div class="session-code">${attendanceCode(session.key,session.title)}</div><span class="qr-link">${esc(target.href)}</span></article>`;
     }
     $("#qr-session-select").addEventListener("change",renderQrCode);
     $("#download-qr").addEventListener("click",async () => {
