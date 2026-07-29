@@ -259,15 +259,15 @@
       <section class="schedule-heading">
         <p class="eyebrow">Learning for Life Sharing Sessions</p>
         <h1>Full schedule.</h1>
-        <p>Keep the day’s flow at a glance. For breakout venues and presenters assigned to you, switch to <strong>My sessions</strong>.</p>
+        <p id="schedule-personal-note">Enter your name and department under <strong>My sessions</strong> to personalise this schedule.</p>
       </section>
       <section class="schedule-list" aria-label="Full programme schedule">
         <div class="schedule-item"><span class="schedule-time">9:00–9:40</span><span class="schedule-activity">Morning Plenary</span><span class="schedule-venue">LT1</span></div>
         <div class="schedule-item"><span class="schedule-time">9:40–10:00</span><span class="schedule-activity">Tea Break &amp; Transition</span><span class="schedule-venue">—</span></div>
-        <div class="schedule-item breakout"><span class="schedule-time">10:00–10:45</span><span class="schedule-activity">Breakout Session I</span><span class="schedule-venue">Various venues</span></div>
+        <div class="schedule-item breakout"><span class="schedule-time">10:00–10:45</span><span class="schedule-activity" id="schedule-breakout-1">Breakout Session I</span><span class="schedule-venue" id="schedule-breakout-1-venue">Various venues</span></div>
         <div class="schedule-item"><span class="schedule-time">10:45–11:00</span><span class="schedule-activity">Break &amp; Transition</span><span class="schedule-venue">—</span></div>
-        <div class="schedule-item breakout"><span class="schedule-time">11:00–11:45</span><span class="schedule-activity">Breakout Session II</span><span class="schedule-venue">Various venues</span></div>
-        <div class="schedule-item breakout"><span class="schedule-time">11:50–12:30</span><span class="schedule-activity">Department Reflection &amp; Consolidation</span><span class="schedule-venue">Various venues</span></div>
+        <div class="schedule-item breakout"><span class="schedule-time">11:00–11:45</span><span class="schedule-activity" id="schedule-breakout-2">Breakout Session II</span><span class="schedule-venue" id="schedule-breakout-2-venue">Various venues</span></div>
+        <div class="schedule-item breakout"><span class="schedule-time">11:50–12:30</span><span class="schedule-activity" id="schedule-reflection">Department Reflection &amp; Consolidation</span><span class="schedule-venue" id="schedule-reflection-venue">Various venues</span></div>
         <div class="schedule-item"><span class="schedule-time">12:30</span><span class="schedule-activity">Lunch</span><span class="schedule-venue">Canteen</span></div>
       </section>
     </div>
@@ -423,7 +423,29 @@
       </article>`;
     }
 
+    function updateFullSchedule() {
+      const reflection = data.departments.find(item => item.name === department.value);
+      const first = selectedParticipant?.session1;
+      const second = selectedParticipant?.session2;
+      document.querySelector("#schedule-personal-note").innerHTML = selectedParticipant && reflection
+        ? `Personalised schedule for <strong>${escapeHtml(selectedParticipant.name)}</strong>.`
+        : 'Enter your name and department under <strong>My sessions</strong> to personalise this schedule.';
+      document.querySelector("#schedule-breakout-1").textContent = first
+        ? `${first.title} · Presenter(s): ${first.presenter}`
+        : "Breakout Session I";
+      document.querySelector("#schedule-breakout-1-venue").textContent = first?.venue || "Various venues";
+      document.querySelector("#schedule-breakout-2").textContent = second
+        ? `${second.title} · Presenter(s): ${second.presenter}`
+        : "Breakout Session II";
+      document.querySelector("#schedule-breakout-2-venue").textContent = second?.venue || "Various venues";
+      document.querySelector("#schedule-reflection").textContent = reflection
+        ? `${reflection.name} · Facilitator: ${reflection.facilitator}`
+        : "Department Reflection & Consolidation";
+      document.querySelector("#schedule-reflection-venue").textContent = reflection?.venue || "Various venues";
+    }
+
     function render() {
+      updateFullSchedule();
       if (!selectedParticipant) {
         results.classList.remove("visible");
         return;
