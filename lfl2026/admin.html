@@ -237,10 +237,12 @@
     const qrSessionList=[...qrSessions.values()].sort((a,b) => qrOrder[a.key]-qrOrder[b.key] || a.title.localeCompare(b.title));
     const breakout1Options=qrSessionList.filter(session=>session.key==="breakout-1");
     const breakout2Options=qrSessionList.filter(session=>session.key==="breakout-2");
+    const otherDepartment="Others";
     const safeParticipantId=name=>`2026-08-04_${name.toLocaleLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "participant"}`;
     const workshopSelect=(options,selected,name,slot)=>`<select class="workshop-edit" data-edit-name="${esc(name)}" data-session-slot="${slot}" data-previous-value="${esc(selected)}"><option value=""${selected ? "" : " selected"}>No workshop</option>${options.map(session=>`<option value="${esc(session.title)}"${session.title===selected ? " selected" : ""}>${esc(session.title)} · ${esc(session.venue)}</option>`).join("")}</select>`;
     const fillWorkshopSelect=(select,options)=>{ select.innerHTML='<option value="">No workshop</option>'; options.forEach(session=>select.add(new Option(`${session.title} · ${session.venue}`,session.title))); };
     data.departments.forEach(department=>$("#add-registrant-department").add(new Option(department.name,department.name)));
+    $("#add-registrant-department").add(new Option(otherDepartment,otherDepartment));
     fillWorkshopSelect($("#add-registrant-session-1"),breakout1Options);
     fillWorkshopSelect($("#add-registrant-session-2"),breakout2Options);
     function attendanceCode(key,title) {
@@ -300,6 +302,7 @@
     data.participants.forEach(p => { if(p.session1?.title) workshops.add(p.session1.title); if(p.session2?.title) workshops.add(p.session2.title); });
     [...workshops].sort().forEach(title => $("#workshop-filter").add(new Option(title,title)));
     data.departments.forEach(d => $("#department-filter").add(new Option(d.name,d.name)));
+    $("#department-filter").add(new Option(otherDepartment,otherDepartment));
     $("#original-count").textContent = original.length;
 
     function updateConnection() {
