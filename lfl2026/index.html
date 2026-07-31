@@ -414,7 +414,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-    import { doc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+    import { collection, doc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBIytzQZuv8hSjJM0IkSwWHi_ENFTKPPXE",
@@ -433,6 +433,10 @@
       return `2026-08-04_${sessionKey}_${safeName || "participant"}`;
     };
     const workshopOverrideDocumentId = participantName => {
+      const safeName = participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return `2026-08-04_${safeName || "participant"}`;
+    };
+    const participantProfileDocumentId = participantName => {
       const safeName = participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       return `2026-08-04_${safeName || "participant"}`;
     };
@@ -460,6 +464,22 @@
       snapshot=>listener(snapshot.exists() ? snapshot.data() : null),
       error=>{ console.error("Workshop changes could not be read:",error); listener(null); }
     );
+    window.watchLflParticipantProfiles = listener => onSnapshot(
+      collection(database, "lflParticipantProfiles"),
+      snapshot => listener(snapshot.docs.map(profile => profile.data())),
+      error => { console.error("Participant departments could not be read:", error); listener([]); }
+    );
+    window.saveLflParticipantProfile = async (participantName, department) => {
+      const documentId = participantProfileDocumentId(participantName);
+      await setDoc(doc(database, "lflParticipantProfiles", documentId), {
+        participantName,
+        department,
+        eventName: "Learning for Life Sharing Sessions",
+        eventDate: "2026-08-04",
+        updatedAt: serverTimestamp()
+      });
+      return documentId;
+    };
     window.saveLflRegistration = async (record) => {
       const safeName = record.participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const documentId = `2026-08-04_${safeName || "participant"}_${record.deviceId.replace(/[^a-z0-9-]+/gi, "-")}`;
@@ -502,6 +522,10 @@
     const navButtons = document.querySelectorAll(".nav-button");
     let selectedParticipant = null;
     let selfSelectMode = false;
+    let resetDepartmentOnNameEdit = false;
+    let participantProfilesWatchStarted = false;
+    let pendingParticipantProfile = null;
+    const participantDepartments = new Map();
     const attendanceParameters = new URLSearchParams(location.search);
     let pendingAttendance = attendanceParameters.get("attendance");
     let pendingWorkshop = attendanceParameters.get("workshop");
@@ -593,6 +617,53 @@
         console.warn("Participant profile could not be saved:", error);
       }
     }
+    function applyParticipantDepartment(participantName) {
+      const savedDepartment = participantDepartments.get(participantName.toLocaleLowerCase());
+      if (!savedDepartment || !data.departments.some(item => item.name === savedDepartment)) return;
+      department.value = savedDepartment;
+      try {
+        localStorage.setItem(savedDepartmentKey, savedDepartment);
+        saveParticipantProfile();
+      } catch (error) {
+        console.warn("Participant department could not be stored on this device:", error);
+      }
+    }
+    function ensureParticipantProfilesWatch() {
+      if (participantProfilesWatchStarted || !window.watchLflParticipantProfiles) return;
+      participantProfilesWatchStarted = true;
+      window.watchLflParticipantProfiles(profiles => {
+        participantDepartments.clear();
+        profiles.forEach(profile => {
+          if (profile?.participantName && profile?.department) {
+            participantDepartments.set(profile.participantName.toLocaleLowerCase(), profile.department);
+          }
+        });
+        const currentName = selectedParticipant?.name || search.value.trim();
+        if (currentName) {
+          applyParticipantDepartment(currentName);
+          render();
+        }
+      });
+    }
+    function saveParticipantDepartmentOnline(participantName, selectedDepartment) {
+      if (!participantName || !selectedDepartment) return;
+      if (!window.saveLflParticipantProfile) {
+        pendingParticipantProfile = { participantName, department: selectedDepartment };
+        return;
+      }
+      pendingParticipantProfile = null;
+      window.saveLflParticipantProfile(participantName, selectedDepartment).catch(error => {
+        console.error("Participant department could not be saved online:", error);
+        status.textContent = "Your department is saved on this device, but could not be saved online.";
+        status.classList.add("error");
+      });
+    }
+    window.addEventListener("lflFirebaseReady", () => {
+      ensureParticipantProfilesWatch();
+      if (pendingParticipantProfile) {
+        saveParticipantDepartmentOnline(pendingParticipantProfile.participantName, pendingParticipantProfile.department);
+      }
+    });
     try {
       const savedDepartment = localStorage.getItem(savedDepartmentKey);
       if (data.departments.some(item => item.name === savedDepartment)) department.value = savedDepartment;
@@ -866,6 +937,7 @@
       selfSelectStart.classList.remove("visible");
       selectedParticipant = participantWithOverrides(participant);
       search.value = participant.name;
+      applyParticipantDepartment(participant.name);
       suggestions.classList.remove("open");
       saveParticipantProfile();
       render();
@@ -874,7 +946,10 @@
     function updateSuggestions() {
       const query = search.value.trim().toLocaleLowerCase();
       selectedParticipant = participantWithOverrides(data.participants.find(item => item.name.toLocaleLowerCase() === query));
-      if (selectedParticipant) saveParticipantProfile();
+      if (selectedParticipant) {
+        applyParticipantDepartment(selectedParticipant.name);
+        saveParticipantProfile();
+      }
       suggestions.replaceChildren();
       if (query.length < 2) {
         suggestions.classList.remove("open");
@@ -1061,7 +1136,24 @@
       }
     }
 
-    search.addEventListener("input", updateSuggestions);
+    search.addEventListener("input", () => {
+      if (resetDepartmentOnNameEdit) {
+        resetDepartmentOnNameEdit = false;
+        department.value = "";
+        try {
+          localStorage.removeItem(savedDepartmentKey);
+          const savedPlan = JSON.parse(localStorage.getItem("lflPersonalPlan") || "null");
+          if (savedPlan?.name) {
+            savedPlan.department = "";
+            localStorage.setItem("lflPersonalPlan", JSON.stringify(savedPlan));
+          }
+          saveParticipantProfile();
+        } catch (error) {
+          console.warn("Department choice could not be reset:", error);
+        }
+      }
+      updateSuggestions();
+    });
     cards.addEventListener("click", async event => {
       const synopsisButton = event.target.closest("[data-synopsis-target]");
       if(synopsisButton) {
@@ -1189,6 +1281,7 @@
       if (event.key === "Escape") suggestions.classList.remove("open");
     });
     department.addEventListener("change", () => {
+      const participantName = selectedParticipant?.name || search.value.trim();
       try {
         if (department.value) localStorage.setItem(savedDepartmentKey, department.value);
         else localStorage.removeItem(savedDepartmentKey);
@@ -1201,6 +1294,7 @@
       } catch (error) {
         console.warn("Department choice could not be saved:", error);
       }
+      saveParticipantDepartmentOnline(participantName, department.value);
       render();
     });
     selfSelectStart.addEventListener("click", () => {
@@ -1265,6 +1359,7 @@
     });
     editDetails.addEventListener("click", () => {
       finder.hidden = false;
+      resetDepartmentOnNameEdit = true;
       status.textContent = "Update your name or department.";
       if (selectedParticipant?.selfSelected) {
         selfSelectMode = true;
@@ -1316,6 +1411,7 @@
         console.warn("Saved participant profile could not be restored:", error);
       }
     }
+    ensureParticipantProfilesWatch();
     document.addEventListener("click", event => {
       if (!event.target.closest(".input-wrap")) suggestions.classList.remove("open");
     });
