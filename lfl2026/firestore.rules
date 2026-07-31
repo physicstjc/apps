@@ -119,7 +119,7 @@ service cloud.firestore {
     match /lflRegistrations/{recordId} {
       allow read: if true;
       allow create, update: if validRegistration();
-      allow delete: if false;
+      allow delete: if isSuperAdmin();
     }
 
     match /lflWorkshopOverrides/{recordId} {

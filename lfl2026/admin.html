@@ -53,6 +53,7 @@
     .workshop-edit:disabled { cursor: wait; opacity: .65; }
     .audit-meta { color: var(--muted); font-size: .68rem; white-space: nowrap; }
     .registrant-tools { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+    .registrant-tools[hidden] { display: none; }
     .add-registrant-button { min-height: 40px; padding: 0 15px; border: 0; border-radius: 10px; color: white; font-weight: 850; background: var(--teal); cursor: pointer; }
     .add-registrant-button:hover, .add-registrant-button:focus-visible { background: var(--purple); }
     .add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -148,7 +149,7 @@
     </section>
     <section class="panel" id="registrants-panel" hidden>
       <div class="registrant-tools" id="registrant-tools" hidden><button class="add-registrant-button" id="add-registrant-button" type="button">Add new registrant</button></div>
-      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th><th>Last workshop edit</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Source</th><th>Department</th><th>Breakout 1</th><th>Breakout 1 venue</th><th>Breakout 2</th><th>Breakout 2 venue</th><th>Registered at</th><th>Last workshop edit</th><th id="registrant-action-header" hidden>Action</th></tr></thead><tbody id="registrants-body"></tbody></table></div>
     </section>
     <section class="panel" id="qr-panel">
       <div class="qr-selector">
@@ -317,6 +318,7 @@
       $("#attendance-2").textContent=attendance.filter(r=>r.sessionKey==="breakout-2").length;
       const attendanceRows=filtered(attendance,"attendance");
       $("#attendance-action-header").hidden=!superAdminUnlocked;
+      $("#registrant-action-header").hidden=!superAdminUnlocked;
       $("#registrant-tools").hidden=!superAdminUnlocked;
       $("#super-admin-button").classList.toggle("unlocked",superAdminUnlocked);
       $("#super-admin-button").textContent=superAdminUnlocked
@@ -327,13 +329,13 @@
       $("#attendance-body").innerHTML=attendanceRows.length ? attendanceRows.map(r=>`<tr><td><strong>${esc(r.participantName)}</strong></td><td><span class="pill">${esc(r.participantType)}</span></td><td>${esc(r.department||"—")}</td><td>${esc(r.sessionTitle)}</td><td>${esc(r.presenter)}</td><td>${esc(r.venue)}</td><td>${esc(dateText(r.markedAt))}</td>${superAdminUnlocked ? `<td><button class="delete-button" type="button" data-delete-attendance="${esc(r.id)}" data-delete-name="${esc(r.participantName)}" data-delete-session="${esc(r.sessionTitle)}">Delete</button></td>` : ""}</tr>`).join("") : `<tr><td colspan="${superAdminUnlocked ? 8 : 7}" class="empty">No attendance records match these filters.</td></tr>`;
       const overrideByName=new Map(workshopOverrides.map(override=>[override.participantName.toLocaleLowerCase(),override]));
       const departmentByName=new Map(participantProfiles.map(profile=>[profile.participantName.toLocaleLowerCase(),profile.department]));
-      const registrants=[...original,...newRegistrations.map(r=>({name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt,registeredBy:r.registeredBy}))].map(registrant=>{
+      const registrants=[...original,...newRegistrations.map(r=>({id:r.id,name:r.participantName,source:"New registration",department:r.department,session1Title:r.session1Title,session1Venue:r.session1Venue,session2Title:r.session2Title,session2Venue:r.session2Venue,registeredAt:r.registeredAt,registeredBy:r.registeredBy}))].map(registrant=>{
         const override=overrideByName.get(registrant.name.toLocaleLowerCase());
         const department=departmentByName.get(registrant.name.toLocaleLowerCase()) || registrant.department;
         return override ? {...registrant,...override,name:registrant.name,department} : {...registrant,department};
       });
       const registrationRows=filtered(registrants,"registrants");
-      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span>${r.registeredBy ? `<br><span class="audit-meta">Added by ${esc(r.registeredBy)}</span>` : ""}</td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td><td>${r.updatedBy ? `<strong>${esc(r.updatedBy)}</strong><br><span class="audit-meta">${esc(dateText(r.updatedAt))}</span>` : "—"}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">No registrants match these filters.</td></tr>';
+      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span>${r.registeredBy ? `<br><span class="audit-meta">Added by ${esc(r.registeredBy)}</span>` : ""}</td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td><td>${r.updatedBy ? `<strong>${esc(r.updatedBy)}</strong><br><span class="audit-meta">${esc(dateText(r.updatedAt))}</span>` : "—"}</td>${superAdminUnlocked ? `<td>${r.id ? `<button class="delete-button" type="button" data-delete-registrant="${esc(r.id)}" data-delete-registrant-name="${esc(r.name)}">Delete</button>` : "—"}</td>` : ""}</tr>`).join("") : `<tr><td colspan="${superAdminUnlocked ? 10 : 9}" class="empty">No registrants match these filters.</td></tr>`;
     }
     onSnapshot(collection(db,"lflAttendance"), snap => { attendance=snap.docs.map(d=>({id:d.id,...d.data()})); attendanceReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Attendance read failed"; $("#connection").className="connection error"; console.error(error); });
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
@@ -355,6 +357,37 @@
     $("#super-admin-button").addEventListener("click",async()=>{ $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); try { if(currentUser) await signOut(auth); else await signInWithPopup(auth,googleProvider); } catch(error) { console.error(error); $("#auth-status").textContent=authErrorText(error); $("#auth-status").classList.add("error"); } });
     onAuthStateChanged(auth,user=>{ currentUser=user; superAdminUnlocked=Boolean(user?.emailVerified && superAdminEmails.has(user.email?.toLocaleLowerCase())); if(user&&!superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email || "unknown account"}. This account is not authorised as a super admin.`; $("#auth-status").classList.add("error"); } else if(superAdminUnlocked){ $("#auth-status").textContent=`Signed in as ${user.email}`; $("#auth-status").classList.remove("error"); } else { $("#auth-status").textContent=""; $("#auth-status").classList.remove("error"); } render(); });
     $("#attendance-body").addEventListener("click",async event=>{ const button=event.target.closest("[data-delete-attendance]"); if(!button||!superAdminUnlocked) return; const message=`Delete ${button.dataset.deleteName}'s attendance for ${button.dataset.deleteSession}?`; if(!confirm(message)) return; button.disabled=true; button.textContent="Deleting…"; try { await deleteDoc(doc(db,"lflAttendance",button.dataset.deleteAttendance)); } catch(error) { button.disabled=false; button.textContent="Retry delete"; console.error(error); alert("Attendance could not be deleted."); } });
+    $("#registrants-body").addEventListener("click",async event=>{
+      const button=event.target.closest("[data-delete-registrant]");
+      if(!button||!superAdminUnlocked) return;
+      const participantName=button.dataset.deleteRegistrantName;
+      if(!confirm(`Delete ${participantName}'s registration and saved department?`)) return;
+      button.disabled=true;
+      button.textContent="Deleting…";
+      try {
+        const participantKey=participantName.toLocaleLowerCase();
+        const hasOtherRegistration=newRegistrations.some(registration=>
+          registration.id!==button.dataset.deleteRegistrant
+          && registration.participantName.toLocaleLowerCase()===participantKey
+        );
+        const deletions=[deleteDoc(doc(db,"lflRegistrations",button.dataset.deleteRegistrant))];
+        if(!hasOtherRegistration) {
+          deletions.push(
+            deleteDoc(doc(db,"lflParticipantProfiles",safeParticipantId(participantName))),
+            deleteDoc(doc(db,"lflWorkshopOverrides",safeParticipantId(participantName)))
+          );
+        }
+        await Promise.all(deletions);
+        $("#auth-status").textContent=`Deleted ${participantName}.`;
+        $("#auth-status").classList.remove("error");
+      } catch(error) {
+        button.disabled=false;
+        button.textContent="Retry delete";
+        $("#auth-status").textContent=`Could not delete ${participantName}.`;
+        $("#auth-status").classList.add("error");
+        console.error(error);
+      }
+    });
     $("#registrants-body").addEventListener("change",event=>{
       const select=event.target.closest("[data-edit-name]");
       if(!select||!superAdminUnlocked||!currentUser) return;
