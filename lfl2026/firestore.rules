@@ -99,6 +99,17 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.token.email;
     }
 
+    function validParticipantProfile() {
+      return request.resource.data.keys().hasOnly([
+          'department', 'eventDate', 'eventName', 'participantName', 'updatedAt'
+        ])
+        && request.resource.data.eventDate == '2026-08-04'
+        && request.resource.data.eventName == 'Learning for Life Sharing Sessions'
+        && validText(request.resource.data.participantName, 120)
+        && validText(request.resource.data.department, 150)
+        && request.resource.data.updatedAt == request.time;
+    }
+
     match /lflAttendance/{recordId} {
       allow read: if true;
       allow create, update: if validAttendance();
@@ -114,6 +125,12 @@ service cloud.firestore {
     match /lflWorkshopOverrides/{recordId} {
       allow read: if true;
       allow create, update: if isSuperAdmin() && validWorkshopOverride();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /lflParticipantProfiles/{recordId} {
+      allow read: if true;
+      allow create, update: if validParticipantProfile();
       allow delete: if isSuperAdmin();
     }
   }
