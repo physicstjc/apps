@@ -40,7 +40,7 @@
     .brand { position: relative; flex: 0 1 auto; color: var(--green); font-size: clamp(1.35rem,3vw,2rem); font-weight: 950; line-height: 1; letter-spacing: -.055em; white-space: nowrap; background: linear-gradient(105deg,var(--green) 5%,var(--gold) 48%,var(--orange) 70%,var(--purple)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 6px 10px rgba(39,111,120,.1)); }
     .brand::after { content: ""; position: absolute; right: 0; bottom: -.28em; width: 35%; height: 3px; border-radius: 999px; background: linear-gradient(90deg,var(--gold),var(--orange),var(--purple)); opacity: .7; transform: rotate(-2deg); }
     .nav { display: flex; gap: 5px; padding: 5px; border: 1px solid rgba(18,55,42,.13); border-radius: 999px; background: rgba(255,255,255,.65); }
-    .nav-button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 999px; color: var(--muted); font-size: .87rem; font-weight: 750; background: transparent; cursor: pointer; }
+    .nav-button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; border: 0; border-radius: 999px; color: var(--muted); font-size: .87rem; font-weight: 750; text-decoration: none; background: transparent; cursor: pointer; }
     .nav-button:hover { color: var(--forest); }
     .nav-button.active { color: white; background: var(--forest); box-shadow: 0 5px 12px rgba(18,55,42,.18); }
     .view[hidden] { display: none; }
@@ -115,6 +115,8 @@
     .card h3 { margin: 0 0 22px; font-size: 1.12rem; line-height: 1.38; }
     .detail { display: grid; grid-template-columns: 22px minmax(0,1fr); gap: 9px; margin-top: 12px; color: var(--muted); font-size: .91rem; line-height: 1.4; }
     .detail svg { width: 18px; height: 18px; color: var(--green); }
+    .venue-map-link { color: var(--teal); font-weight: 800; text-decoration: underline; text-decoration-color: rgba(39,111,120,.32); text-underline-offset: 3px; }
+    .venue-map-link:hover, .venue-map-link:focus-visible { color: var(--purple); text-decoration-color: currentColor; }
     .empty { color: var(--muted); font-style: italic; }
     .footer { margin-top: 28px; color: var(--muted); font-size: .8rem; text-align: center; }
     .footer a { display: inline-block; margin-left: 7px; color: inherit; font-weight: 600; text-decoration: none; opacity: .72; }
@@ -184,6 +186,7 @@
     .schedule-heading p { color: var(--muted); font-size: 1.04rem; line-height: 1.6; }
     .schedule-list { display: grid; gap: 10px; }
     .schedule-item { display: grid; grid-template-columns: 145px 1fr 190px; gap: 24px; align-items: center; padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.82); }
+    .schedule-item[hidden] { display: none; }
     .schedule-item.breakout { border-color: rgba(86,170,165,.3); background: linear-gradient(100deg, rgba(223,245,232,.72), rgba(189,230,237,.38)); }
     .schedule-time { color: var(--forest); font-weight: 850; }
     .schedule-activity { font-weight: 760; }
@@ -265,6 +268,7 @@
       <nav class="nav" aria-label="Main navigation">
         <button class="nav-button" type="button" data-view="schedule">Full schedule</button>
         <button class="nav-button active" type="button" data-view="personal">My sessions</button>
+        <a class="nav-button" href="venue-map.html">Venue map</a>
       </nav>
     </header>
 
@@ -323,7 +327,7 @@
           <button class="edit-details" id="edit-details" type="button">Change details</button>
         </div>
         <div class="scan-notice" id="scan-notice"></div>
-        <h2 class="session-list-heading">Your four sessions</h2>
+        <h2 class="session-list-heading" id="session-list-heading">Your four sessions</h2>
         <div class="cards" id="cards"></div>
       </section>
     </div>
@@ -340,7 +344,7 @@
         <div class="schedule-item breakout"><span class="schedule-time">10:00–10:45</span><span class="schedule-activity" id="schedule-breakout-1">Breakout Session I</span><span class="schedule-venue" id="schedule-breakout-1-venue">Various venues</span></div>
         <div class="schedule-item"><span class="schedule-time">10:45–11:00</span><span class="schedule-activity">Break &amp; Transition</span><span class="schedule-venue">—</span></div>
         <div class="schedule-item breakout"><span class="schedule-time">11:00–11:45</span><span class="schedule-activity" id="schedule-breakout-2">Breakout Session II</span><span class="schedule-venue" id="schedule-breakout-2-venue">Various venues</span></div>
-        <div class="schedule-item breakout"><span class="schedule-time">11:50–12:30</span><span class="schedule-activity" id="schedule-reflection">Department Reflection &amp; Consolidation</span><span class="schedule-venue" id="schedule-reflection-venue">Various venues</span></div>
+        <div class="schedule-item breakout" id="schedule-reflection-item"><span class="schedule-time">11:50–12:30</span><span class="schedule-activity" id="schedule-reflection">Department Reflection &amp; Consolidation</span><span class="schedule-venue" id="schedule-reflection-venue">Various venues</span></div>
         <div class="schedule-item"><span class="schedule-time">12:30</span><span class="schedule-activity">Lunch</span><span class="schedule-venue">Canteen</span></div>
       </section>
     </div>
@@ -519,7 +523,7 @@
     const workshopMismatchDialog = document.querySelector("#workshop-mismatch-dialog");
     const nativeAttendanceConfirmDialog = document.querySelector("#native-attendance-confirm-dialog");
     const attendanceToast = document.querySelector("#attendance-toast");
-    const navButtons = document.querySelectorAll(".nav-button");
+    const navButtons = document.querySelectorAll(".nav-button[data-view]");
     let selectedParticipant = null;
     let selfSelectMode = false;
     let resetDepartmentOnNameEdit = false;
@@ -597,13 +601,20 @@
       const url = googleCalendarUrl(title, start, end, location, details);
       return `<a class="card-calendar-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Add to Google Calendar</a>`;
     }
+    function venueMapLink(venue) {
+      const url = `venue-map.html?venue=${encodeURIComponent(venue)}`;
+      return `<a class="venue-map-link" href="${escapeHtml(url)}" aria-label="Show ${escapeHtml(venue)} on the venue map">${escapeHtml(venue)} ↗</a>`;
+    }
 
+    const otherDepartment = "Others";
+    const validDepartment = value => value === otherDepartment || data.departments.some(item => item.name === value);
     data.departments.forEach(item => {
       const option = document.createElement("option");
       option.value = item.name;
       option.textContent = item.name;
       department.append(option);
     });
+    department.append(new Option(otherDepartment, otherDepartment));
     const savedDepartmentKey = "lflSelectedDepartment";
     const savedParticipantKey = "lflParticipantProfile";
     function saveParticipantProfile() {
@@ -619,7 +630,7 @@
     }
     function applyParticipantDepartment(participantName) {
       const savedDepartment = participantDepartments.get(participantName.toLocaleLowerCase());
-      if (!savedDepartment || !data.departments.some(item => item.name === savedDepartment)) return;
+      if (!savedDepartment || !validDepartment(savedDepartment)) return;
       department.value = savedDepartment;
       try {
         localStorage.setItem(savedDepartmentKey, savedDepartment);
@@ -666,7 +677,7 @@
     });
     try {
       const savedDepartment = localStorage.getItem(savedDepartmentKey);
-      if (data.departments.some(item => item.name === savedDepartment)) department.value = savedDepartment;
+      if (validDepartment(savedDepartment)) department.value = savedDepartment;
     } catch (error) {
       console.warn("Saved department could not be restored:", error);
     }
@@ -806,7 +817,7 @@
         <div class="session-meta"><span class="tag">${label}</span><span class="time">${time}</span></div>
         <h3>${escapeHtml(session.title)}</h3>
         ${session.presenter ? `<div class="detail">${icon("person")}<span><strong>Presenter</strong><br>${escapeHtml(session.presenter)}</span></div>` : ""}
-        <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(session.venue)}</span></div>
+        <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${venueMapLink(session.venue)}</span></div>
         ${synopsis ? `<button class="synopsis-toggle" type="button" aria-expanded="false" aria-controls="${synopsisId}" data-synopsis-target="${synopsisId}">Show session synopsis</button>
         <p class="session-synopsis" id="${synopsisId}" hidden>${escapeHtml(synopsis)}</p>` : ""}
         ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions${session.presenter ? `\nPresenter(s): ${session.presenter}` : ""}`)}
@@ -847,9 +858,11 @@
 
     function updateFullSchedule() {
       const reflection = data.departments.find(item => item.name === department.value);
+      const departmentSelected = validDepartment(department.value);
+      const skipsReflection = department.value === otherDepartment;
       const first = selectedParticipant?.session1;
       const second = selectedParticipant?.session2;
-      document.querySelector("#schedule-personal-note").innerHTML = selectedParticipant && reflection
+      document.querySelector("#schedule-personal-note").innerHTML = selectedParticipant && departmentSelected
         ? `Personalised schedule for <strong>${escapeHtml(selectedParticipant.name)}</strong>.`
         : 'Enter your name and department under <strong>My sessions</strong> to personalise this schedule.';
       document.querySelector("#schedule-breakout-1").textContent = first
@@ -864,6 +877,7 @@
         ? `${reflection.name} · Facilitator: ${reflection.facilitator}`
         : "Department Reflection & Consolidation";
       document.querySelector("#schedule-reflection-venue").textContent = reflection?.venue || "Various venues";
+      document.querySelector("#schedule-reflection-item").hidden = skipsReflection;
     }
 
     function render() {
@@ -877,6 +891,8 @@
       ensureAttendanceWatch();
       ensureWorkshopOverrideWatch();
       const reflection = data.departments.find(item => item.name === department.value);
+      const skipsReflection = department.value === otherDepartment;
+      const departmentSelected = Boolean(reflection || skipsReflection);
       const scannedSession = pendingAttendance === "morning-plenary"
         ? plenarySession
         : pendingAttendance === "breakout-1"
@@ -893,16 +909,17 @@
         : scanMatches
           ? `QR scanned for ${scannedSession.title}. Confirm attendance on that session card.`
           : "This QR code does not match your assigned or selected workshop.";
-      const reflectionCard = `<article class="card reflection">
+      const reflectionCard = skipsReflection ? "" : `<article class="card reflection">
         <div class="session-meta"><span class="tag">Session 4 · Department reflection</span><span class="time">11:50–12:30</span></div>
         <h3>${reflection ? escapeHtml(reflection.name) : '<span class="empty">Select your department above.</span>'}</h3>
         ${reflection ? `<div class="detail">${icon("person")}<span><strong>Facilitator</strong><br>${escapeHtml(reflection.facilitator)}</span></div>
-        <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${escapeHtml(reflection.venue)}</span></div>
+        <div class="detail">${icon("place")}<span><strong>Venue</strong><br>${venueMapLink(reflection.venue)}</span></div>
         ${calendarLink(`LfL · Department Reflection · ${reflection.name}`, "20260804T115000", "20260804T123000", reflection.venue, `Learning for Life Sharing Sessions\nFacilitator: ${reflection.facilitator}`)}
         ${scribingControl()}` : ""}
       </article>`;
       document.querySelector("#person-name").textContent = selectedParticipant.name;
       document.querySelector("#initials").textContent = selectedParticipant.name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+      document.querySelector("#session-list-heading").textContent = skipsReflection ? "Your three sessions" : "Your four sessions";
       cards.innerHTML = sessionCard("Session 1 · Morning plenary", "9:00–9:40", plenarySession, "20260804T090000", "20260804T094000", "morning-plenary")
         + sessionCard("Session 2 · Breakout 1", "10:00–10:45", selectedParticipant.session1, "20260804T100000", "20260804T104500", "breakout-1")
         + sessionCard("Session 3 · Breakout 2", "11:00–11:45", selectedParticipant.session2, "20260804T110000", "20260804T114500", "breakout-2")
@@ -926,9 +943,9 @@
         }
       }
       results.classList.add("visible");
-      status.textContent = reflection ? "Your complete programme is ready." : "Name found. Now select your department.";
+      status.textContent = departmentSelected ? "Your complete programme is ready." : "Name found. Now select your department.";
       status.classList.remove("error");
-      if (reflection) finder.hidden = true;
+      if (departmentSelected) finder.hidden = true;
     }
 
     function choose(participant) {
@@ -1374,8 +1391,8 @@
       const secondIndex = session2Options.findIndex(session => session.title === saved?.session2Title);
       const validFirst = saved?.session1Title === "" || firstIndex >= 0;
       const validSecond = saved?.session2Title === "" || secondIndex >= 0;
-      const validDepartment = data.departments.some(item => item.name === saved?.department);
-      if (saved?.name && validFirst && validSecond && validDepartment) {
+      const savedDepartmentIsValid = validDepartment(saved?.department);
+      if (saved?.name && validFirst && validSecond && savedDepartmentIsValid) {
         search.value = saved.name;
         department.value = saved.department;
         selfSession1.value = firstIndex >= 0 ? String(firstIndex) : "";
@@ -1398,8 +1415,8 @@
       try {
         const savedProfile = JSON.parse(localStorage.getItem(savedParticipantKey) || "null");
         const participant = data.participants.find(item => item.name.toLocaleLowerCase() === savedProfile?.name?.toLocaleLowerCase());
-        const validDepartment = data.departments.some(item => item.name === savedProfile?.department);
-        if (participant && validDepartment) {
+        const savedDepartmentIsValid = validDepartment(savedProfile?.department);
+        if (participant && savedDepartmentIsValid) {
           search.value = participant.name;
           department.value = savedProfile.department;
           selectedParticipant = participantWithOverrides(participant);
