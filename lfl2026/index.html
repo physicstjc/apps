@@ -419,6 +419,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
     import { collection, doc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -432,6 +433,7 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const database = getFirestore(app);
     const attendanceDocumentId = (participantName,sessionKey) => {
       const safeName = participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -547,6 +549,14 @@
     const attendanceLoaded = new Set();
     let attendanceWatchName = null, stopAttendanceWatch = null, firebaseWatchQueued = false;
     let workshopOverrideWatchName = null, stopWorkshopOverrideWatch = null, workshopOverrideWatchQueued = false;
+    let superAdminUnlocked = false;
+    const superAdminEmails = new Set([
+      "tan_seng_kwang@moe.edu.sg",
+      "ang_lai_neo_jismyl@moe.edu.sg",
+      "tay_chiew_hsia_joanne@moe.edu.sg",
+      "chee_yao_rong_brendon@moe.edu.sg",
+      "varella_alan_joseph@moe.edu.sg"
+    ]);
     if (pendingAttendance) {
       status.textContent = "Session QR scanned. Enter your name and department to continue.";
     }
@@ -840,12 +850,12 @@
     const feedbackOpensAt = Date.parse("2026-08-04T03:30:00Z");
     const scribingOpensAt = Date.parse("2026-08-04T03:45:00Z");
     function feedbackControl() {
-      return Date.now() >= feedbackOpensAt
+      return superAdminUnlocked || Date.now() >= feedbackOpensAt
         ? '<a class="feedback-link" href="https://forms.moe.edu.sg/forms/opY8Em" target="_blank" rel="noopener">Give feedback for the sharing sessions ↗</a>'
         : '<span class="feedback-link disabled" aria-disabled="true">Feedback opens at 11:30 AM SGT on 4 August</span>';
     }
     function scribingControl() {
-      return Date.now() >= scribingOpensAt
+      return superAdminUnlocked || Date.now() >= scribingOpensAt
         ? '<a class="feedback-link" href="https://docs.google.com/document/d/1p_LhG1NYvif6scCJa-xKV4LOymDzR7eHlxA20PgRW8s/edit?tab=t.0" target="_blank" rel="noopener">Open Discussion Notes ↗</a>'
         : '<span class="feedback-link disabled" aria-disabled="true">Discussion Notes opens at 11:45 AM SGT on 4 August</span>';
     }
@@ -856,6 +866,10 @@
     }
     scheduleTimedLinkUnlock(feedbackOpensAt);
     scheduleTimedLinkUnlock(scribingOpensAt);
+    onAuthStateChanged(auth,user=>{
+      superAdminUnlocked=Boolean(user?.emailVerified && superAdminEmails.has(user.email?.toLocaleLowerCase()));
+      render();
+    });
 
     function updateFullSchedule() {
       const reflection = data.departments.find(item => item.name === department.value);
