@@ -51,8 +51,9 @@
     .empty { padding: 34px; color: var(--muted); text-align: center; }
     .delete-button { padding: 6px 9px; border: 0; border-radius: 8px; color: #8a352d; font-size: .7rem; font-weight: 800; background: #fde8de; cursor: pointer; }
     .delete-button:hover, .delete-button:focus { color: white; background: var(--coral); }
-    .workshop-edit { min-width: 250px; min-height: 38px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: .75rem; background: white; }
-    .workshop-edit:disabled { cursor: wait; opacity: .65; }
+    .workshop-edit, .department-edit { min-width: 250px; min-height: 38px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: .75rem; background: white; }
+    .department-edit { min-width: 180px; }
+    .workshop-edit:disabled, .department-edit:disabled { cursor: wait; opacity: .65; }
     .audit-meta { color: var(--muted); font-size: .68rem; white-space: nowrap; }
     .registrant-tools { display: flex; justify-content: flex-end; margin-bottom: 10px; }
     .registrant-tools[hidden] { display: none; }
@@ -201,7 +202,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-    import { collection, deleteDoc, doc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+    import { collection, deleteDoc, doc, getDocs, getFirestore, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
     const app = initializeApp({
       apiKey: "AIzaSyBIytzQZuv8hSjJM0IkSwWHi_ENFTKPPXE", authDomain: "workshop-9cbb7.firebaseapp.com",
       projectId: "workshop-9cbb7", storageBucket: "workshop-9cbb7.firebasestorage.app",
@@ -241,8 +242,16 @@
     const breakout1Options=qrSessionList.filter(session=>session.key==="breakout-1");
     const breakout2Options=qrSessionList.filter(session=>session.key==="breakout-2");
     const otherDepartment="Others";
+    const normalizedParticipantName=name=>String(name||"").normalize("NFKC").trim().replace(/\s+/g," ").toLocaleLowerCase();
+    const isDuplicateRegistrant=(participantName,registrations=newRegistrations)=>{
+      const participantKey=normalizedParticipantName(participantName);
+      return original.some(item=>normalizedParticipantName(item.name)===participantKey)
+        || registrations.some(item=>normalizedParticipantName(item.participantName)===participantKey);
+    };
     const safeParticipantId=name=>`2026-08-04_${name.toLocaleLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "participant"}`;
     const workshopSelect=(options,selected,name,slot)=>`<select class="workshop-edit" data-edit-name="${esc(name)}" data-session-slot="${slot}" data-previous-value="${esc(selected)}"><option value=""${selected ? "" : " selected"}>No workshop</option>${options.map(session=>`<option value="${esc(session.title)}"${session.title===selected ? " selected" : ""}>${esc(session.title)} · ${esc(session.venue)}</option>`).join("")}</select>`;
+    const departmentOptions=[...data.departments.map(department=>department.name),otherDepartment];
+    const departmentSelect=(selected,name)=>`<select class="department-edit" data-department-name="${esc(name)}" data-previous-value="${esc(selected)}" aria-label="Department for ${esc(name)}">${!selected ? '<option value="" selected>Select department</option>' : ""}${departmentOptions.map(department=>`<option value="${esc(department)}"${department===selected ? " selected" : ""}>${esc(department)}</option>`).join("")}</select>`;
     const fillWorkshopSelect=(select,options)=>{ select.innerHTML='<option value="">No workshop</option>'; options.forEach(session=>select.add(new Option(`${session.title} · ${session.venue}`,session.title))); };
     data.departments.forEach(department=>$("#add-registrant-department").add(new Option(department.name,department.name)));
     $("#add-registrant-department").add(new Option(otherDepartment,otherDepartment));
@@ -341,7 +350,7 @@
         return override ? {...registrant,...override,name:registrant.name,department} : {...registrant,department};
       });
       const registrationRows=filtered(registrants,"registrants");
-      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span>${r.registeredBy ? `<br><span class="audit-meta">Added by ${esc(r.registeredBy)}</span>` : ""}</td><td>${esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td><td>${r.updatedBy ? `<strong>${esc(r.updatedBy)}</strong><br><span class="audit-meta">${esc(dateText(r.updatedAt))}</span>` : "—"}</td>${superAdminUnlocked ? `<td>${r.id ? `<button class="delete-button" type="button" data-delete-registrant="${esc(r.id)}" data-delete-registrant-name="${esc(r.name)}">Delete</button>` : "—"}</td>` : ""}</tr>`).join("") : `<tr><td colspan="${superAdminUnlocked ? 10 : 9}" class="empty">No registrants match these filters.</td></tr>`;
+      $("#registrants-body").innerHTML=registrationRows.length ? registrationRows.map(r=>`<tr data-registrant-name="${esc(r.name)}"><td><strong>${esc(r.name)}</strong></td><td><span class="pill">${esc(r.source)}</span>${r.registeredBy ? `<br><span class="audit-meta">Added by ${esc(r.registeredBy)}</span>` : ""}</td><td>${superAdminUnlocked ? departmentSelect(r.department,r.name) : esc(r.department||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout1Options,r.session1Title,r.name,1) : esc(r.session1Title||"—")}</td><td>${esc(r.session1Venue||"—")}</td><td>${superAdminUnlocked ? workshopSelect(breakout2Options,r.session2Title,r.name,2) : esc(r.session2Title||"—")}</td><td>${esc(r.session2Venue||"—")}</td><td>${esc(dateText(r.registeredAt))}</td><td>${r.updatedBy ? `<strong>${esc(r.updatedBy)}</strong><br><span class="audit-meta">${esc(dateText(r.updatedAt))}</span>` : "—"}</td>${superAdminUnlocked ? `<td>${r.id ? `<button class="delete-button" type="button" data-delete-registrant="${esc(r.id)}" data-delete-registrant-name="${esc(r.name)}">Delete</button>` : "—"}</td>` : ""}</tr>`).join("") : `<tr><td colspan="${superAdminUnlocked ? 10 : 9}" class="empty">No registrants match these filters.</td></tr>`;
     }
     onSnapshot(collection(db,"lflAttendance"), snap => { attendance=snap.docs.map(d=>({id:d.id,...d.data()})); attendanceReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Attendance read failed"; $("#connection").className="connection error"; console.error(error); });
     onSnapshot(collection(db,"lflRegistrations"), snap => { newRegistrations=snap.docs.map(d=>({id:d.id,...d.data()})); registrationsReady=true; updateConnection(); render(); }, error => { $("#connection").textContent="Registration read failed"; $("#connection").className="connection error"; console.error(error); });
@@ -390,6 +399,30 @@
         button.disabled=false;
         button.textContent="Retry delete";
         $("#auth-status").textContent=`Could not delete ${participantName}.`;
+        $("#auth-status").classList.add("error");
+        console.error(error);
+      }
+    });
+    $("#registrants-body").addEventListener("change",async event=>{
+      const select=event.target.closest("[data-department-name]");
+      if(!select||!superAdminUnlocked||!currentUser) return;
+      const participantName=select.dataset.departmentName;
+      const department=select.value;
+      if(!department||department===select.dataset.previousValue) return;
+      select.disabled=true;
+      $("#auth-status").textContent=`Saving department change for ${participantName}…`;
+      $("#auth-status").classList.remove("error");
+      try {
+        await setDoc(doc(db,"lflParticipantProfiles",safeParticipantId(participantName)),{
+          participantName,department,eventName:"Learning for Life Sharing Sessions",
+          eventDate:"2026-08-04",updatedAt:serverTimestamp()
+        });
+        select.dataset.previousValue=department;
+        $("#auth-status").textContent=`Department updated for ${participantName}.`;
+      } catch(error) {
+        select.value=select.dataset.previousValue;
+        select.disabled=false;
+        $("#auth-status").textContent=`Department change could not be saved for ${participantName}.`;
         $("#auth-status").classList.add("error");
         console.error(error);
       }
@@ -472,18 +505,22 @@
     $("#add-registrant-form").addEventListener("submit",async event=>{
       event.preventDefault();
       if(!superAdminUnlocked||!currentUser) return;
-      const participantName=$("#add-registrant-name").value.trim();
+      const participantName=$("#add-registrant-name").value.normalize("NFKC").trim().replace(/\s+/g," ");
       const department=$("#add-registrant-department").value;
       const first=breakout1Options.find(session=>session.title===$("#add-registrant-session-1").value)||null;
       const second=breakout2Options.find(session=>session.title===$("#add-registrant-session-2").value)||null;
-      const allNames=[...original.map(item=>item.name),...newRegistrations.map(item=>item.participantName)];
       if(!participantName||!department) { $("#add-registrant-error").textContent="Enter a name and select a department."; return; }
-      if(allNames.some(name=>name.toLocaleLowerCase()===participantName.toLocaleLowerCase())) { $("#add-registrant-error").textContent="A registrant with this name already exists."; return; }
+      if(isDuplicateRegistrant(participantName)) { $("#add-registrant-error").textContent="A registrant with this name already exists."; return; }
       const button=$("#add-registrant-save");
       button.disabled=true;
       button.textContent="Adding…";
       $("#add-registrant-error").textContent="";
       try {
+        const latestRegistrations=await getDocs(collection(db,"lflRegistrations"));
+        if(isDuplicateRegistrant(participantName,latestRegistrations.docs.map(item=>item.data()))) {
+          $("#add-registrant-error").textContent="A registrant with this name already exists.";
+          return;
+        }
         await setDoc(doc(db,"lflRegistrations",`${safeParticipantId(participantName)}_admin`),{
           participantName,department,participantType:"self-selected",
           deviceId:`admin-${currentUser.email}`,
