@@ -435,6 +435,17 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const database = getFirestore(app);
+    const superAdminEmails = new Set([
+      "tan_seng_kwang@moe.edu.sg",
+      "ang_lai_neo_jismyl@moe.edu.sg",
+      "tay_chiew_hsia_joanne@moe.edu.sg",
+      "chee_yao_rong_brendon@moe.edu.sg",
+      "varella_alan_joseph@moe.edu.sg"
+    ]);
+    onAuthStateChanged(auth,user=>{
+      window.lflSuperAdminUnlocked=Boolean(user?.emailVerified && superAdminEmails.has(user.email?.toLocaleLowerCase()));
+      window.dispatchEvent(new CustomEvent("lflSuperAdminState",{detail:window.lflSuperAdminUnlocked}));
+    });
     const attendanceDocumentId = (participantName,sessionKey) => {
       const safeName = participantName.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       return `2026-08-04_${sessionKey}_${safeName || "participant"}`;
@@ -549,14 +560,7 @@
     const attendanceLoaded = new Set();
     let attendanceWatchName = null, stopAttendanceWatch = null, firebaseWatchQueued = false;
     let workshopOverrideWatchName = null, stopWorkshopOverrideWatch = null, workshopOverrideWatchQueued = false;
-    let superAdminUnlocked = false;
-    const superAdminEmails = new Set([
-      "tan_seng_kwang@moe.edu.sg",
-      "ang_lai_neo_jismyl@moe.edu.sg",
-      "tay_chiew_hsia_joanne@moe.edu.sg",
-      "chee_yao_rong_brendon@moe.edu.sg",
-      "varella_alan_joseph@moe.edu.sg"
-    ]);
+    let superAdminUnlocked = Boolean(window.lflSuperAdminUnlocked);
     if (pendingAttendance) {
       status.textContent = "Session QR scanned. Enter your name and department to continue.";
     }
@@ -866,8 +870,8 @@
     }
     scheduleTimedLinkUnlock(feedbackOpensAt);
     scheduleTimedLinkUnlock(scribingOpensAt);
-    onAuthStateChanged(auth,user=>{
-      superAdminUnlocked=Boolean(user?.emailVerified && superAdminEmails.has(user.email?.toLocaleLowerCase()));
+    window.addEventListener("lflSuperAdminState",event=>{
+      superAdminUnlocked=event.detail===true;
       render();
     });
 
