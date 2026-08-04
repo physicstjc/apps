@@ -487,6 +487,11 @@
       snapshot => listener(snapshot.docs.map(profile => profile.data())),
       error => { console.error("Participant departments could not be read:", error); listener([]); }
     );
+    window.watchLflRegistrations = listener => onSnapshot(
+      collection(database, "lflRegistrations"),
+      snapshot => listener(snapshot.docs.map(registration => registration.data())),
+      error => { console.error("New registrants could not be read:", error); listener([]); }
+    );
     window.saveLflParticipantProfile = async (participantName, department) => {
       const documentId = participantProfileDocumentId(participantName);
       await setDoc(doc(database, "lflParticipantProfiles", documentId), {
@@ -542,8 +547,10 @@
     let selfSelectMode = false;
     let resetDepartmentOnNameEdit = false;
     let participantProfilesWatchStarted = false;
+    let registrationsWatchStarted = false;
     let pendingParticipantProfile = null;
     const participantDepartments = new Map();
+    let searchableParticipants = [...data.participants];
     const attendanceParameters = new URLSearchParams(location.search);
     let pendingAttendance = attendanceParameters.get("attendance");
     let pendingWorkshop = attendanceParameters.get("workshop");
@@ -671,6 +678,38 @@
         }
       });
     }
+    function ensureRegistrationsWatch() {
+      if (registrationsWatchStarted || !window.watchLflRegistrations) return;
+      registrationsWatchStarted = true;
+      window.watchLflRegistrations(registrations => {
+        const participantsByName = new Map();
+        data.participants.forEach(participant => {
+          participantsByName.set(participant.name.normalize("NFKC").trim().replace(/\s+/g," ").toLocaleLowerCase(), participant);
+        });
+        registrations.forEach(registration => {
+          if (!registration?.participantName) return;
+          const name = registration.participantName.normalize("NFKC").trim().replace(/\s+/g," ");
+          const nameKey = name.toLocaleLowerCase();
+          if (participantsByName.has(nameKey)) return;
+          participantsByName.set(nameKey, {
+            name,
+            session1: registration.session1Title ? {
+              title: registration.session1Title,
+              presenter: registration.session1Presenter || "",
+              venue: registration.session1Venue || ""
+            } : null,
+            session2: registration.session2Title ? {
+              title: registration.session2Title,
+              presenter: registration.session2Presenter || "",
+              venue: registration.session2Venue || ""
+            } : null,
+            selfSelected: true
+          });
+        });
+        searchableParticipants = [...participantsByName.values()];
+        if (search.value.trim()) updateSuggestions();
+      });
+    }
     function saveParticipantDepartmentOnline(participantName, selectedDepartment) {
       if (!participantName || !selectedDepartment) return;
       if (!window.saveLflParticipantProfile) {
@@ -686,6 +725,7 @@
     }
     window.addEventListener("lflFirebaseReady", () => {
       ensureParticipantProfilesWatch();
+      ensureRegistrationsWatch();
       if (pendingParticipantProfile) {
         saveParticipantDepartmentOnline(pendingParticipantProfile.participantName, pendingParticipantProfile.department);
       }
@@ -981,7 +1021,7 @@
 
     function updateSuggestions() {
       const query = search.value.trim().toLocaleLowerCase();
-      selectedParticipant = participantWithOverrides(data.participants.find(item => item.name.toLocaleLowerCase() === query));
+      selectedParticipant = participantWithOverrides(searchableParticipants.find(item => item.name.toLocaleLowerCase() === query));
       if (selectedParticipant) {
         applyParticipantDepartment(selectedParticipant.name);
         saveParticipantProfile();
@@ -996,7 +1036,7 @@
         render();
         return;
       }
-      const matches = data.participants.filter(item => item.name.toLocaleLowerCase().includes(query)).slice(0, 8);
+      const matches = searchableParticipants.filter(item => item.name.toLocaleLowerCase().includes(query)).slice(0, 8);
       matches.forEach(participant => {
         const button = document.createElement("button");
         button.type = "button";
@@ -1433,7 +1473,7 @@
     if (!restoredPersonalPlan) {
       try {
         const savedProfile = JSON.parse(localStorage.getItem(savedParticipantKey) || "null");
-        const participant = data.participants.find(item => item.name.toLocaleLowerCase() === savedProfile?.name?.toLocaleLowerCase());
+        const participant = searchableParticipants.find(item => item.name.toLocaleLowerCase() === savedProfile?.name?.toLocaleLowerCase());
         const savedDepartmentIsValid = validDepartment(savedProfile?.department);
         if (participant && savedDepartmentIsValid) {
           search.value = participant.name;
@@ -1448,6 +1488,7 @@
       }
     }
     ensureParticipantProfilesWatch();
+    ensureRegistrationsWatch();
     document.addEventListener("click", event => {
       if (!event.target.closest(".input-wrap")) suggestions.classList.remove("open");
     });
