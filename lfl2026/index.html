@@ -876,7 +876,7 @@
         ${synopsis ? `<button class="synopsis-toggle" type="button" aria-expanded="false" aria-controls="${synopsisId}" data-synopsis-target="${synopsisId}">Show session synopsis</button>
         <p class="session-synopsis" id="${synopsisId}" hidden>${escapeHtml(synopsis)}</p>` : ""}
         ${calendarLink(`LfL · ${session.title}`, start, end, session.venue, `Learning for Life Sharing Sessions${session.presenter ? `\nPresenter(s): ${session.presenter}` : ""}`)}
-        ${!attendanceIsLoaded
+        ${sessionKey === "morning-plenary" ? "" : !attendanceIsLoaded
           ? `<button class="attendance-button" type="button" disabled>Checking attendance…</button>`
           : savedAttendance
           ? `<button class="attendance-button marked" type="button" disabled>Attendance marked ✓</button>`
@@ -891,17 +891,17 @@
       </article>`;
     }
 
-    const feedbackOpensAt = Date.parse("2026-08-04T03:30:00Z");
-    const scribingOpensAt = Date.parse("2026-08-04T03:45:00Z");
+    const feedbackOpensAt = Date.parse("2026-08-04T03:00:00Z");
+    const scribingOpensAt = Date.parse("2026-08-04T03:30:00Z");
     function feedbackControl() {
       return superAdminUnlocked || Date.now() >= feedbackOpensAt
         ? '<a class="feedback-link" href="https://forms.moe.edu.sg/forms/opY8Em" target="_blank" rel="noopener">Give feedback for the sharing sessions ↗</a>'
-        : '<span class="feedback-link disabled" aria-disabled="true">Feedback opens at 11:30 AM SGT on 4 August</span>';
+        : '<span class="feedback-link disabled" aria-disabled="true">Feedback opens at 11:00 AM SGT on 4 August</span>';
     }
     function scribingControl() {
       return superAdminUnlocked || Date.now() >= scribingOpensAt
         ? '<a class="feedback-link" href="https://docs.google.com/document/d/1p_LhG1NYvif6scCJa-xKV4LOymDzR7eHlxA20PgRW8s/edit?tab=t.0" target="_blank" rel="noopener">Open Discussion Notes ↗</a>'
-        : '<span class="feedback-link disabled" aria-disabled="true">Discussion Notes opens at 11:45 AM SGT on 4 August</span>';
+        : '<span class="feedback-link disabled" aria-disabled="true">Discussion Notes opens at 11:30 AM SGT on 4 August</span>';
     }
     function scheduleTimedLinkUnlock(opensAt) {
       const remaining=opensAt-Date.now();
