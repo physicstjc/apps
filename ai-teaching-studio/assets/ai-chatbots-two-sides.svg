@@ -3,7 +3,7 @@
 <text x="64" y="132" class="title">AI for learning:</text>
 <text x="64" y="195" class="title">a double-edged sword</text>
 <text x="64" y="239" class="body muted">The same technology can support thinking — or replace it.</text>
-<circle cx="1282" cy="143" r="63" fill="#edf5ff" stroke="#2165cf" stroke-width="3"/><path d="M1282 80a63 63 0 0 1 0 126z" fill="#fff4df"/><circle cx="1282" cy="143" r="53" fill="none" stroke="#97b4d7" stroke-width="2" stroke-dasharray="3 6"/><path d="M1245 143h24m-12-12v24m25-60v96m14-48h24" stroke="#285b91" stroke-width="4" stroke-linecap="round"/>
+<g transform="translate(1282 143) rotate(35)"><path d="M0-69 17-39 12 28H-12L-17-39Z" fill="#edf5ff" stroke="#2165cf" stroke-width="3"/><path d="M0-58V28" stroke="#97b4d7" stroke-width="2"/><path d="M-31 29H31" stroke="#173f78" stroke-width="8" stroke-linecap="round"/><rect x="-7" y="34" width="14" height="35" rx="4" fill="#173f78"/><circle cy="73" r="9" fill="#2165cf"/></g>
 <rect x="64" y="279" width="640" height="652" rx="24" fill="#f1f7ff" stroke="#cfdef1"/>
 <rect x="736" y="279" width="640" height="652" rx="24" fill="#fff9ef" stroke="#e9d9bc"/>
 <text x="96" y="325" class="kicker blue">THE OPPORTUNITY</text>
