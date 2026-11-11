@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1250" viewBox="0 0 1440 1250" role="img" aria-labelledby="title desc"><title id="title">AI for learning: two sides of the coin</title><desc id="desc">Effective use: a purpose-built physics tutor supported larger immediate learning gains in a university trial. Risk: outsourcing homework thinking can replace practice. In a high-school maths trial, unguarded GPT-4 improved assisted practice but led to 17 percent lower subsequent unaided scores. That study tested practice, not homework directly. Guidance and independent checks matter.</desc><defs><style>text{font-family:Arial,Helvetica,sans-serif;fill:#16365b}.kicker{font-size:18px;font-weight:700;letter-spacing:1.8px}.title{font-size:56px;font-weight:700;letter-spacing:-1.3px}.heading{font-size:35px;font-weight:700}.body{font-size:25px}.small{font-size:21px;fill:#526b87}.label{font-size:19px;font-weight:700}.white{fill:#fff}.blue{fill:#2165cf}.amber{fill:#855315}.muted{fill:#526b87}</style></defs><rect width="1440" height="1250" fill="#fff"/><rect width="1440" height="12" fill="#2165cf"/>
+<text x="64" y="61" class="kicker blue">IP SCIENCE EXPERIMENTS WITH AI</text>
+<text x="64" y="132" class="title">AI for learning:</text>
+<text x="64" y="195" class="title">two sides of the coin</text>
+<text x="64" y="239" class="body muted">The same technology can support thinking — or replace it.</text>
+<circle cx="1282" cy="143" r="63" fill="#edf5ff" stroke="#2165cf" stroke-width="3"/><path d="M1282 80a63 63 0 0 1 0 126z" fill="#fff4df"/><circle cx="1282" cy="143" r="53" fill="none" stroke="#97b4d7" stroke-width="2" stroke-dasharray="3 6"/><path d="M1245 143h24m-12-12v24m25-60v96m14-48h24" stroke="#285b91" stroke-width="4" stroke-linecap="round"/>
+<rect x="64" y="279" width="640" height="652" rx="24" fill="#f1f7ff" stroke="#cfdef1"/>
+<rect x="736" y="279" width="640" height="652" rx="24" fill="#fff9ef" stroke="#e9d9bc"/>
+<text x="96" y="325" class="kicker blue">THE OPPORTUNITY</text>
+<text x="768" y="325" class="kicker amber">THE RISK</text>
+<text x="96" y="390" class="heading">Effective chatbot-</text>
+<text x="96" y="433" class="heading">supported learning</text>
+<text x="768" y="390" class="heading">Using AI to do the</text>
+<text x="768" y="433" class="heading">homework thinking</text>
+<circle cx="101" cy="487" r="4" fill="#2165cf"/>
+<text x="119" y="495" class="body">Attempt the task before asking</text>
+<circle cx="101" cy="529" r="4" fill="#2165cf"/>
+<text x="119" y="537" class="body">Use hints and timely feedback</text>
+<circle cx="101" cy="571" r="4" fill="#2165cf"/>
+<text x="119" y="579" class="body">Explain, check and revise</text>
+<circle cx="773" cy="487" r="4" fill="#a66b1b"/>
+<text x="791" y="495" class="body">Copy completed solutions</text>
+<circle cx="773" cy="529" r="4" fill="#a66b1b"/>
+<text x="791" y="537" class="body">Skip the steps and reasoning</text>
+<circle cx="773" cy="571" r="4" fill="#a66b1b"/>
+<text x="791" y="579" class="body">Mistake finished work for learning</text>
+<rect x="96" y="612" width="576" height="62" rx="12" fill="#fff" stroke="#cfdef1"/>
+<text x="117" y="650" class="label blue">Attempt → Hint → Explain → Retry</text>
+<rect x="768" y="612" width="576" height="62" rx="12" fill="#fff" stroke="#e9d9bc"/>
+<text x="789" y="650" class="label amber">Prompt → Copy → Submit</text>
+<text x="96" y="721" class="kicker blue">EVIDENCE [1]</text>
+<text x="96" y="761" class="small">A purpose-built physics tutor produced</text>
+<text x="96" y="792" class="small">larger immediate learning gains than</text>
+<text x="96" y="823" class="small">in-class active learning.</text>
+<text x="96" y="877" class="small">Limit: two lessons in one university course.</text>
+<text x="768" y="721" class="kicker amber">EVIDENCE [2]</text>
+<text x="768" y="789" class="title amber">−17%</text>
+<text x="980" y="765" class="body">on a later unaided</text>
+<text x="980" y="797" class="body">maths test</text>
+<text x="768" y="834" class="small">Unguarded GPT-4 versus the control group.</text>
+<text x="768" y="877" class="small">High-school maths practice, not homework</text>
+<text x="768" y="906" class="small">directly. A hint-based tutor avoided the drop.</text>
+<rect x="64" y="962" width="1312" height="139" rx="22" fill="#173f78"/>
+<text x="96" y="1005" class="kicker white">DESIGN FOR LEARNING, THEN CHECK INDEPENDENTLY</text>
+<text x="96" y="1044" class="body white">Ask for reasoning. Use hints before answers. Check what students can do without AI.</text>
+<text x="96" y="1078" class="small white">These findings do not prove that every chatbot helps, or that all AI homework use harms learning.</text>
+<text x="64" y="1144" class="label">Research synthesis • 11 November 2026 • Context and design matter</text>
+<text x="64" y="1180" class="small">[1] Kestin et al. (2025), Scientific Reports  |  [2] Bastani et al. (2025), PNAS</text>
+<text x="64" y="1214" class="small">Full references and accessible text accompany this infographic.</text>
+</svg>
