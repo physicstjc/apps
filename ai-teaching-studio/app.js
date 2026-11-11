@@ -100,3 +100,12 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  if(b.id==='download')download();if(b.id==='print-plan')window.print();
 });
 window.addEventListener('hashchange',()=>{render();window.scrollTo(0,0);$('#main').focus({preventScroll:true})});render();
+
+// Keep the welcome dialog outside route rendering so changing steps never reopens it.
+const rationaleDialog=document.querySelector('#rationale-dialog');
+let rationaleReturnFocus=null;
+function openRationale(){rationaleReturnFocus=document.activeElement;if(!rationaleDialog.open){rationaleDialog.showModal();document.querySelector('#rationale-title').focus({preventScroll:true});rationaleDialog.scrollTop=0}}
+document.querySelector('#open-rationale').addEventListener('click',openRationale);
+for(const id of ['close-rationale','start-exploring'])document.getElementById(id).addEventListener('click',()=>rationaleDialog.close());
+rationaleDialog.addEventListener('close',()=>{const target=rationaleReturnFocus&&rationaleReturnFocus!==document.body?rationaleReturnFocus:document.querySelector('#open-rationale');target.focus()});
+openRationale();

@@ -74,3 +74,18 @@ body .activity-navigation{display:flex;justify-content:space-between;gap:16px;bo
 @media(max-width:600px){.flow-steps{gap:8px}.flow-steps li{font-size:13px;gap:6px;align-items:flex-start}.flow-steps span{width:22px;height:22px}.activity-navigation .btn{font-size:14px;padding:12px}.journey-cards li{padding:18px;gap:16px}body .simple-hero h1{letter-spacing:-1px}}
 
 body .brand{white-space:normal;line-height:1.4;max-width:370px;font-size:14px;letter-spacing:0}body .brand b{font-size:14px;letter-spacing:0}@media(max-width:600px){body .brand{font-size:13px;max-width:260px}body .brand b{font-size:13px}}
+
+/* Arrival rationale: native dialog supplies focus containment and Escape support. */
+body .rationale-trigger{border:1px solid var(--line);background:#fff;color:var(--green);border-radius:9px;padding:8px 13px;font-size:14px;white-space:nowrap}
+.rationale-dialog{width:min(720px,calc(100% - 28px));max-height:calc(100dvh - 40px);padding:0;border:1px solid var(--line);border-radius:20px;color:var(--ink);background:#fff;box-shadow:0 28px 100px #00000038;overflow:auto;overscroll-behavior:contain}
+.rationale-dialog::backdrop{background:#151c2480;backdrop-filter:blur(5px)}body:has(.rationale-dialog[open]){overflow:hidden}
+.rationale-top{display:flex;align-items:center;justify-content:space-between;padding:18px 28px 0;gap:16px}.rationale-top .card-kicker{margin:0}.modal-close{border:1px solid var(--line);background:#fff;color:var(--muted);width:36px;height:36px;border-radius:50%;font-size:25px;line-height:1}
+.rationale-content{padding:12px 28px 0}.rationale-content h2{font-size:32px;letter-spacing:-1px;margin-bottom:16px}.rationale-content>p{font-size:17px;line-height:1.6;color:var(--muted)}
+.rationale-reasons{list-style:none;padding:0;counter-reset:rationale;margin:22px 0}.rationale-reasons li{position:relative;padding:0 0 18px 40px;counter-increment:rationale}.rationale-reasons li:before{content:counter(rationale);position:absolute;left:0;top:0;display:grid;place-items:center;width:27px;height:27px;background:var(--soft);color:var(--green);border-radius:50%;font-weight:700;font-size:14px}.rationale-reasons b{display:block;font-size:17px;margin-bottom:4px}.rationale-reasons span{display:block;font-size:16px;line-height:1.6;color:var(--muted)}
+body .article-context{position:static;inset:auto;display:block;width:100%;max-width:none;margin:0 0 20px;padding:18px 20px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}.article-context h3{font-size:17px;margin-bottom:12px}.article-context blockquote{margin:8px 0;font-size:17px;font-weight:500;line-height:1.5}.article-context p{font-size:13px;color:var(--muted);margin:12px 0 0}
+.approved-apps>a{font-weight:700;font-size:16px}.approved-apps p{font-size:14px;color:var(--muted);line-height:1.6;margin:7px 0 20px}
+.rationale-bottom{padding:20px 28px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:18px;background:#fff}.rationale-bottom span{font-size:12px;color:var(--muted);max-width:230px}.rationale-bottom .btn{white-space:nowrap}
+@media(max-width:600px){.rationale-dialog{max-height:calc(100dvh - 24px);border-radius:15px}.rationale-top{padding:16px 20px 0}.rationale-content{padding:12px 20px 0}.rationale-content h2{font-size:27px}.rationale-bottom{padding:18px 20px;flex-direction:column;align-items:stretch;gap:10px}.rationale-bottom span{max-width:none;text-align:center}body .rationale-trigger{font-size:12px;padding:8px 10px}}
+@media print{.rationale-dialog,.rationale-trigger{display:none!important}}
+
+#rationale-title:focus{outline:none}.rationale-bottom{position:sticky;bottom:0}.rationale-top{position:sticky;top:0;background:#fff;z-index:1;padding-bottom:10px}
