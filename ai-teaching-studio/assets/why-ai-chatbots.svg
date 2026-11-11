@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1220" viewBox="0 0 1440 1220" role="img" aria-labelledby="title desc"><title id="title">Why use AI chatbots in science teaching?</title><desc id="desc">Two practical motivations: personalised help for learners and more time for teachers. Kestin et al. found larger immediate learning gains with a designed physics tutor in two university lessons. An EEF trial found 31 percent less planning time with guided ChatGPT use for Year 7 and 8 science. Both require teacher judgement and independent learning checks.</desc><defs><style>text{font-family:Arial,Helvetica,sans-serif;fill:#16365b}.kicker{font-size:19px;font-weight:700;letter-spacing:2px}.title{font-size:56px;font-weight:700;letter-spacing:-1.5px}.heading{font-size:35px;font-weight:700}.body{font-size:25px}.small{font-size:21px;fill:#526b87}.label{font-size:19px;font-weight:700}.white{fill:#fff}.blue{fill:#2165cf}.muted{fill:#526b87}</style></defs><rect width="1440" height="1220" fill="#fff"/><rect x="0" y="0" width="1440" height="12" fill="#2165cf"/>
+<text x="64" y="64" class="kicker blue">IP SCIENCE EXPERIMENTS WITH AI</text>
+<text x="64" y="137" class="title">Why use AI chatbots?</text>
+<text x="64" y="183" class="body muted">Two practical motivations for teaching — with evidence and limits.</text>
+<rect x="64" y="222" width="640" height="656" rx="24" fill="#f3f8ff" stroke="#d6e4f5"/>
+<rect x="92" y="250" width="54" height="42" rx="12" fill="#2165cf"/>
+<text x="103" y="279" class="label white">01</text>
+<text x="162" y="279" class="kicker blue">FOR LEARNERS</text>
+<rect x="736" y="222" width="640" height="656" rx="24" fill="#f3f8ff" stroke="#d6e4f5"/>
+<rect x="764" y="250" width="54" height="42" rx="12" fill="#2165cf"/>
+<text x="775" y="279" class="label white">02</text>
+<text x="834" y="279" class="kicker blue">FOR TEACHERS</text>
+<g fill="none" stroke="#2165cf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M600 254h62v42h-22l-16 14v-14h-24z"/><path d="M613 269h36m-36 12h22"/><circle cx="1321" cy="277" r="25"/><path d="M1321 262v16l11 8"/></g>
+<text x="96" y="349" class="heading">Personalised help</text>
+<text x="96" y="392" class="heading">while learning</text>
+<text x="768" y="349" class="heading">More time for</text>
+<text x="768" y="392" class="heading">teaching</text>
+<circle cx="101" cy="444" r="4" fill="#2165cf"/>
+<text x="119" y="452" class="body">Hints when learners get stuck</text>
+<circle cx="101" cy="487" r="4" fill="#2165cf"/>
+<text x="119" y="495" class="body">Feedback during practice</text>
+<circle cx="101" cy="530" r="4" fill="#2165cf"/>
+<text x="119" y="538" class="body">More chances to explain and revise</text>
+<circle cx="773" cy="444" r="4" fill="#2165cf"/>
+<text x="791" y="452" class="body">Draft questions and adapt materials</text>
+<circle cx="773" cy="487" r="4" fill="#2165cf"/>
+<text x="791" y="495" class="body">Reduce routine preparation</text>
+<circle cx="773" cy="530" r="4" fill="#2165cf"/>
+<text x="791" y="538" class="body">Teachers check and decide</text>
+<rect x="96" y="577" width="576" height="62" rx="12" fill="#fff" stroke="#d6e4f5"/>
+<text x="117" y="616" class="label blue">Attempt → Hint → Explain → Retry</text>
+<rect x="768" y="577" width="576" height="62" rx="12" fill="#fff" stroke="#d6e4f5"/>
+<text x="787" y="616" class="label blue">AI draft → Teacher review → Resource</text>
+<text x="96" y="688" class="kicker blue">EVIDENCE SIGNAL [1]</text>
+<text x="96" y="727" class="small">Larger immediate physics learning gains</text>
+<text x="96" y="757" class="small">with a purpose-built AI tutor than with</text>
+<text x="96" y="787" class="small">in-class active learning.</text>
+<text x="96" y="833" class="small">Limit: two lessons in one university course.</text>
+<text x="768" y="688" class="kicker blue">EVIDENCE SIGNAL [2]</text>
+<text x="768" y="751" class="title blue">31%</text>
+<text x="938" y="741" class="body">less planning time</text>
+<text x="938" y="772" class="small">with guided ChatGPT use</text>
+<text x="768" y="812" class="small">Limit: Year 7–8 science preparation;</text>
+<text x="768" y="842" class="small">not a test of student learning gains.</text>
+<rect x="64" y="911" width="1312" height="147" rx="22" fill="#173f78"/>
+<text x="96" y="955" class="kicker white">KEEP THE THINKING WITH STUDENTS [3]</text>
+<text x="96" y="996" class="body white">Use hints, teacher review and independent checks. Better assisted work is not proof of learning.</text>
+<text x="96" y="1032" class="small white">These studies do not establish that Edcafe or Snorkl is superior.</text>
+<text x="64" y="1100" class="label">Research synthesis • 11 November 2026 • Motivations, not guarantees</text>
+<text x="64" y="1135" class="small">[1] Kestin et al. (2025), Scientific Reports  |  [2] EEF / NFER (2024), Teacher Choices trial</text>
+<text x="64" y="1168" class="small">[3] Bastani et al. (2025), PNAS  |  Full references and accessible summary accompany this graphic.</text>
+</svg>
