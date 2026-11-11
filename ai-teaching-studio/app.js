@@ -65,26 +65,28 @@ function toolResources(tool){const t=toolPages[tool];return `${head(t.title+' / 
 function liveEdcafe(){return `${head('Edcafe / Live chatbot','IP2 Green Science AA','Try the chatbot below. Use the microphone if you prefer to speak.')}<section class="card live-chatbot"><iframe src="https://app.edcafe.ai/join/2eBkNsFkv_J16tMCVdQXvOHVTtf5GmO8z9u393wfyXxHpgd2f8lnLTxXfDD9F8y7" title="IP2 Green Science AA" allow="microphone" style="border: none; width: 100%; height: 100%; min-height: 600px;"></iframe></section><p class="screenshot-note">Live chat is hosted by Edcafe. <a href="https://app.edcafe.ai/join/2eBkNsFkv_J16tMCVdQXvOHVTtf5GmO8z9u393wfyXxHpgd2f8lnLTxXfDD9F8y7" target="_blank" rel="noopener">Open in a new tab ↗</a></p>`}
 function liveSnorkl(){return `${head('Snorkl / Live activity','Try Snorkl','Open the activity in a new tab, then return here for Quick start.')}<section class="card"><h2>Draw, explain and get feedback</h2><p>Record your explanation, read the feedback and improve your response.</p><a class="btn" href="https://student.snorkl.app/3d6f1c" target="_blank" rel="noopener">Open Snorkl in a new tab ↗</a><p class="screenshot-note">Keep this page open to continue to the next step.</p></section>`}
 
+function introPage(){return `${head('Start here','Before we begin.','Why we are exploring AI tools for science learning.')}<section class="card intro-page">${document.querySelector('#intro-content').innerHTML}</section><nav class="activity-navigation" aria-label="Introduction navigation"><a class="btn" href="#picrat">Next: PIC-RAT activity →</a><a class="intro-skip" href="#edcafe">Go to Edcafe</a></nav>`}
 function render(){
- let route=location.hash.slice(1)||'edcafe';
- const legacy={overview:'edcafe',compare:'edcafe/compare',plan:'edcafe/plan',sources:'edcafe/resources'};
+ let route=location.hash.slice(1)||'intro';
+ const legacy={overview:'intro',compare:'edcafe/compare',plan:'edcafe/plan',sources:'edcafe/resources'};
  route=legacy[route]||route;
  let [tool,sub]=route.split('/');
- if(!toolPages[tool]){tool='edcafe';sub=''}
- if(sub&&!toolPages[tool].cards.some(c=>c[0]===sub))sub='';
- document.body.dataset.tool=tool;
- const t=toolPages[tool],label=sub?t.cards.find(c=>c[0]===sub)[1]:t.title;
- $('#nav').innerHTML=Object.entries(toolPages).map(([key,value],i)=>`<a href="#${key}" ${key===tool?'class="active" aria-current="page"':''}><span class="num">${i===0?'✳':'≋'}</span>${value.title}</a>`).join('');
- $('#crumb').textContent=sub?`${t.title} / ${label}`:t.title;
- const content=!sub?toolHome(tool):sub==='chatbot'?liveEdcafe():sub==='activity'?liveSnorkl():sub==='lab'?(tool==='edcafe'?edcafe():snorkl()):sub==='compare'?compare():sub==='plan'?plan():toolResources(tool);
- $('#main').innerHTML=(sub?flowHeader(tool,sub):'')+content+(sub?flowNavigation(tool,sub):'');
- $('#main').querySelectorAll('a[href^="#"]').forEach(a=>{const key=a.getAttribute('href').slice(1);if(['overview','edcafe','snorkl','compare','plan','sources'].includes(key))a.href='#'+({overview:tool,edcafe:'edcafe/lab',snorkl:'snorkl/lab',compare:'edcafe/compare',plan:tool+'/plan',sources:tool+'/resources'}[key])});
- const footerLink=document.querySelector('footer a');footerLink.href='#'+tool+'/resources';footerLink.textContent=t.title+' resources ↗';
+ const general=tool==='intro'||tool==='picrat';
+ if(!general&&!toolPages[tool]){tool='intro';sub=''}
+ if(toolPages[tool]&&sub&&!toolPages[tool].cards.some(c=>c[0]===sub))sub='';
+ const isGeneral=tool==='intro'||tool==='picrat';
+ document.body.dataset.tool=isGeneral?'intro':tool;
+ const t=toolPages[tool],label=isGeneral?(tool==='intro'?'Before we begin':'PIC-RAT'):sub?t.cards.find(c=>c[0]===sub)[1]:t.title;
+ $('#nav').innerHTML=[['intro','Before we begin'],['picrat','PIC-RAT'],['edcafe','Edcafe'],['snorkl','Snorkl']].map(([key,title])=>`<a href="#${key}" ${key===tool?'class="active" aria-current="page"':''}>${title}</a>`).join('');
+ $('#crumb').textContent=!isGeneral&&sub?`${t.title} / ${label}`:label;
+ const content=tool==='intro'?introPage():tool==='picrat'?picratPage():!sub?toolHome(tool):sub==='chatbot'?liveEdcafe():sub==='activity'?liveSnorkl():sub==='lab'?(tool==='edcafe'?edcafe():snorkl()):sub==='compare'?compare():sub==='plan'?plan():toolResources(tool);
+ $('#main').innerHTML=(!isGeneral&&sub?flowHeader(tool,sub):'')+content+(!isGeneral&&sub?flowNavigation(tool,sub):'');
+ if(!isGeneral)$('#main').querySelectorAll('a[href^="#"]').forEach(a=>{const key=a.getAttribute('href').slice(1);if(['overview','edcafe','snorkl','compare','plan','sources'].includes(key))a.href='#'+({overview:tool,edcafe:'edcafe/lab',snorkl:'snorkl/lab',compare:'edcafe/compare',plan:tool+'/plan',sources:tool+'/resources'}[key])});
+ const footerLink=document.querySelector('footer a');footerLink.href=isGeneral?'#intro':'#'+tool+'/resources';footerLink.textContent=isGeneral?'Before we begin':t.title+' resources ↗';
  progress();
  if(sub==='lab'&&tool==='edcafe'&&$('#prompt'))$('#prompt').textContent=promptText();
- 
- if(sub==='plan')$('#takeaways').textContent=`${state.done.filter(x=>['edcafe','compare','snorkl','plan'].includes(x)).length} of 4 activities marked complete. ${Object.keys(state.quiz).filter(k=>k.startsWith('snorkl')).length} of 3 feedback cases considered. Your next step is a small, reviewed classroom trial.`;
- document.title=`${sub?label+' · ':''}${t.title} · IP Science Experiments with AI`;
+ if(tool==='picrat')initPicrat();
+ document.title=`${!isGeneral&&sub?label+' · ':''}${isGeneral?label:t.title} · IP Science Experiments with AI`;
 }
 
 document.addEventListener('input',e=>{if(e.target.dataset.draft){state.draft[e.target.dataset.draft]=e.target.value;save()}});
@@ -104,14 +106,5 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  if(b.id==='download')download();if(b.id==='print-plan')window.print();
 });
 window.addEventListener('hashchange',()=>{render();window.scrollTo(0,0);$('#main').focus({preventScroll:true})});render();
-
-// Keep the welcome dialog outside route rendering so changing steps never reopens it.
-const rationaleDialog=document.querySelector('#rationale-dialog');
-let rationaleReturnFocus=null;
-function openRationale(){rationaleReturnFocus=document.activeElement;if(!rationaleDialog.open){rationaleDialog.showModal();document.querySelector('#rationale-title').focus({preventScroll:true});rationaleDialog.scrollTop=0}}
-document.querySelector('#open-rationale').addEventListener('click',openRationale);
-for(const id of ['close-rationale','start-exploring'])document.getElementById(id).addEventListener('click',()=>rationaleDialog.close());
-rationaleDialog.addEventListener('close',()=>{const target=rationaleReturnFocus&&rationaleReturnFocus!==document.body?rationaleReturnFocus:document.querySelector('#open-rationale');target.focus()});
-openRationale();
 
 document.addEventListener('keydown',event=>{const carousel=event.target.closest('.controls-carousel');if(!carousel||!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();moveControlSlide(carousel,event.key==='ArrowRight'?1:-1)});
