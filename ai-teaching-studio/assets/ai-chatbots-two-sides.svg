@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1250" viewBox="0 0 1440 1250" role="img" aria-labelledby="title desc"><title id="title">AI for learning: a double-edged sword</title><desc id="desc">Effective use: a purpose-built physics tutor supported larger immediate learning gains in a university trial. Risk: outsourcing homework thinking can replace practice. In a high-school maths trial, unguarded GPT-4 improved assisted practice but led to 17 percent lower subsequent unaided scores. That study tested practice, not homework directly. Guidance and independent checks matter.</desc><defs><style>text{font-family:Arial,Helvetica,sans-serif;fill:#16365b}.kicker{font-size:18px;font-weight:700;letter-spacing:1.8px}.title{font-size:56px;font-weight:700;letter-spacing:-1.3px}.heading{font-size:35px;font-weight:700}.body{font-size:25px}.small{font-size:21px;fill:#526b87}.label{font-size:19px;font-weight:700}.white{fill:#fff}.blue{fill:#2165cf}.amber{fill:#855315}.muted{fill:#526b87}</style></defs><rect width="1440" height="1250" fill="#fff"/><rect width="1440" height="12" fill="#2165cf"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1530" viewBox="0 0 1440 1530" role="img" aria-labelledby="title desc"><title id="title">AI for learning: a double-edged sword</title><desc id="desc">Laun and Wolff’s 2025 meta-analysis of 62 studies found a small to moderate learning benefit after adjusting for publication bias. Stronger effects occurred with text-based chatbots, STEM subjects, longer interventions and lower educational levels. Effective use: a purpose-built physics tutor supported larger immediate learning gains in a university trial. Risk: outsourcing homework thinking can replace practice. In a high-school maths trial, unguarded GPT-4 improved assisted practice but led to 17 percent lower subsequent unaided scores. That study tested practice, not homework directly. Guidance and independent checks matter.</desc><defs><style>text{font-family:Arial,Helvetica,sans-serif;fill:#16365b}.kicker{font-size:18px;font-weight:700;letter-spacing:1.8px}.title{font-size:56px;font-weight:700;letter-spacing:-1.3px}.heading{font-size:35px;font-weight:700}.body{font-size:25px}.small{font-size:21px;fill:#526b87}.label{font-size:19px;font-weight:700}.white{fill:#fff}.blue{fill:#2165cf}.amber{fill:#855315}.muted{fill:#526b87}</style></defs><rect width="1440" height="1530" fill="#fff"/><rect width="1440" height="12" fill="#2165cf"/>
 <text x="64" y="61" class="kicker blue">IP SCIENCE EXPERIMENTS WITH AI</text>
 <text x="64" y="132" class="title">AI for learning:</text>
 <text x="64" y="195" class="title">a double-edged sword</text>
@@ -40,11 +40,17 @@
 <text x="768" y="834" class="small">Unguarded GPT-4 versus the control group.</text>
 <text x="768" y="877" class="small">High-school maths practice, not homework</text>
 <text x="768" y="906" class="small">directly. A hint-based tutor avoided the drop.</text>
-<rect x="64" y="962" width="1312" height="139" rx="22" fill="#173f78"/>
+<rect x="64" y="962" width="1312" height="248" rx="22" fill="#f1f7ff" stroke="#cfdef1"/>
+<text x="96" y="1005" class="kicker blue">THE WIDER EVIDENCE · 62 STUDIES [3]</text>
+<text x="96" y="1050" class="heading">A small to moderate learning benefit</text>
+<text x="96" y="1090" class="body">Laun &amp; Wolff (2025): the positive effect remained after adjusting for publication bias.</text>
+<text x="96" y="1128" class="small">Stronger effects: text-based chatbots · STEM · longer interventions · lower educational levels.</text>
+<text x="96" y="1166" class="small">Supports targeted use; does not establish the effectiveness of Edcafe or Snorkl specifically.</text>
+<g transform="translate(0 280)"><rect x="64" y="962" width="1312" height="139" rx="22" fill="#173f78"/>
 <text x="96" y="1005" class="kicker white">DESIGN FOR LEARNING, THEN CHECK INDEPENDENTLY</text>
 <text x="96" y="1044" class="body white">Ask for reasoning. Use hints before answers. Check what students can do without AI.</text>
 <text x="96" y="1078" class="small white">These findings do not prove that every chatbot helps, or that all AI homework use harms learning.</text>
-<text x="64" y="1144" class="label">Research synthesis • 11 November 2026 • Context and design matter</text>
+<text x="64" y="1144" class="label">Research synthesis • 12 November 2026 • Context and design matter</text>
 <text x="64" y="1180" class="small">[1] Kestin et al. (2025), Scientific Reports  |  [2] Bastani et al. (2025), PNAS</text>
-<text x="64" y="1214" class="small">Full references and accessible text accompany this infographic.</text>
-</svg>
+<text x="64" y="1214" class="small">[3] Laun &amp; Wolff (2025), Learning and Individual Differences · doi:10.1016/j.lindif.2025.102646</text>
+</g></svg>
